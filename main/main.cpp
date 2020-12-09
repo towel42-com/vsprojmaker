@@ -28,7 +28,7 @@
 
 int main( int argc, char ** argv )
 {
-	QApplication appl(argc, argv);
+    QApplication appl( argc, argv );
     appl.setApplicationName( "VSProjectMaker" );
     appl.setApplicationVersion( "0.9" );
     appl.setOrganizationName( "Scott Aron Bloom" );

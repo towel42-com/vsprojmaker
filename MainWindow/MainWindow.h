@@ -24,19 +24,72 @@
 #define _MAINWINDOW_H
 
 #include <QDialog>
+#include <QDir>
 #include <memory>
+#include <optional>
+#include <QHash>
+#include <tuple>
+#include <QSet>
+#include <functional>
+
+class QTextStream;
+class QStandardItemModel;
+class QStandardItem;
+class QStringListModel;
+class QProgressDialog;
+
 namespace Ui {class CMainWindow;};
+
+struct SDirInfo
+{
+    SDirInfo() {}
+    SDirInfo( QStandardItem * item );
+    bool isValid() const;
+    void writeCMakeFile( const QString & bldDir ) const;
+
+    void addDependencies( QTextStream & qts ) const;
+    void replaceFiles( QString & text, const QString & variable, const QStringList & files ) const;
+    void computeRelToDir( QStandardItem * item );
+
+    QString fRelToDir;
+    QString fProjectName;
+    bool fIsInclDir{ false };
+    bool fIsBuildDir{ false };
+    QList< QPair< QString, bool > > fExecutables;
+
+    QStringList fSourceFiles;
+    QStringList fHeaderFiles;
+    QStringList fUIFiles;
+    QStringList fQRCFiles;
+    QStringList fOtherFiles;
+
+    void getFiles( QStandardItem * parent );
+    void addFile( const QString & path );
+};
 
 class CMainWindow : public QDialog
 {
     Q_OBJECT
 public:
+    enum ERoles
+    {
+        eIsDirRole = Qt::UserRole + 1,
+        eIsBuildDir,
+        eExecutables,
+        eIsIncludeDir,
+        eRelPath
+    };
+
     CMainWindow(QWidget *parent = 0);
     ~CMainWindow();
+
+    static QString readResourceFile( QWidget * parent, const QString & resourceFile, const std::function< void( QString & data ) > & function = {} );
+
 public Q_SLOTS:
     void slotChanged();
     void slotCMakeChanged();
 
+    void slotLoadSource();
     void slotSelectCMake();
     void slotSelectSourceDir();
     void slotSelectDestDir();
@@ -45,6 +98,30 @@ public Q_SLOTS:
 private:
     void loadSettings();
     void saveSettings();
+    struct SSourceFileInfo
+    {
+        int fDirs{ 0 };
+        int fFiles{ 0 };
+        int fBuildDirs{ 0 };
+        int fInclDirs{ 0 };
+        int fExecutables{ 0 };
+        QString getText() const;
+    };
+    std::list< SDirInfo > getDirInfo( QStandardItem * parent, QProgressDialog * progress ) const;
+
+    bool loadSourceFiles( const QString & dir, QStandardItem * parent, QProgressDialog * progress, SSourceFileInfo & results );
+    void incProgress( QProgressDialog * progress ) const;
+    bool isBuildDir( const QDir & dir ) const;
+    bool isInclDir( const QDir & dir ) const;
+    QList< QPair< QString, bool > > getExecutables( const QDir & dir ) const;
+    std::tuple< QSet< QString >, QSet< QString >, QHash< QString, QList< QPair< QString, bool > > > > findDirAttributes( QStandardItem * parent ) const;
+
+    QSet< QString > fBuildDirs;
+    QSet< QString > fInclDirs;
+    QHash< QString, QList< QPair< QString, bool > > > fExecutables;
+
+    std::optional< QDir > fSourceDir;
+    QStandardItemModel * fSourceModel{ nullptr };
     std::unique_ptr< Ui::CMainWindow > fImpl;
 };
 

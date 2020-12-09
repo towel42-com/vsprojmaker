@@ -1,5 +1,9 @@
 <RCC>
     <qresource prefix="/">
         <file>resources/application.png</file>
+        <file>resources/topdir.txt</file>
+        <file>resources/Project.cmake</file>
+        <file>resources/subbuilddir.txt</file>
+        <file>resources/subheaderdir.txt</file>
     </qresource>
 </RCC>
