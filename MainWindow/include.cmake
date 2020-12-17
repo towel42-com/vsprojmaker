@@ -22,10 +22,12 @@
 
 set(qtproject_SRCS
     MainWindow.cpp
+    SetupDebug.cpp
 )
 
 set(qtproject_H
     MainWindow.h
+    SetupDebug.h
 )
 
 set(project_H
@@ -33,6 +35,7 @@ set(project_H
 
 set(qtproject_UIS
     MainWindow.ui
+    SetupDebug.ui
 )
 
 set(qtproject_QRC

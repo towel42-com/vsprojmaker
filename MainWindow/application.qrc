@@ -5,5 +5,9 @@
         <file>resources/Project.cmake</file>
         <file>resources/subbuilddir.txt</file>
         <file>resources/subheaderdir.txt</file>
+        <file>resources/PropertySheetIncludes.props</file>
+        <file>resources/custombuilddir.txt</file>
+        <file>resources/subdebugdir.txt</file>
+        <file>resources/PropertySheetWithDebug.props</file>
     </qresource>
 </RCC>

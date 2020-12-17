@@ -31,14 +31,29 @@
 #include <tuple>
 #include <QSet>
 #include <functional>
-
+#include <tuple>
+#include <QProcess>
 class QTextStream;
 class QStandardItemModel;
 class QStandardItem;
 class QStringListModel;
 class QProgressDialog;
-
+class QProcess;
+class CCheckableStringListModel;
 namespace Ui {class CMainWindow;};
+
+struct SDebugCmd
+{
+    QString fSourceDir;
+    QString fName;
+    QString fCmd;
+    QString fArgs;
+    QString fWorkDir;
+    QString fEnvVars;
+
+    QString getEnvVars() const;
+    QString getProjectName() const;
+};
 
 struct SDirInfo
 {
@@ -46,9 +61,12 @@ struct SDirInfo
     SDirInfo( QStandardItem * item );
     bool isValid() const;
     void writeCMakeFile( const QString & bldDir ) const;
+    void writePropSheet( const QString & srcDir, const QString & bldDir, const QString & includeDirs ) const;
+    void createDebugProjects( const QString & bldDir ) const;
 
-    void addDependencies( QTextStream & qts ) const;
+    QStringList getSubDirs() const;
     void replaceFiles( QString & text, const QString & variable, const QStringList & files ) const;
+    void addDependencies( QTextStream & qts ) const;
     void computeRelToDir( QStandardItem * item );
 
     QString fRelToDir;
@@ -62,6 +80,9 @@ struct SDirInfo
     QStringList fUIFiles;
     QStringList fQRCFiles;
     QStringList fOtherFiles;
+
+    QStringList fExtraTargets;
+    QList<SDebugCmd> fDebugCommands;
 
     void getFiles( QStandardItem * parent );
     void addFile( const QString & path );
@@ -87,42 +108,77 @@ public:
 
 public Q_SLOTS:
     void slotChanged();
+    void slotQtChanged();
     void slotCMakeChanged();
 
     void slotLoadSource();
+
+    bool expandDirectories( QStandardItem * rootNode );
+
     void slotSelectCMake();
     void slotSelectSourceDir();
+    void slotSelectQtDir();
     void slotSelectDestDir();
+    void slotAddIncDir();
+    void slotAddCustomBuild();
+    void slotAddDebugCommand();
+
+    void addDebugCommand( const QString & sourceDir, const QString & name, const QString & cmd, const QString & args, const QString & workDir, const QString & envVars );
+    void addDebugCommand( const SDebugCmd & dbgCmd );
 
     void slotGenerate();
+
+    void slotReadStdErr();
+    void slotReadStdOut();
+    void slotFinished( int exitCode, QProcess::ExitStatus status );
 private:
+    void addInclDirs( const QStringList & inclDirs );
+    std::list< SDirInfo > generateTopLevelFiles( QProgressDialog * progress );
     void loadSettings();
+    void loadQtSettings();
     void saveSettings();
+    void appendToLog( const QString & txt );
     struct SSourceFileInfo
     {
         int fDirs{ 0 };
         int fFiles{ 0 };
-        int fBuildDirs{ 0 };
-        int fInclDirs{ 0 };
-        int fExecutables{ 0 };
-        QString getText() const;
+        QStringList fBuildDirs;
+        QStringList fInclDirs;
+        QList< QPair< QString, bool > >fExecutables;
+        QStringList fQtLibs;
+        QString getText( bool forText ) const;
     };
     std::list< SDirInfo > getDirInfo( QStandardItem * parent, QProgressDialog * progress ) const;
 
+
+    QList < SDebugCmd > getDebugCommandsForSourceDir( const QString & sourceDir ) const;
+    QList< SDebugCmd > getDebugCommands( bool abs ) const;
+
+    QStringList getCustomBuildsForSourceDir( const QString & sourceDir ) const;
+    QList< QPair< QString, QString > > getCustomBuilds( bool abs ) const;
+    void addCustomBuild( const QPair< QString, QString > & buildInfo );
     bool loadSourceFiles( const QString & dir, QStandardItem * parent, QProgressDialog * progress, SSourceFileInfo & results );
     void incProgress( QProgressDialog * progress ) const;
-    bool isBuildDir( const QDir & dir ) const;
-    bool isInclDir( const QDir & dir ) const;
+    bool isBuildDir( const QDir & relToDir, const QDir & dir ) const;
+    bool isInclDir( const QDir & relToDir, const QDir & dir ) const;
     QList< QPair< QString, bool > > getExecutables( const QDir & dir ) const;
-    std::tuple< QSet< QString >, QSet< QString >, QHash< QString, QList< QPair< QString, bool > > > > findDirAttributes( QStandardItem * parent ) const;
+    std::tuple< QSet< QString >, QHash< QString, QList< QPair< QString, bool > > > > findDirAttributes( QStandardItem * parent ) const;
+    QStringList getCmakeArgs() const;
+    QString getIncludeDirs() const;
 
     QSet< QString > fBuildDirs;
-    QSet< QString > fInclDirs;
+    QStringList fInclDirs;
     QHash< QString, QList< QPair< QString, bool > > > fExecutables;
+    QStringList fQtLibs;
 
     std::optional< QDir > fSourceDir;
     QStandardItemModel * fSourceModel{ nullptr };
+    QStringListModel * fIncDirModel{ nullptr };
+    QStandardItemModel * fCustomBuildModel{ nullptr };
+    QStandardItemModel * fDebugCommandsModel{ nullptr };
+    CCheckableStringListModel * fQtLibsModel{ nullptr };
     std::unique_ptr< Ui::CMainWindow > fImpl;
+    QProcess * fProcess{ nullptr };
 };
 
 #endif // _ALCULATOR_H

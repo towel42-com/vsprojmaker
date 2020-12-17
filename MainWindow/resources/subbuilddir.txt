@@ -59,3 +59,4 @@ add_custom_target( %PROJECT_NAME% ALL
                  COMMENT Building via External Makefile
            )
 
+set_target_properties( %PROJECT_NAME% PROPERTIES VS_USER_PROPS %BUILD_DIR%/%PROPSFILENAME% )
