@@ -1022,6 +1022,7 @@ QString CMainWindow::getIncludeDirs() const
     auto qtDirs = fQtLibsModel->getCheckedStrings();
     auto qtInclDir = QDir( fImpl->qtDir->text() );
     qtInclDir.cd( "include" );
+    retVal << qtInclDir.absolutePath();
     for ( auto && ii : qtDirs )
     {
         retVal << qtInclDir.absoluteFilePath( ii );
@@ -1377,6 +1378,8 @@ void SDirInfo::createDebugProjects( const QString & bldDir ) const
             auto outPath = outDir.absoluteFilePath( fRelToDir );
             text.replace( "%BUILD_DIR%", outPath );
             text.replace( "%DEBUG_COMMAND%", ii.fCmd );
+            text.replace( "%PROPSFILENAME%", "PropertySheetWithDebug.props" );
+            
             QTextStream qts( &fo );
             qts << text;
             qts << "\n\nset_target_properties( " << ii.getProjectName() << " PROPERTIES FOLDER " << "\"Debug Targets\"" << " )\n";
