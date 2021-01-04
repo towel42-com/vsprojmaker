@@ -238,13 +238,15 @@ CMainWindow::CMainWindow( QWidget * parent )
     fImpl->setupUi( this );
     connect( fImpl->cmakePath, &QLineEdit::textChanged, this, &CMainWindow::slotCMakeChanged );
     connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
-    connect( fImpl->sourceDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-    connect( fImpl->destDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+    connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+    connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+    connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
     connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
 
     connect( fImpl->cmakePathBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectCMake );
+    connect( fImpl->clientDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectClientDir );
     connect( fImpl->sourceDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectSourceDir );
-    connect( fImpl->destDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectDestDir );
+    connect( fImpl->buildDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectBuildDir );
     connect( fImpl->qtDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectQtDir );
     connect( fImpl->addIncDirBtn, &QToolButton::clicked, this, &CMainWindow::slotAddIncDir );
     connect( fImpl->addCustomBuildBtn, &QToolButton::clicked, this, &CMainWindow::slotAddCustomBuild );
@@ -272,6 +274,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     fDebugCommandsModel->setHorizontalHeaderLabels( QStringList() << "Source Dir" << "Name" << "Command" << "Args" << "Work Dir" << "EnvVars" );
     fImpl->debugCmds->setModel( fDebugCommandsModel );
 
+    fImpl->clientDir->setFocus();
     QTimer::singleShot( 0, this, &CMainWindow::loadSettings );
     QTimer::singleShot( 0, this, &CMainWindow::loadQtSettings );
 }
@@ -338,7 +341,10 @@ QList < SDebugCmd > CMainWindow::getDebugCommandsForSourceDir( const QString & i
 {
     QList < SDebugCmd > retVal;
 
-    QDir sourceDir( fImpl->sourceDir->text() );
+    auto sourceDirPath = getSourceDir();
+    if ( !sourceDirPath.has_value() )
+        return {};
+    QDir sourceDir( sourceDirPath.value() );
     sourceDir.cdUp();
     for ( int ii = 0; ii < fDebugCommandsModel->rowCount(); ++ii )
     {
@@ -352,6 +358,8 @@ QList < SDebugCmd > CMainWindow::getDebugCommandsForSourceDir( const QString & i
         curr.fWorkDir = fDebugCommandsModel->item( ii, 4 )->text();
         curr.fEnvVars = fDebugCommandsModel->item( ii, 5 )->text();
 
+        curr.cleanUp( this );
+
         if ( curr.fSourceDir == inSourcePath )
         {
             retVal << curr;
@@ -360,11 +368,60 @@ QList < SDebugCmd > CMainWindow::getDebugCommandsForSourceDir( const QString & i
     return retVal;
 }
 
+std::optional< QDir > CMainWindow::getClientDir() const
+{
+    if ( fImpl->clientDir->text().isEmpty() )
+        return {};
+    QDir retVal( fImpl->clientDir->text() );
+    if ( !retVal.exists() )
+        return {};
+    return retVal;
+}
+
+std::optional< QString > CMainWindow::getSourceDir( bool relPath ) const
+{
+    if ( relPath )
+        return fImpl->sourceRelDir->text();
+
+    auto clientDir = getClientDir();
+    if ( !clientDir.has_value() )
+        return {};
+
+    if ( fImpl->sourceRelDir->text().isEmpty() )
+        return {};
+
+    if ( !QFileInfo( clientDir.value().absoluteFilePath( fImpl->sourceRelDir->text() ) ).exists() )
+        return {};
+
+    return clientDir.value().absoluteFilePath( fImpl->sourceRelDir->text() );
+}
+
+std::optional< QString > CMainWindow::getBuildDir( bool relPath ) const
+{
+    if ( relPath )
+        return fImpl->buildRelDir->text();
+
+    auto clientDir = getClientDir();
+    if ( !clientDir.has_value() )
+        return {};
+
+    if ( fImpl->buildRelDir->text().isEmpty() )
+        return {};
+
+    if ( !QFileInfo( clientDir.value().absoluteFilePath( fImpl->buildRelDir->text() ) ).exists() )
+        return {};
+
+    return clientDir.value().absoluteFilePath( fImpl->buildRelDir->text() );
+}
+
 QList < SDebugCmd > CMainWindow::getDebugCommands( bool absDir ) const
 {
     QList < SDebugCmd > retVal;
 
-    QDir sourceDir( fImpl->sourceDir->text() );
+    auto sourceDirPath = getSourceDir();
+    if ( !sourceDirPath.has_value() )
+        return {};
+    QDir sourceDir( sourceDirPath.value() );
     sourceDir.cdUp();
     for ( int ii = 0; ii < fDebugCommandsModel->rowCount(); ++ii )
     {
@@ -385,7 +442,10 @@ QList < SDebugCmd > CMainWindow::getDebugCommands( bool absDir ) const
 
 QStringList CMainWindow::getCustomBuildsForSourceDir( const QString & inSourcePath ) const
 {
-    QDir sourceDir( fImpl->sourceDir->text() );
+    auto sourceDirPath = getSourceDir();
+    if ( !sourceDirPath.has_value() )
+        return {};
+    QDir sourceDir( sourceDirPath.value() );
     sourceDir.cdUp();
     QStringList retVal;
     for ( int ii = 0; ii < fCustomBuildModel->rowCount(); ++ii )
@@ -401,14 +461,17 @@ QList< QPair< QString, QString > > CMainWindow::getCustomBuilds( bool absDir ) c
 {
     QList< QPair< QString, QString > > retVal;
 
-    QDir srcDir( fImpl->sourceDir->text() );
-    srcDir.cdUp();
+    auto sourceDirPath = getSourceDir();
+    if ( !sourceDirPath.has_value() )
+        return {};
+    QDir sourceDir( sourceDirPath.value() );
+    sourceDir.cdUp();
 
     for ( int ii = 0; ii < fCustomBuildModel->rowCount(); ++ii )
     {
         auto dir = fCustomBuildModel->item( ii, 0 )->text();
         if ( absDir )
-            dir = srcDir.absoluteFilePath( dir );
+            dir = sourceDir.absoluteFilePath( dir );
         auto target = fCustomBuildModel->item( ii, 1 )->text();
         retVal << qMakePair( dir, target );
     }
@@ -420,8 +483,11 @@ void CMainWindow::saveSettings()
     QSettings settings;
     settings.setValue( "CMakePath", fImpl->cmakePath->text() );
     settings.setValue( "Generator", fImpl->generator->currentText() );
-    settings.setValue( "SourceDir", fImpl->sourceDir->text() );
-    settings.setValue( "DestDir", fImpl->destDir->text() );
+    settings.setValue( "ClientDir", fImpl->clientDir->text() );
+    auto srcDir = getSourceDir( true );
+    settings.setValue( "SourceRelDir", srcDir.has_value() ? srcDir.value() : QString() );
+    auto bldDir = getSourceDir( true );
+    settings.setValue( "BuildRelDir", bldDir.has_value() ? bldDir.value() : QString() );
     settings.setValue( "QtDir", fImpl->qtDir->text() );
     settings.setValue( "QtLibs", fQtLibsModel->getCheckedStrings() );
 
@@ -444,7 +510,8 @@ void CMainWindow::loadSettings()
 
     fImpl->cmakePath->setText( settings.value( "CMakePath" ).toString() );
     fImpl->generator->setCurrentText( settings.value( "Generator" ).toString() );
-    fImpl->destDir->setText( settings.value( "DestDir" ).toString() );
+    fImpl->clientDir->setText( settings.value( "ClientDir" ).toString() );
+    fImpl->buildRelDir->setText( settings.value( "BuildRelDir" ).toString() );
     fImpl->qtDir->setText( settings.value( "QtDir" ).toString() );
    
     fQtLibs = settings.value( "QtLibs" ).toStringList();
@@ -463,7 +530,7 @@ void CMainWindow::loadSettings()
     for ( auto && ii : dbgCmds )
         addDebugCommand( ii );
 
-    fImpl->sourceDir->setText( settings.value( "SourceDir" ).toString() );
+    fImpl->sourceRelDir->setText( settings.value( "SourceRelDir" ).toString() );
     slotChanged();
 }
 
@@ -474,10 +541,18 @@ void CMainWindow::slotChanged()
 
     bool generatorOK = !fImpl->generator->currentText().isEmpty();
 
-    fi = QFileInfo( fImpl->sourceDir->text() );
-    bool sourceDirOK = !fImpl->sourceDir->text().isEmpty() && fi.exists() && fi.isDir() && fi.isReadable();
+    auto clientDir = getClientDir();
+    auto clientDirOK = clientDir.has_value();
+    if ( clientDirOK )
+    {
+        fImpl->clientName->setText( clientDir.value().dirName() );
+    }
+    
+    auto sourceDirPath = getSourceDir();
+    fi = clientDirOK && sourceDirPath.has_value() ? QFileInfo( sourceDirPath.value() ) : QFileInfo();
+    bool sourceDirOK = clientDirOK && getSourceDir().has_value() && fi.exists() && fi.isDir() && fi.isReadable();
 
-    auto sourceDir = QDir( fImpl->sourceDir->text() );
+    auto sourceDir = sourceDirPath.has_value() ? QDir( sourceDirPath.value() ) : QDir();
     if ( fSourceDir.has_value() && ( !sourceDirOK || ( fSourceDir.value() != sourceDir ) ) )
     {
         fSourceModel->clear();
@@ -485,19 +560,21 @@ void CMainWindow::slotChanged()
     if ( sourceDirOK && ( fSourceDir.has_value() && ( fSourceDir != sourceDir ) ) )
     {
         fSourceDir = sourceDir;
-        sourceDir.cdUp();
-        fImpl->clientName->setText( sourceDir.dirName() );
-
         QTimer::singleShot( 0, this, &CMainWindow::slotLoadSource );
     }
 
     if ( !sourceDirOK )
         fSourceDir = QDir();
 
-    fi = QFileInfo( fImpl->destDir->text() );
-    bool destDirOK = !fImpl->destDir->text().isEmpty() && fi.exists() && fi.isDir() && fi.isWritable();
+    auto bldDir = getBuildDir();
+    fi = clientDirOK && bldDir.has_value() ? QFileInfo( bldDir.value() ) : QFileInfo();
+    bool bldDirOK = clientDirOK && bldDir.has_value() && fi.exists() && fi.isDir() && fi.isWritable();
 
-    fImpl->generateBtn->setEnabled( cmakePathOK && generatorOK && sourceDirOK && destDirOK );
+    fImpl->sourceDirBtn->setEnabled( clientDirOK );
+    fImpl->buildDirBtn->setEnabled( clientDirOK );
+    fImpl->addDebugCommandBtn->setEnabled( sourceDirOK && bldDirOK );
+    fImpl->addIncDirBtn->setEnabled( sourceDirOK );
+    fImpl->generateBtn->setEnabled( cmakePathOK && clientDirOK && generatorOK && sourceDirOK && bldDirOK );
 }
 
 void CMainWindow::slotSelectCMake()
@@ -593,10 +670,15 @@ void CMainWindow::slotCMakeChanged()
 
 void CMainWindow::slotSelectSourceDir()
 {
-    auto currPath = fImpl->sourceDir->text();
-    if ( currPath.isEmpty() )
+    if ( !getClientDir().has_value() )
+        return;
+
+    auto currPath = getSourceDir( false );
+    if ( !currPath.has_value() )
+        currPath = fImpl->clientDir->text();
+    if ( !currPath.has_value() || currPath.value().isEmpty() )
         currPath = QString();
-    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Source Directory" ), currPath );
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Source Directory" ), currPath.value() );
     if ( dir.isEmpty() )
         return;
 
@@ -607,15 +689,36 @@ void CMainWindow::slotSelectSourceDir()
         return;
     }
 
-    fImpl->sourceDir->setText( dir );
+    fImpl->sourceRelDir->setText( QDir( getClientDir().value() ).relativeFilePath( dir ) );
 }
 
-void CMainWindow::slotSelectDestDir()
+void CMainWindow::slotSelectClientDir()
 {
-    auto currPath = fImpl->destDir->text();
-    if ( currPath.isEmpty() )
+    auto currPath = getClientDir();
+    if ( !currPath.has_value() )
+        currPath = QDir();
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Client Directory" ), currPath.value().absolutePath() );
+    if ( dir.isEmpty() )
+        return;
+
+    QFileInfo fi( dir );
+    if ( !fi.exists() || !fi.isDir() || !fi.isReadable() )
+    {
+        QMessageBox::critical( this, tr( "Error Writable Directory not Selected" ), QString( "Error: '%1' is not an writeable directory" ).arg( dir ) );
+        return;
+    }
+
+    fImpl->clientDir->setText( dir );
+}
+
+void CMainWindow::slotSelectBuildDir()
+{
+    auto currPath = getBuildDir();
+    if ( !currPath.has_value() )
+        currPath = fImpl->clientDir->text();
+    if ( !currPath.has_value() || currPath.value().isEmpty() )
         currPath = QString();
-    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Destination Directory" ), currPath );
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Build Directory" ), currPath.value() );
     if ( dir.isEmpty() )
         return;
 
@@ -626,12 +729,12 @@ void CMainWindow::slotSelectDestDir()
         return;
     }
 
-    fImpl->destDir->setText( dir );
+    fImpl->buildRelDir->setText( QDir( getClientDir().value() ).relativeFilePath( dir ) );
 }
 
 void CMainWindow::slotAddDebugCommand()
 {
-    CSetupDebug dlg( fImpl->sourceDir->text(), fImpl->destDir->text(), this );
+    CSetupDebug dlg( getSourceDir().value(), getBuildDir().value(), this );
     if ( dlg.exec() == QDialog::Accepted && !dlg.command().isEmpty() && !dlg.sourceDir().isEmpty() )
     {
         addDebugCommand( dlg.sourceDir(), dlg.name(), dlg.command(), dlg.args(), dlg.workDir(), dlg.envVars() );
@@ -645,7 +748,10 @@ void CMainWindow::addDebugCommand( const SDebugCmd & cmd )
 
 void CMainWindow::addDebugCommand( const QString & sourcePath, const QString & name, const QString & cmd, const QString & args, const QString & workDir, const QString & envVars )
 {
-    auto sourceDir = QDir( fImpl->sourceDir->text() );
+    if ( !getSourceDir().has_value() )
+        return;
+
+    auto sourceDir = QDir( getSourceDir().value() );
     sourceDir.cdUp();
     auto sourceDirItem = new QStandardItem( sourceDir.relativeFilePath( sourcePath ) );
     auto nameItem = new QStandardItem( name );
@@ -658,10 +764,10 @@ void CMainWindow::addDebugCommand( const QString & sourcePath, const QString & n
 
 void CMainWindow::slotAddCustomBuild()
 {
-    auto currPath = fImpl->sourceDir->text();
-    if ( currPath.isEmpty() )
+    auto currPath = getSourceDir();
+    if ( !currPath.has_value() )
         currPath = QString();
-    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Directory to Build" ), currPath );
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Directory to Build" ), currPath.value() );
     if ( dir.isEmpty() )
         return;
 
@@ -676,7 +782,7 @@ void CMainWindow::slotAddCustomBuild()
     if ( target.isEmpty() )
         return;
 
-    auto relDir = QDir( fImpl->sourceDir->text() );
+    auto relDir = QDir( currPath.value() );
     relDir.cdUp();
     auto relDirPath = relDir.relativeFilePath( dir );
     addCustomBuild( qMakePair( relDirPath, target ) );
@@ -684,10 +790,10 @@ void CMainWindow::slotAddCustomBuild()
 
 void CMainWindow::slotAddIncDir()
 {
-    auto currPath = fImpl->sourceDir->text();
-    if ( currPath.isEmpty() )
+    auto currPath = getSourceDir();
+    if ( !currPath.has_value() )
         currPath = QString();
-    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Directory to Include" ), currPath );
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Directory to Include" ), currPath.value() );
     if ( dir.isEmpty() )
         return;
 
@@ -699,7 +805,7 @@ void CMainWindow::slotAddIncDir()
     }
 
     auto curr = fIncDirModel->stringList();
-    dir = QDir( fImpl->sourceDir->text() ).relativeFilePath( dir );
+    dir = QDir( currPath.value() ).relativeFilePath( dir );
     curr.push_front( dir );
     fIncDirModel->setStringList( curr );
 }
@@ -911,7 +1017,7 @@ void CMainWindow::slotLoadSource()
     progress->setRange( 0, 100 );
     progress->setValue( 0 );
     SSourceFileInfo results;
-    bool wasCancelled = loadSourceFiles( fImpl->sourceDir->text(), rootNode, progress, results );
+    bool wasCancelled = loadSourceFiles( getSourceDir().value(), rootNode, progress, results );
     addInclDirs( results.fInclDirs );
     appendToLog( tr( "============================================" ) );
 
@@ -960,7 +1066,7 @@ std::list< SDirInfo > CMainWindow::getDirInfo( QStandardItem * parent, QProgress
         return {};
 
     progress->setRange( 0, numRows );
-    QDir sourceDir( fImpl->sourceDir->text() );
+    QDir sourceDir( getSourceDir().value() );
 
     for ( int ii = 0; ii < numRows; ++ii )
     {
@@ -1012,7 +1118,7 @@ QString CMainWindow::getIncludeDirs() const
 {
     QStringList retVal;
 
-    QDir sourceDir( fImpl->sourceDir->text() );
+    QDir sourceDir( getSourceDir().value() );
     auto inclDirs = fIncDirModel->stringList();
     for ( auto && ii : inclDirs )
     {
@@ -1059,9 +1165,9 @@ void CMainWindow::slotGenerate()
         progress.setValue( currDir++ );
         if ( progress.wasCanceled() )
             break;
-        ii.writeCMakeFile( fImpl->destDir->text() );
-        ii.writePropSheet( fImpl->sourceDir->text(), fImpl->destDir->text(), inclDirs );
-        ii.createDebugProjects( fImpl->destDir->text() );
+        ii.writeCMakeFile( getBuildDir().value() );
+        ii.writePropSheet( getSourceDir().value(), getBuildDir().value(), inclDirs );
+        ii.createDebugProjects( getBuildDir().value() );
     }
     progress.setRange( 0, static_cast<int>( dirs.size() ) );
     appendToLog( tr( "============================================" ) );
@@ -1073,7 +1179,7 @@ void CMainWindow::slotGenerate()
     connect( fProcess, &QProcess::readyReadStandardOutput, this, &CMainWindow::slotReadStdOut );
     connect( fProcess, QOverload<int, QProcess::ExitStatus>::of( &QProcess::finished ), this, &CMainWindow::slotFinished );
 
-    auto buildDir = fImpl->destDir->text();
+    auto buildDir = getBuildDir().value();
     auto cmakeExec = fImpl->cmakePath->text();
     auto args = getCmakeArgs();
     appendToLog( tr( "Build Dir: %1" ).arg( buildDir ) );
@@ -1091,7 +1197,7 @@ std::list< SDirInfo > CMainWindow::generateTopLevelFiles( QProgressDialog * prog
     readResourceFile( this, QString( ":/resources/Project.cmake" ),
                       [this]( QString & text )
     {
-        QString outFile = QDir( fImpl->destDir->text() ).absoluteFilePath( "Project.cmake" );
+        QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( "Project.cmake" );
         QFile fo( outFile );
         if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
         {
@@ -1109,11 +1215,11 @@ std::list< SDirInfo > CMainWindow::generateTopLevelFiles( QProgressDialog * prog
                                         [this]( QString & text )
     {
         text.replace( "%CLIENT_NAME%", fImpl->clientName->text() );
-        text.replace( "%ROOT_SOURCE_DIR%", fImpl->sourceDir->text() );
+        text.replace( "%ROOT_SOURCE_DIR%", getSourceDir().value() );
     }
     );
 
-    QString outFile = QDir( fImpl->destDir->text() ).absoluteFilePath( "CMakeLists.txt" );
+    QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( "CMakeLists.txt" );
     QFile fo( outFile );
     if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
     {
@@ -1125,14 +1231,14 @@ std::list< SDirInfo > CMainWindow::generateTopLevelFiles( QProgressDialog * prog
     QTextStream qts( &fo );
     qts << topDirText;
 
-    auto customTopBuilds = getCustomBuildsForSourceDir( QFileInfo( fImpl->sourceDir->text() ).fileName() );
+    auto customTopBuilds = getCustomBuildsForSourceDir( QFileInfo( getSourceDir().value() ).fileName() );
     if ( !customTopBuilds.isEmpty() )
     {
         for ( auto && ii : customTopBuilds )
         {
             qts << QString( "add_subdirectory( CustomBuild/%1 )\n" ).arg( ii );
 
-            if ( !QDir( fImpl->destDir->text() ).mkpath( QString( "CustomBuild/%1" ).arg( ii ) ) )
+            if ( !QDir( getBuildDir().value() ).mkpath( QString( "CustomBuild/%1" ).arg( ii ) ) )
             {
                 QApplication::restoreOverrideCursor();
                 QMessageBox::critical( this, tr( "Error:" ), tr( "Error creating directory '%1" ).arg( QString( "CustomBuild/%1" ).arg( ii ) ) );
@@ -1143,14 +1249,14 @@ std::list< SDirInfo > CMainWindow::generateTopLevelFiles( QProgressDialog * prog
                                                 [ii, fileName, this]( QString & text )
             {
                 text.replace( "%PROJECT_NAME%", ii );
-                text.replace( "%BUILD_DIR%", fImpl->destDir->text() );
+                text.replace( "%BUILD_DIR%", getBuildDir().value() );
                 text.replace( "%SOURCE_FILES%", QString() );
                 text.replace( "%HEADER_FILES%", QString() );
                 text.replace( "%UI_FILES%", QString() );
                 text.replace( "%QRC_FILES%", QString() );
                 text.replace( "%OTHER_FILES%", QString() );
 
-                QString outFile = QDir( fImpl->destDir->text() ).absoluteFilePath( fileName );
+                QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( fileName );
                 QFile fo( outFile );
                 if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
                 {
@@ -1306,6 +1412,25 @@ QString SDebugCmd::getProjectName() const
     retVal = retVal.replace( "\\", "_" );
     retVal = retVal.replace( " ", "_" );
     return retVal;
+}
+
+void SDebugCmd::cleanUp( const CMainWindow * mainWindow )
+{
+    fCmd = fCmd.replace( "<CLIENTDIR>", mainWindow->getClientDir().value().absolutePath() );
+    fCmd = fCmd.replace( "<BUILDDIR>", mainWindow->getBuildDir().value() );
+    fCmd = fCmd.replace( "<SOURCEDIR>", mainWindow->getSourceDir().value() );
+
+    fArgs = fArgs.replace( "<CLIENTDIR>", mainWindow->getClientDir().value().absolutePath() );
+    fArgs = fArgs.replace( "<BUILDDIR>", mainWindow->getBuildDir().value() );
+    fArgs = fArgs.replace( "<SOURCEDIR>", mainWindow->getSourceDir().value() );
+
+    fWorkDir = fWorkDir.replace( "<CLIENTDIR>", mainWindow->getClientDir().value().absolutePath() );
+    fWorkDir = fWorkDir.replace( "<BUILDDIR>", mainWindow->getBuildDir().value() );
+    fWorkDir = fWorkDir.replace( "<SOURCEDIR>", mainWindow->getSourceDir().value() );
+
+    fEnvVars = fEnvVars.replace( "<CLIENTDIR>", mainWindow->getClientDir().value().absolutePath() );
+    fEnvVars = fEnvVars.replace( "<BUILDDIR>", mainWindow->getBuildDir().value() );
+    fEnvVars = fEnvVars.replace( "<SOURCEDIR>", mainWindow->getSourceDir().value() );
 }
 
 QStringList SDirInfo::getSubDirs() const

@@ -33,6 +33,9 @@
 #include <functional>
 #include <tuple>
 #include <QProcess>
+#include <optional>
+
+class CMainWindow;
 class QTextStream;
 class QStandardItemModel;
 class QStandardItem;
@@ -53,6 +56,7 @@ struct SDebugCmd
 
     QString getEnvVars() const;
     QString getProjectName() const;
+    void cleanUp( const CMainWindow * mainWindow );
 };
 
 struct SDirInfo
@@ -106,6 +110,10 @@ public:
 
     static QString readResourceFile( QWidget * parent, const QString & resourceFile, const std::function< void( QString & data ) > & function = {} );
 
+    std::optional< QDir > getClientDir() const;
+    std::optional< QString > getSourceDir( bool relPath = false ) const;
+    std::optional< QString > getBuildDir( bool relPath = false ) const;
+
 public Q_SLOTS:
     void slotChanged();
     void slotQtChanged();
@@ -118,7 +126,8 @@ public Q_SLOTS:
     void slotSelectCMake();
     void slotSelectSourceDir();
     void slotSelectQtDir();
-    void slotSelectDestDir();
+    void slotSelectBuildDir();
+    void slotSelectClientDir();
     void slotAddIncDir();
     void slotAddCustomBuild();
     void slotAddDebugCommand();
@@ -152,6 +161,7 @@ private:
 
 
     QList < SDebugCmd > getDebugCommandsForSourceDir( const QString & sourceDir ) const;
+
     QList< SDebugCmd > getDebugCommands( bool abs ) const;
 
     QStringList getCustomBuildsForSourceDir( const QString & sourceDir ) const;
