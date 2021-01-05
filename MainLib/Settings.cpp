@@ -80,13 +80,20 @@ namespace NVSProjectMaker
         loadSettings( QString() );
     }
 
-    bool CSettings::loadSettings( const QString & fileName )
+    void CSettings::setFileName( const QString & fileName, bool andSave )
     {
-        saveSettings();
         if ( fileName.isEmpty() )
             fSettingsFile = std::make_unique< QSettings >();
         else
             fSettingsFile = std::make_unique< QSettings >( fileName, QSettings::IniFormat );
+        if ( andSave )
+            saveSettings();
+    }
+
+    bool CSettings::loadSettings( const QString & fileName )
+    {
+        saveSettings();
+        setFileName( fileName, false );
         return loadData();
     }
 

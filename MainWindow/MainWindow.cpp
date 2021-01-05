@@ -60,7 +60,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     NVSProjectMaker::registerTypes();
 
     fImpl->setupUi( this );
-    connect( fImpl->projectFile, &QLineEdit::textChanged, this, &CMainWindow::slotProjectFileChanged );
+    connect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
     connect( fImpl->cmakePath, &QLineEdit::textChanged, this, &CMainWindow::slotCMakeChanged );
     connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
     connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
@@ -68,7 +68,8 @@ CMainWindow::CMainWindow( QWidget * parent )
     connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
     connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
 
-    connect( fImpl->projectFileBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectProjectFile );
+    connect( fImpl->openProjectFileBtn, &QToolButton::clicked, this, &CMainWindow::slotOpenProjectFile );
+    connect( fImpl->saveProjectFileBtn, &QToolButton::clicked, this, &CMainWindow::slotSaveProjectFile );
     connect( fImpl->cmakePathBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectCMake );
     connect( fImpl->clientDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectClientDir );
     connect( fImpl->sourceDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectSourceDir );
@@ -100,14 +101,62 @@ CMainWindow::CMainWindow( QWidget * parent )
     fDebugCommandsModel->setHorizontalHeaderLabels( QStringList() << "Source Dir" << "Name" << "Command" << "Args" << "Work Dir" << "EnvVars" );
     fImpl->debugCmds->setModel( fDebugCommandsModel );
 
+    QSettings settings;
+    setProjects( settings.value( "RecentProjects" ).toStringList() );
+
     fImpl->projectFile->setFocus();
-    QTimer::singleShot( 0, this, &CMainWindow::loadSettings );
-    QTimer::singleShot( 0, this, &CMainWindow::loadQtSettings );
 }
 
 CMainWindow::~CMainWindow()
 {
     saveSettings();
+    
+    QSettings settings;
+    settings.setValue( "RecentProjects", getProjects() );
+}
+
+void CMainWindow::setCurrentProject( const QString & projFile )
+{
+    disconnectProjectSignal();
+    auto projects = getProjects();
+    for ( int ii = 0; ii < projects.count(); ++ii )
+    {
+        if ( projects[ ii ] == projFile )
+        {
+            projects.removeAt( ii );
+            ii--;
+        }
+    }
+    projects.insert( 0, projFile );
+    setProjects( projects );
+    fImpl->projectFile->setCurrentText( projFile );
+    connectProjectSignal();
+}
+
+
+QStringList CMainWindow::getProjects() const
+{
+    QStringList projects;
+    for ( int ii = 1; ii < fImpl->projectFile->count(); ++ii )
+        projects << fImpl->projectFile->itemText( ii );
+    return projects;
+}
+
+void CMainWindow::setProjects( QStringList projects )
+{
+    for ( int ii = 0; ii < projects.count(); ++ii )
+    {
+        if ( projects[ ii ].isEmpty() || !QFileInfo( projects[ ii ] ).exists() )
+        {
+            projects.removeAt( ii );
+            ii--;
+        }
+    }
+
+    disconnectProjectSignal();
+    fImpl->projectFile->clear();
+    fImpl->projectFile->addItems( QStringList() << QString() << projects );
+    connectProjectSignal();
 }
 
 std::tuple< QSet< QString >, QHash< QString, QList< QPair< QString, bool > > > > CMainWindow::findDirAttributes( QStandardItem * parent ) const
@@ -345,6 +394,12 @@ void CMainWindow::loadSettings()
     else
         fIncDirModel->setChecked( selectedIncDirs, true, true );
 
+    fCustomBuildModel->clear();
+    fCustomBuildModel->setHorizontalHeaderLabels( QStringList() << "Directory" << "Target Name" );
+
+    fDebugCommandsModel->clear();
+    fDebugCommandsModel->setHorizontalHeaderLabels( QStringList() << "Source Dir" << "Name" << "Command" << "Args" << "Work Dir" << "EnvVars" );
+
     fExecutables = fSettings->getExecNames();
     auto customBuilds = fSettings->getCustomBuilds();
     for ( auto && ii : customBuilds )
@@ -402,31 +457,55 @@ void CMainWindow::slotChanged()
     fImpl->generateBtn->setEnabled( cmakePathOK && clientDirOK && generatorOK && sourceDirOK && bldDirOK );
 }
 
-void CMainWindow::slotSelectProjectFile()
+void CMainWindow::slotOpenProjectFile()
 {
-    auto currPath = fImpl->projectFile->text();
+    auto currPath = fImpl->projectFile->currentText();
     if ( currPath.isEmpty() )
         currPath = fSettings->fileName();
     if ( currPath.isEmpty() )
         currPath = QString();
-    auto projFile = QFileDialog::getOpenFileName( this, tr( "Select Project File" ), currPath, "Project Files *.ini;;All Files *.*" );
-    if ( projFile.isEmpty() )
-        return;
-
-    fImpl->projectFile->setText( projFile );
+    auto projFile = QFileDialog::getOpenFileName( this, tr( "Select Project File to open" ), currPath, "Project Files *.ini;;All Files *.*" );
+    setProjectFile( projFile, true );
 }
 
-void CMainWindow::slotProjectFileChanged()
+void CMainWindow::slotSaveProjectFile()
 {
-    auto projFile = fImpl->projectFile->text();
-    if ( !fSettings->loadSettings( projFile ) )
-    {
-        QMessageBox::critical( this, tr( "Project File not Opened" ), QString( "Error: '%1' is not a valid project file" ).arg( projFile ) );
-        return;
-    }
+    auto currPath = fImpl->projectFile->currentText();
+    if ( currPath.isEmpty() )
+        currPath = fSettings->fileName();
+    if ( currPath.isEmpty() )
+        currPath = QString();
+    auto projFile = QFileDialog::getSaveFileName( this, tr( "Select Project File to save" ), currPath, "Project Files *.ini;;All Files *.*" );
+    setProjectFile( projFile, false );
+}
 
+void CMainWindow::slotCurrentProjectChanged( const QString & projFile )
+{
+    setProjectFile( projFile, true );
+}
+
+void CMainWindow::setProjectFile( const QString & projFile, bool load )
+{
+    if ( projFile.isEmpty() )
+        return;
+    setCurrentProject( projFile );
+
+    if ( load )
+    {
+        if ( !fSettings->loadSettings( projFile ) )
+        {
+            QMessageBox::critical( this, tr( "Project File not Opened" ), QString( "Error: '%1' is not a valid project file" ).arg( projFile ) );
+            return;
+        }
+    }
+    else
+        fSettings->setFileName( projFile );
     setWindowTitle( tr( "Visual Studio Project Generator - %1" ).arg( projFile ) );
-    loadSettings();
+    if ( load )
+        loadSettings();
+    else
+        saveSettings();
+
 }
 
 void CMainWindow::slotSelectCMake()
@@ -973,6 +1052,22 @@ QString CMainWindow::getIncludeDirs() const
     }
 
     return retVal.join( ";" );
+}
+
+void CMainWindow::disconnectProjectSignal()
+{
+    if ( fProjectSignalConnection == 0 )
+        disconnect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
+
+    fProjectSignalConnection++;
+}
+
+void CMainWindow::connectProjectSignal()
+{
+    if ( fProjectSignalConnection )
+        fProjectSignalConnection--;
+    if ( fProjectSignalConnection == 0 )
+        connect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
 }
 
 void CMainWindow::slotGenerate()

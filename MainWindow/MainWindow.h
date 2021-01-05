@@ -68,13 +68,13 @@ public Q_SLOTS:
     void slotChanged();
     void slotQtChanged();
     void slotCMakeChanged();
-    void slotProjectFileChanged();
 
     void slotLoadSource();
 
     bool expandDirectories( QStandardItem * rootNode );
 
-    void slotSelectProjectFile();
+    void slotOpenProjectFile();
+    void slotSaveProjectFile();
     void slotSelectCMake();
     void slotSelectSourceDir();
     void slotSelectQtDir();
@@ -83,6 +83,7 @@ public Q_SLOTS:
     void slotAddIncDir();
     void slotAddCustomBuild();
     void slotAddDebugCommand();
+    void slotCurrentProjectChanged( const QString & projFile );
 
     void addDebugCommand( const QString & sourceDir, const QString & name, const QString & cmd, const QString & args, const QString & workDir, const QString & envVars );
     void addDebugCommand( const NVSProjectMaker::SDebugCmd & dbgCmd );
@@ -93,6 +94,13 @@ public Q_SLOTS:
     void slotReadStdOut();
     void slotFinished( int exitCode, QProcess::ExitStatus status );
 private:
+    QStringList getProjects() const;
+    void setProjects( QStringList projects );
+
+    void setProjectFile( const QString & projFile, bool load );
+
+    void setCurrentProject( const QString & projFile );
+
     std::optional< QString > getDir( const QLineEdit * lineEdit, bool relPath ) const;
     void addInclDirs( const QStringList & inclDirs );
     std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > generateTopLevelFiles( QProgressDialog * progress );
@@ -126,6 +134,10 @@ private:
     QStringList getCmakeArgs() const;
     QString getIncludeDirs() const;
 
+    void disconnectProjectSignal();
+    void connectProjectSignal();
+
+    int fProjectSignalConnection{ 0 };
     QSet< QString > fBuildDirs;
     QStringList fInclDirs;
     QHash< QString, QList< QPair< QString, bool > > > fExecutables;

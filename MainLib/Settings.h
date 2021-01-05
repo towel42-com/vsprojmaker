@@ -61,7 +61,8 @@ namespace NVSProjectMaker
 
         bool saveSettings(); // only valid if filename has been set;
         void loadSettings(); // loads from the registry
-        bool loadSettings( const QString & fileName ); // sets the filename
+        bool loadSettings( const QString & fileName ); // sets the filename and loads from it
+        void setFileName( const QString & fileName, bool andSave=true );
 
         ADD_SETTING( QString, CMakePath );
         ADD_SETTING( QString, Generator );
