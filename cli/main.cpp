@@ -20,34 +20,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef _SETUPDEBUG_H
-#define _SETUPDEBUG_H
+#include "MainWindow/MainWindow.h"
 
-#include <QDialog>
-#include <memory>
-namespace Ui {class CSetupDebug;};
+#include <QApplication>
+#include <QLabel>
+#include <QVariant>
 
-class CSetupDebug : public QDialog
+int main( int argc, char ** argv )
 {
-    Q_OBJECT
-public:
-    CSetupDebug( const QString & srcDir, const QString & bldDir, QWidget * parent );
-    ~CSetupDebug();
+    QApplication appl( argc, argv );
+    appl.setApplicationName( "VSProjectMaker" );
+    appl.setApplicationVersion( "0.9" );
+    appl.setOrganizationName( "Scott Aron Bloom" );
+    appl.setOrganizationDomain( "www.towel42.com" );
 
-    QString name() const;
-    QString sourceDir() const;
-    QString command() const;
-    QString args() const;
-    QString workDir() const;
-    QString envVars() const;
-public Q_SLOTS:
-    void slotSelectCommand();
-    void slotSelectWorkingDir();
-    void slotSelectSourceDir();
-private:
-    std::unique_ptr< Ui::CSetupDebug > fImpl;
-    QString fSourceDir;
-    QString fBuildDir;
-};
-
-#endif // _ALCULATOR_H
+    Q_INIT_RESOURCE( application );
+    CMainWindow mainWindow;
+    return mainWindow.exec();
+}

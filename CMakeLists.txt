@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2020 Scott Aron Bloom
+# Copyright (c) 2020-2021 Scott Aron Bloom
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,9 @@ INSTALL( CODE "
 add_custom_target( SABTests_SABUtils )
 add_subdirectory( SABUtils )
 add_subdirectory( MainWindow )
-add_subdirectory( main )
+add_subdirectory( MainLib )
+add_subdirectory( gui )
+add_subdirectory( cli )
 
 SET( CPACK_PACKAGE_VENDOR "Scott Aron Bloom" )
 SET( CPACK_PACKAGE_VERSION_MAJOR "0" )

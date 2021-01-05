@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2020 Scott Aron Bloom
+# Copyright (c) 2020-2021 Scott Aron Bloom
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,11 +21,13 @@
 # SOFTWARE.
 
 set(qtproject_SRCS
+    AddCustomBuild.cpp
     MainWindow.cpp
     SetupDebug.cpp
 )
 
 set(qtproject_H
+    AddCustomBuild.h
     MainWindow.h
     SetupDebug.h
 )
@@ -34,6 +36,7 @@ set(project_H
 )
 
 set(qtproject_UIS
+    AddCustomBuild.ui
     MainWindow.ui
     SetupDebug.ui
 )

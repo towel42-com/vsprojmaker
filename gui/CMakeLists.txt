@@ -20,28 +20,39 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-cmake_minimum_required(VERSION 3.1)
-if(CMAKE_VERSION VERSION_LESS "3.7.0")
-    set(CMAKE_INCLUDE_CURRENT_DIR ON)
-endif()
+project(VSProjectMakerGUI) 
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED true)
-find_package(Threads REQUIRED)
-#find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
-#AddQtIncludes()
+include( include.cmake )
+include( ${CMAKE_SOURCE_DIR}/SABUtils/Project.cmake )
 
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+add_executable( VSProjectMakerGUI WIN32
+                 ${project_SRCS} 
+                 ${project_H} 
+                 ${qtproject_SRCS} 
+                 ${qtproject_QRC} 
+                 ${qtproject_QRC_SRCS} 
+                 ${qtproject_UIS_H} 
+                 ${qtproject_MOC_SRCS} 
+                 ${qtproject_H} 
+                 ${qtproject_UIS}
+                 ${qtproject_QRC_SOURCES}
+                 ${_CMAKE_FILES}
+                 ${_CMAKE_MODULE_FILES}
+                application.rc
+          )
+set_target_properties( VSProjectMakerGUI PROPERTIES FOLDER Apps )
+          
+target_link_libraries( VSProjectMakerGUI 
+                 Qt5::Widgets
+                 Qt5::Core
+                 MainWindow
+                 MainLib
+                 SABUtils
+          )
+DeployQt( VSProjectMakerGUI . )
+DeploySystem( VSProjectMakerGUI )
 
-SET(CMAKE_AUTOMOC OFF)
-SET(CMAKE_AUTORCC OFF)
-SET(CMAKE_AUTOUIC OFF)
-
-source_group("Generated Files" FILES ${qtproject_UIS_H} ${qtproject_MOC_SRCS} ${qtproject_QRC_SRCS} ${qtproject_CPPMOC_H})
-source_group("Resource Files" FILES ${qtproject_QRC} ${qtproject_QRC_SOURCES} )
-source_group("Other Files" FILES ${otherFILES} )
-source_group("Designer Files" FILES ${qtproject_UIS} )
-source_group("Header Files" FILES ${qtproject_H} ${project_H} )
-source_group("Source Files" FILES ${qtproject_CPPMOC_SRCS} )
+INSTALL( TARGETS ${PROJECT_NAME} RUNTIME DESTINATION . )
+INSTALL( FILES ${CMAKE_CURRENT_BINARY_DIR}/Debug/${PROJECT_NAME}.pdb DESTINATION . CONFIGURATIONS Debug )
 
 

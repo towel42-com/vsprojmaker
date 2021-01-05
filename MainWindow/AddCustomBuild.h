@@ -1,6 +1,6 @@
 // The MIT License( MIT )
 //
-// Copyright( c ) 2020 Scott Aron Bloom
+// Copyright( c ) 2020-2021 Scott Aron Bloom
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to deal
@@ -20,21 +20,27 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "MainWindow/MainWindow.h"
+#ifndef __ADDCUSTOMBUILD_H
+#define __ADDCUSTOMBUILD_H
 
-#include <QApplication>
-#include <QLabel>
-#include <QVariant>
+#include <QDialog>
+#include <memory>
+namespace Ui {class CAddCustomBuild;};
 
-int main( int argc, char ** argv )
+class CAddCustomBuild : public QDialog
 {
-    QApplication appl( argc, argv );
-    appl.setApplicationName( "VSProjectMaker" );
-    appl.setApplicationVersion( "0.9" );
-    appl.setOrganizationName( "Scott Aron Bloom" );
-    appl.setOrganizationDomain( "www.towel42.com" );
+    Q_OBJECT
+public:
+    CAddCustomBuild( const QString & bldDir, QWidget * parent );
+    ~CAddCustomBuild();
 
-    Q_INIT_RESOURCE( application );
-    CMainWindow mainWindow;
-    return mainWindow.exec();
-}
+    QString buildDir() const;
+    QString targetName() const;
+public Q_SLOTS:
+    void slotSelectBuildDir();
+private:
+    std::unique_ptr< Ui::CAddCustomBuild > fImpl;
+    QString fBuildDir;
+};
+
+#endif // _ALCULATOR_H

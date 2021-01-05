@@ -1,6 +1,6 @@
 // The MIT License( MIT )
 //
-// Copyright( c ) 2020 Scott Aron Bloom
+// Copyright( c ) 2020-2021 Scott Aron Bloom
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to deal
@@ -35,6 +35,14 @@
 #include <QProcess>
 #include <optional>
 
+class QLineEdit;
+namespace NVSProjectMaker
+{
+    struct SDirInfo;
+    struct SDebugCmd;
+    class CSettings;
+}
+
 class CMainWindow;
 class QTextStream;
 class QStandardItemModel;
@@ -45,70 +53,12 @@ class QProcess;
 class CCheckableStringListModel;
 namespace Ui {class CMainWindow;};
 
-struct SDebugCmd
-{
-    QString fSourceDir;
-    QString fName;
-    QString fCmd;
-    QString fArgs;
-    QString fWorkDir;
-    QString fEnvVars;
-
-    QString getEnvVars() const;
-    QString getProjectName() const;
-    void cleanUp( const CMainWindow * mainWindow );
-};
-
-struct SDirInfo
-{
-    SDirInfo() {}
-    SDirInfo( QStandardItem * item );
-    bool isValid() const;
-    void writeCMakeFile( const QString & bldDir ) const;
-    void writePropSheet( const QString & srcDir, const QString & bldDir, const QString & includeDirs ) const;
-    void createDebugProjects( const QString & bldDir ) const;
-
-    QStringList getSubDirs() const;
-    void replaceFiles( QString & text, const QString & variable, const QStringList & files ) const;
-    void addDependencies( QTextStream & qts ) const;
-    void computeRelToDir( QStandardItem * item );
-
-    QString fRelToDir;
-    QString fProjectName;
-    bool fIsInclDir{ false };
-    bool fIsBuildDir{ false };
-    QList< QPair< QString, bool > > fExecutables;
-
-    QStringList fSourceFiles;
-    QStringList fHeaderFiles;
-    QStringList fUIFiles;
-    QStringList fQRCFiles;
-    QStringList fOtherFiles;
-
-    QStringList fExtraTargets;
-    QList<SDebugCmd> fDebugCommands;
-
-    void getFiles( QStandardItem * parent );
-    void addFile( const QString & path );
-};
-
 class CMainWindow : public QDialog
 {
     Q_OBJECT
 public:
-    enum ERoles
-    {
-        eIsDirRole = Qt::UserRole + 1,
-        eIsBuildDir,
-        eExecutables,
-        eIsIncludeDir,
-        eRelPath
-    };
-
     CMainWindow(QWidget *parent = 0);
     ~CMainWindow();
-
-    static QString readResourceFile( QWidget * parent, const QString & resourceFile, const std::function< void( QString & data ) > & function = {} );
 
     std::optional< QDir > getClientDir() const;
     std::optional< QString > getSourceDir( bool relPath = false ) const;
@@ -118,11 +68,13 @@ public Q_SLOTS:
     void slotChanged();
     void slotQtChanged();
     void slotCMakeChanged();
+    void slotProjectFileChanged();
 
     void slotLoadSource();
 
     bool expandDirectories( QStandardItem * rootNode );
 
+    void slotSelectProjectFile();
     void slotSelectCMake();
     void slotSelectSourceDir();
     void slotSelectQtDir();
@@ -133,7 +85,7 @@ public Q_SLOTS:
     void slotAddDebugCommand();
 
     void addDebugCommand( const QString & sourceDir, const QString & name, const QString & cmd, const QString & args, const QString & workDir, const QString & envVars );
-    void addDebugCommand( const SDebugCmd & dbgCmd );
+    void addDebugCommand( const NVSProjectMaker::SDebugCmd & dbgCmd );
 
     void slotGenerate();
 
@@ -141,8 +93,9 @@ public Q_SLOTS:
     void slotReadStdOut();
     void slotFinished( int exitCode, QProcess::ExitStatus status );
 private:
+    std::optional< QString > getDir( const QLineEdit * lineEdit, bool relPath ) const;
     void addInclDirs( const QStringList & inclDirs );
-    std::list< SDirInfo > generateTopLevelFiles( QProgressDialog * progress );
+    std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > generateTopLevelFiles( QProgressDialog * progress );
     void loadSettings();
     void loadQtSettings();
     void saveSettings();
@@ -157,12 +110,9 @@ private:
         QStringList fQtLibs;
         QString getText( bool forText ) const;
     };
-    std::list< SDirInfo > getDirInfo( QStandardItem * parent, QProgressDialog * progress ) const;
-
-
-    QList < SDebugCmd > getDebugCommandsForSourceDir( const QString & sourceDir ) const;
-
-    QList< SDebugCmd > getDebugCommands( bool abs ) const;
+    std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > getDirInfo( QStandardItem * parent, QProgressDialog * progress ) const;
+    QList < NVSProjectMaker::SDebugCmd > getDebugCommandsForSourceDir( const QString & sourceDir ) const;
+    QList< NVSProjectMaker::SDebugCmd > getDebugCommands( bool abs ) const;
 
     QStringList getCustomBuildsForSourceDir( const QString & sourceDir ) const;
     QList< QPair< QString, QString > > getCustomBuilds( bool abs ) const;
@@ -179,16 +129,17 @@ private:
     QSet< QString > fBuildDirs;
     QStringList fInclDirs;
     QHash< QString, QList< QPair< QString, bool > > > fExecutables;
-    QStringList fQtLibs;
 
     std::optional< QDir > fSourceDir;
     QStandardItemModel * fSourceModel{ nullptr };
-    QStringListModel * fIncDirModel{ nullptr };
+    CCheckableStringListModel * fIncDirModel{ nullptr };
     QStandardItemModel * fCustomBuildModel{ nullptr };
     QStandardItemModel * fDebugCommandsModel{ nullptr };
     CCheckableStringListModel * fQtLibsModel{ nullptr };
     std::unique_ptr< Ui::CMainWindow > fImpl;
     QProcess * fProcess{ nullptr };
+
+    std::unique_ptr< NVSProjectMaker::CSettings > fSettings;
 };
 
 #endif // _ALCULATOR_H

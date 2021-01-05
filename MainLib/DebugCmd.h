@@ -20,34 +20,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef _SETUPDEBUG_H
-#define _SETUPDEBUG_H
+#ifndef __DEBUGCMD_H
+#define __DEBUGCMD_H
 
-#include <QDialog>
-#include <memory>
-namespace Ui {class CSetupDebug;};
+#include <QString>
+#include <QMap>
+#include <QDataStream>
 
-class CSetupDebug : public QDialog
+namespace NVSProjectMaker
 {
-    Q_OBJECT
-public:
-    CSetupDebug( const QString & srcDir, const QString & bldDir, QWidget * parent );
-    ~CSetupDebug();
+    struct SDebugCmd
+    {
+        QString fSourceDir;
+        QString fName;
+        QString fCmd;
+        QString fArgs;
+        QString fWorkDir;
+        QString fEnvVars;
 
-    QString name() const;
-    QString sourceDir() const;
-    QString command() const;
-    QString args() const;
-    QString workDir() const;
-    QString envVars() const;
-public Q_SLOTS:
-    void slotSelectCommand();
-    void slotSelectWorkingDir();
-    void slotSelectSourceDir();
-private:
-    std::unique_ptr< Ui::CSetupDebug > fImpl;
-    QString fSourceDir;
-    QString fBuildDir;
-};
+        QString getEnvVars() const;
+        QString getProjectName() const;
+        QString getCmd() const;
+        void cleanUp( const QMap< QString, QString > & map );
+    };
+}
 
-#endif // _ALCULATOR_H
+QDataStream & operator<<( QDataStream & stream, const NVSProjectMaker::SDebugCmd & value );
+QDataStream & operator>>( QDataStream & stream, NVSProjectMaker::SDebugCmd & value );
+QDataStream & operator<<( QDataStream & stream, const QList< NVSProjectMaker::SDebugCmd > & value );
+QDataStream & operator>>( QDataStream & stream, QList< NVSProjectMaker::SDebugCmd > & value );
+
+Q_DECLARE_METATYPE( NVSProjectMaker::SDebugCmd );
+
+#endif 
+

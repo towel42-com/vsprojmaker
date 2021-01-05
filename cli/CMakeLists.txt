@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2020 Scott Aron Bloom
+# Copyright (c) 2020-2021 Scott Aron Bloom
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,12 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-project(VSProjectMaker) 
+project(VSProjectMakerCLI) 
 
 include( include.cmake )
 include( ${CMAKE_SOURCE_DIR}/SABUtils/Project.cmake )
 
-add_executable( VSProjectMaker WIN32
+add_executable( VSProjectMakerCLI
                  ${project_SRCS} 
                  ${project_H} 
                  ${qtproject_SRCS} 
@@ -40,16 +40,17 @@ add_executable( VSProjectMaker WIN32
                  ${_CMAKE_MODULE_FILES}
                 application.rc
           )
-set_target_properties( VSProjectMaker PROPERTIES FOLDER Apps )
+set_target_properties( VSProjectMakerCLI PROPERTIES FOLDER Apps )
           
-target_link_libraries( VSProjectMaker 
+target_link_libraries( VSProjectMakerCLI 
                  Qt5::Widgets
                  Qt5::Core
                  MainWindow
+                 MainLib
                  SABUtils
           )
-DeployQt( VSProjectMaker . )
-DeploySystem( VSProjectMaker )
+DeployQt( VSProjectMakerCLI . )
+DeploySystem( VSProjectMakerCLI )
 
 INSTALL( TARGETS ${PROJECT_NAME} RUNTIME DESTINATION . )
 INSTALL( FILES ${CMAKE_CURRENT_BINARY_DIR}/Debug/${PROJECT_NAME}.pdb DESTINATION . CONFIGURATIONS Debug )

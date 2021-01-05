@@ -1,6 +1,6 @@
 // The MIT License( MIT )
 //
-// Copyright( c ) 2020 Scott Aron Bloom
+// Copyright( c ) 2020-2021 Scott Aron Bloom
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files( the "Software" ), to deal
@@ -23,10 +23,16 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
 #include "SetupDebug.h"
+#include <QSet>
+#include "AddCustomBuild.h"
+
+#include "MainLib/VSProjectMaker.h"
+#include "MainLib/DebugCmd.h"
+#include "MainLib/DirInfo.h"
+#include "MainLib/Settings.h"
 
 #include "SABUtils/UtilityModels.h"
 
-#include <QSettings>
 #include <QFileInfo>
 #include <QProcess>
 #include <QFileDialog>
@@ -45,197 +51,16 @@
 #include <QDebug>
 #include <QInputDialog>
 
-Q_DECLARE_METATYPE( SDebugCmd );
-
-QDataStream & operator<<( QDataStream & stream, const QSet<QString> & value )
-{
-    stream << value.count();
-    for ( auto ii = value.constBegin(); ii != value.constEnd(); ++ii )
-    {
-        stream << *ii;
-    }
-    return stream;
-}
-
-QDataStream & operator>>( QDataStream & stream, QSet<QString> & value )
-{
-    int count;
-    stream >> count;
-
-    for ( int ii = 0; ii < count; ++ii )
-    {
-        QString key;
-        stream >> key;
-        value.insert( key );
-    }
-    return stream;
-}
-
-QDataStream & operator<<( QDataStream & stream, const QPair< QString, bool > & value )
-{
-    stream << value.first << value.second;
-    return stream;
-}
-
-QDataStream & operator>>( QDataStream & stream, QPair< QString, bool > & value )
-{
-    stream >> value.first;
-    stream >> value.second;
-    return stream;
-}
-
-QDataStream & operator<<( QDataStream & stream, const QPair< QString, QString > & value )
-{
-    stream << value.first << value.second;
-    return stream;
-}
-
-QDataStream & operator>>( QDataStream & stream, QPair< QString, QString > & value )
-{
-    stream >> value.first;
-    stream >> value.second;
-    return stream;
-}
-
-QDataStream & operator<<( QDataStream & stream, const SDebugCmd & value )
-{
-    stream << value.fSourceDir
-        << value.fName
-        << value.fCmd
-        << value.fArgs
-        << value.fWorkDir
-        << value.fEnvVars
-        ;
-    return stream;
-}
-
-QDataStream & operator>>( QDataStream & stream, SDebugCmd & value )
-{
-    stream >> value.fSourceDir;
-    stream >> value.fName;
-    stream >> value.fCmd;
-    stream >> value.fArgs;
-    stream >> value.fWorkDir;
-    stream >> value.fEnvVars;
-
-    return stream;
-}
-
-QDataStream & operator<<( QDataStream & stream, const QList< QPair< QString, bool > > & value )
-{
-    stream << value.count();
-    for ( auto ii = value.constBegin(); ii != value.constEnd(); ++ii )
-    {
-        stream << *ii;
-    }
-    return stream;
-}
-
-QDataStream & operator>>( QDataStream & stream, QList< QPair< QString, bool > > & value )
-{
-    int count;
-    stream >> count;
-
-    for ( int ii = 0; ii < count; ++ii )
-    {
-        QPair< QString, bool > curr;
-        stream >> curr;
-        value.push_back( curr );
-    }
-    return stream;
-}
-
-QDataStream & operator<<( QDataStream & stream, const QList< QPair< QString, QString > > & value )
-{
-    stream << value.count();
-    for ( auto ii = value.constBegin(); ii != value.constEnd(); ++ii )
-    {
-        stream << *ii;
-    }
-    return stream;
-}
-
-QDataStream & operator>>( QDataStream & stream, QList< QPair< QString, QString > > & value )
-{
-    int count;
-    stream >> count;
-
-    for ( int ii = 0; ii < count; ++ii )
-    {
-        QPair< QString, QString > curr;
-        stream >> curr;
-        value.push_back( curr );
-    }
-    return stream;
-}
-
-QDataStream & operator<<( QDataStream & stream, const QList< SDebugCmd > & value )
-{
-    stream << value.count();
-    for ( auto ii = value.constBegin(); ii != value.constEnd(); ++ii )
-    {
-        stream << *ii;
-    }
-    return stream;
-}
-
-QDataStream & operator>>( QDataStream & stream, QList< SDebugCmd > & value )
-{
-    int count;
-    stream >> count;
-
-    for ( int ii = 0; ii < count; ++ii )
-    {
-        SDebugCmd curr;
-        stream >> curr;
-        value.push_back( curr );
-    }
-    return stream;
-}
-
-QDataStream & operator<<( QDataStream & stream, const QHash< QString, QList< QPair< QString, bool > > > & value )
-{
-    stream << value.count();
-    for ( auto ii = value.constBegin(); ii != value.constEnd(); ++ii )
-    {
-        stream << ii.key();
-        stream << ii.value();
-    }
-    return stream;
-}
-
-QDataStream & operator>>( QDataStream & stream, QHash< QString, QList< QPair< QString, bool > > > & value )
-{
-    int count;
-    stream >> count;
-
-    for ( int ii = 0; ii < count; ++ii )
-    {
-        QString key;
-        stream >> key;
-        QList< QPair< QString, bool > > currValue;
-        stream >> currValue;
-        value.insert( key, currValue );
-    }
-    return stream;
-}
-
-
 CMainWindow::CMainWindow( QWidget * parent )
     : QDialog( parent ),
     fImpl( new Ui::CMainWindow ),
-    fProcess( new QProcess( this ) )
+    fProcess( new QProcess( this ) ),
+    fSettings( new NVSProjectMaker::CSettings )
 {
-    qRegisterMetaTypeStreamOperators< QSet<QString> >( "QSet<QString>" );
-    qRegisterMetaTypeStreamOperators< QHash<QString, QList< QPair< QString, bool > >> >( "QHash<QString,QList<QPair<QString,bool>>>" );
-    qRegisterMetaTypeStreamOperators< QList< QPair< QString, bool > > >( "QList<QPair<QString,bool>>" );
-    qRegisterMetaTypeStreamOperators< QPair< QString, bool > >( "QPair<QString,bool>" );
-    qRegisterMetaTypeStreamOperators< QList< QPair< QString, QString > > >( "QList<QPair<QString,QString>>" );
-    qRegisterMetaTypeStreamOperators< QPair< QString, QString > >( "QPair<QString,QString>" );
-    qRegisterMetaTypeStreamOperators< SDebugCmd > ( "SDebugCmd" );
-    qRegisterMetaTypeStreamOperators< QList< SDebugCmd > >( "QList< SDebugCmd >" );
+    NVSProjectMaker::registerTypes();
 
     fImpl->setupUi( this );
+    connect( fImpl->projectFile, &QLineEdit::textChanged, this, &CMainWindow::slotProjectFileChanged );
     connect( fImpl->cmakePath, &QLineEdit::textChanged, this, &CMainWindow::slotCMakeChanged );
     connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
     connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
@@ -243,6 +68,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
     connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
 
+    connect( fImpl->projectFileBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectProjectFile );
     connect( fImpl->cmakePathBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectCMake );
     connect( fImpl->clientDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectClientDir );
     connect( fImpl->sourceDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectSourceDir );
@@ -260,7 +86,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     fSourceModel = new QStandardItemModel( this );
     fImpl->sourceTree->setModel( fSourceModel );
 
-    fIncDirModel = new QStringListModel( this );
+    fIncDirModel = new CCheckableStringListModel( this );
     fImpl->incPaths->setModel( fIncDirModel );
 
     fQtLibsModel = new CCheckableStringListModel( this );
@@ -274,7 +100,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     fDebugCommandsModel->setHorizontalHeaderLabels( QStringList() << "Source Dir" << "Name" << "Command" << "Args" << "Work Dir" << "EnvVars" );
     fImpl->debugCmds->setModel( fDebugCommandsModel );
 
-    fImpl->clientDir->setFocus();
+    fImpl->projectFile->setFocus();
     QTimer::singleShot( 0, this, &CMainWindow::loadSettings );
     QTimer::singleShot( 0, this, &CMainWindow::loadQtSettings );
 }
@@ -284,40 +110,26 @@ CMainWindow::~CMainWindow()
     saveSettings();
 }
 
-QString CMainWindow::readResourceFile( QWidget * parent, const QString & resourceFile, const std::function< void( QString & data ) > & function )
-{
-    QFile fi( resourceFile );
-    if ( !fi.open( QIODevice::OpenModeFlag::ReadOnly | QIODevice::OpenModeFlag::Text ) )
-    {
-        QApplication::restoreOverrideCursor();
-        QMessageBox::critical( parent, tr( "Error:" ), tr( "Error opening resource file '%1'\n%2" ).arg( resourceFile ).arg( fi.errorString() ) );
-        return QString();
-    }
-    auto resourceText = QString( fi.readAll() );
-    function( resourceText );
-    return resourceText;
-}
-
 std::tuple< QSet< QString >, QHash< QString, QList< QPair< QString, bool > > > > CMainWindow::findDirAttributes( QStandardItem * parent ) const
 {
     QSet< QString > buildDirs;
     QHash< QString, QList< QPair< QString, bool > > > execNamesMap;
 
     int numRows = parent ? parent->rowCount() : fSourceModel->rowCount();
-    if ( parent && !parent->data( ERoles::eIsDirRole ).toBool() )
+    if ( parent && !parent->data( NVSProjectMaker::ERoles::eIsDirRole ).toBool() )
         return {};
 
     for ( int ii = 0; ii < numRows; ++ii )
     {
         auto curr = parent ? parent->child( ii ) : fSourceModel->item( ii );
-        if ( curr->data( ERoles::eIsDirRole ).toBool() )
+        if ( curr->data( NVSProjectMaker::ERoles::eIsDirRole ).toBool() )
         {
-            if ( curr->data( ERoles::eIsBuildDir ).toBool() )
-                buildDirs.insert( curr->data( ERoles::eRelPath ).toString() );
+            if ( curr->data( NVSProjectMaker::ERoles::eIsBuildDir ).toBool() )
+                buildDirs.insert( curr->data( NVSProjectMaker::ERoles::eRelPath ).toString() );
 
-            auto execNames = curr->data( ERoles::eExecutables ).value < QList< QPair< QString, bool > > >();
+            auto execNames = curr->data( NVSProjectMaker::ERoles::eExecutables ).value < QList< QPair< QString, bool > > >();
             if ( !execNames.isEmpty() )
-                execNamesMap.insert( curr->data( ERoles::eRelPath ).toString(), execNames );
+                execNamesMap.insert( curr->data( NVSProjectMaker::ERoles::eRelPath ).toString(), execNames );
 
             auto childValues = findDirAttributes( curr );
             buildDirs.unite( std::get< 0 >( childValues ) );
@@ -337,9 +149,9 @@ void CMainWindow::addCustomBuild( const QPair< QString, QString > & customBuild 
     fCustomBuildModel->appendRow( QList< QStandardItem * >() << dirItem << targetItem );
 }
 
-QList < SDebugCmd > CMainWindow::getDebugCommandsForSourceDir( const QString & inSourcePath ) const
+QList < NVSProjectMaker::SDebugCmd > CMainWindow::getDebugCommandsForSourceDir( const QString & inSourcePath ) const
 {
-    QList < SDebugCmd > retVal;
+    QList < NVSProjectMaker::SDebugCmd > retVal;
 
     auto sourceDirPath = getSourceDir();
     if ( !sourceDirPath.has_value() )
@@ -349,7 +161,7 @@ QList < SDebugCmd > CMainWindow::getDebugCommandsForSourceDir( const QString & i
     for ( int ii = 0; ii < fDebugCommandsModel->rowCount(); ++ii )
     {
         //( QStringList() << "Source Dir" << "Name" << "Command" << "Args" << "Work Dir" << "EnvVars" )
-        SDebugCmd curr;
+        NVSProjectMaker::SDebugCmd curr;
         auto sourcePath = fDebugCommandsModel->item( ii, 0 )->text();
         curr.fSourceDir  = QFileInfo( sourceDir.absoluteFilePath( sourcePath ) ).canonicalFilePath();
         curr.fName = fDebugCommandsModel->item( ii, 1 )->text();
@@ -358,7 +170,13 @@ QList < SDebugCmd > CMainWindow::getDebugCommandsForSourceDir( const QString & i
         curr.fWorkDir = fDebugCommandsModel->item( ii, 4 )->text();
         curr.fEnvVars = fDebugCommandsModel->item( ii, 5 )->text();
 
-        curr.cleanUp( this );
+        QMap< QString, QString > map =
+        {
+              { "CLIENTDIR", getClientDir().value().absolutePath() }
+            , { "SOURCEDIR", getSourceDir().value() }
+            , { "BUILDDIR", getBuildDir().value() }
+        };
+        curr.cleanUp( map );
 
         if ( curr.fSourceDir == inSourcePath )
         {
@@ -378,45 +196,37 @@ std::optional< QDir > CMainWindow::getClientDir() const
     return retVal;
 }
 
-std::optional< QString > CMainWindow::getSourceDir( bool relPath ) const
+std::optional< QString > CMainWindow::getDir( const QLineEdit * lineEdit, bool relPath ) const
 {
     if ( relPath )
-        return fImpl->sourceRelDir->text();
+        return lineEdit->text();
 
     auto clientDir = getClientDir();
     if ( !clientDir.has_value() )
         return {};
 
-    if ( fImpl->sourceRelDir->text().isEmpty() )
+    if ( lineEdit->text().isEmpty() )
         return {};
 
-    if ( !QFileInfo( clientDir.value().absoluteFilePath( fImpl->sourceRelDir->text() ) ).exists() )
+    if ( !QFileInfo( clientDir.value().absoluteFilePath( lineEdit->text() ) ).exists() )
         return {};
 
-    return clientDir.value().absoluteFilePath( fImpl->sourceRelDir->text() );
+    return clientDir.value().absoluteFilePath( lineEdit->text() );
+}
+
+std::optional< QString > CMainWindow::getSourceDir( bool relPath ) const
+{
+    return getDir( fImpl->sourceRelDir, relPath );
 }
 
 std::optional< QString > CMainWindow::getBuildDir( bool relPath ) const
 {
-    if ( relPath )
-        return fImpl->buildRelDir->text();
-
-    auto clientDir = getClientDir();
-    if ( !clientDir.has_value() )
-        return {};
-
-    if ( fImpl->buildRelDir->text().isEmpty() )
-        return {};
-
-    if ( !QFileInfo( clientDir.value().absoluteFilePath( fImpl->buildRelDir->text() ) ).exists() )
-        return {};
-
-    return clientDir.value().absoluteFilePath( fImpl->buildRelDir->text() );
+    return getDir( fImpl->buildRelDir, relPath );
 }
 
-QList < SDebugCmd > CMainWindow::getDebugCommands( bool absDir ) const
+QList < NVSProjectMaker::SDebugCmd > CMainWindow::getDebugCommands( bool absDir ) const
 {
-    QList < SDebugCmd > retVal;
+    QList < NVSProjectMaker::SDebugCmd > retVal;
 
     auto sourceDirPath = getSourceDir();
     if ( !sourceDirPath.has_value() )
@@ -426,7 +236,7 @@ QList < SDebugCmd > CMainWindow::getDebugCommands( bool absDir ) const
     for ( int ii = 0; ii < fDebugCommandsModel->rowCount(); ++ii )
     {
         //( QStringList() << "Source Dir" << "Name" << "Command" << "Args" << "Work Dir" << "EnvVars" )
-        SDebugCmd curr;
+        NVSProjectMaker::SDebugCmd curr;
         curr.fSourceDir = fDebugCommandsModel->item( ii, 0 )->text();
         if ( absDir )
             curr.fSourceDir = sourceDir.absoluteFilePath( curr.fSourceDir );
@@ -445,13 +255,23 @@ QStringList CMainWindow::getCustomBuildsForSourceDir( const QString & inSourcePa
     auto sourceDirPath = getSourceDir();
     if ( !sourceDirPath.has_value() )
         return {};
+
     QDir sourceDir( sourceDirPath.value() );
-    sourceDir.cdUp();
+    auto srcPath = sourceDir.relativeFilePath( inSourcePath );
+
+    auto buildDirPath = getBuildDir();
+    if ( !buildDirPath.has_value() )
+        return {};
+    QDir buildDir( buildDirPath.value() );
+    buildDir.cdUp();
+    buildDir.cdUp();
+
     QStringList retVal;
     for ( int ii = 0; ii < fCustomBuildModel->rowCount(); ++ii )
     {
-        auto currSourceDir = sourceDir.relativeFilePath( fCustomBuildModel->item( ii, 0 )->text() );
-        if ( currSourceDir == inSourcePath )
+        auto currBuildDirPath = buildDir.absoluteFilePath( fCustomBuildModel->item( ii, 0 )->text() );
+        auto currRelBuildDir = QDir( buildDirPath.value() ).relativeFilePath( currBuildDirPath );
+        if ( currRelBuildDir == srcPath )
             retVal << fCustomBuildModel->item( ii, 1 )->text();
     }
     return retVal;
@@ -461,17 +281,18 @@ QList< QPair< QString, QString > > CMainWindow::getCustomBuilds( bool absDir ) c
 {
     QList< QPair< QString, QString > > retVal;
 
-    auto sourceDirPath = getSourceDir();
-    if ( !sourceDirPath.has_value() )
+    auto bldDirPath = getBuildDir();
+    if ( !bldDirPath.has_value() )
         return {};
-    QDir sourceDir( sourceDirPath.value() );
-    sourceDir.cdUp();
+    QDir bldDir( bldDirPath.value() );
+    bldDir.cdUp();
+    bldDir.cdUp();
 
     for ( int ii = 0; ii < fCustomBuildModel->rowCount(); ++ii )
     {
         auto dir = fCustomBuildModel->item( ii, 0 )->text();
         if ( absDir )
-            dir = sourceDir.absoluteFilePath( dir );
+            dir = bldDir.absoluteFilePath( dir );
         auto target = fCustomBuildModel->item( ii, 1 )->text();
         retVal << qMakePair( dir, target );
     }
@@ -480,57 +301,61 @@ QList< QPair< QString, QString > > CMainWindow::getCustomBuilds( bool absDir ) c
 
 void CMainWindow::saveSettings()
 {
-    QSettings settings;
-    settings.setValue( "CMakePath", fImpl->cmakePath->text() );
-    settings.setValue( "Generator", fImpl->generator->currentText() );
-    settings.setValue( "ClientDir", fImpl->clientDir->text() );
+    fSettings->setCMakePath( fImpl->cmakePath->text() );
+    fSettings->setGenerator( fImpl->generator->currentText() );
+    fSettings->setClientDir( fImpl->clientDir->text() );
     auto srcDir = getSourceDir( true );
-    settings.setValue( "SourceRelDir", srcDir.has_value() ? srcDir.value() : QString() );
-    auto bldDir = getSourceDir( true );
-    settings.setValue( "BuildRelDir", bldDir.has_value() ? bldDir.value() : QString() );
-    settings.setValue( "QtDir", fImpl->qtDir->text() );
-    settings.setValue( "QtLibs", fQtLibsModel->getCheckedStrings() );
+    fSettings->setSourceRelDir( srcDir.has_value() ? srcDir.value() : QString() );
+    auto bldDir = getBuildDir( true );
+    fSettings->setBuildRelDir( bldDir.has_value() ? bldDir.value() : QString() );
+    fSettings->setQtDir( fImpl->qtDir->text() );
+    fSettings->setQtLibs( fQtLibsModel->getCheckedStrings() );
 
     auto attribs = findDirAttributes( nullptr );
-    auto inclDirs = fIncDirModel->stringList();
     auto customBuilds = getCustomBuilds( false );
     auto dbgCommands = getDebugCommands( false );
-    settings.setValue( "BuildDirs", QVariant::fromValue( std::get< 0 >( attribs ) ) );
-    settings.setValue( "InclDirs", QVariant::fromValue( inclDirs ) );
-    settings.setValue( "ExecNames", QVariant::fromValue( std::get< 1 >( attribs ) ) );
-    settings.setValue( "CustomBuilds", QVariant::fromValue( customBuilds ) );
-    settings.setValue( "DebugCommands", QVariant::fromValue( dbgCommands ) );
+    fSettings->setBuildDirs( std::get< 0 >( attribs ) );
+    fSettings->setInclDirs( fIncDirModel->stringList() );
+    fSettings->setSelectedInclDirs( fIncDirModel->getCheckedStrings() );
+    fSettings->setExecNames( std::get< 1 >( attribs ) );
+    fSettings->setCustomBuilds( customBuilds );
+    fSettings->setDebugCommands( dbgCommands );
 }
 
 
 void CMainWindow::loadSettings()
 {
-    QSettings settings;
     disconnect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
 
-    fImpl->cmakePath->setText( settings.value( "CMakePath" ).toString() );
-    fImpl->generator->setCurrentText( settings.value( "Generator" ).toString() );
-    fImpl->clientDir->setText( settings.value( "ClientDir" ).toString() );
-    fImpl->buildRelDir->setText( settings.value( "BuildRelDir" ).toString() );
-    fImpl->qtDir->setText( settings.value( "QtDir" ).toString() );
+    fImpl->cmakePath->setText( fSettings->getCMakePath() );
+    fImpl->generator->setCurrentText( fSettings->getGenerator() );
+    fImpl->clientDir->setText( fSettings->getClientDir() );
+    fImpl->buildRelDir->setText( fSettings->getBuildRelDir() );
+    fImpl->qtDir->setText( fSettings->getQtDir() );
    
-    fQtLibs = settings.value( "QtLibs" ).toStringList();
     connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
     loadQtSettings();
 
-    fBuildDirs = settings.value( "BuildDirs" ).value< QSet< QString > >();
-    fInclDirs = settings.value( "InclDirs" ).toStringList();
+    fBuildDirs = fSettings->getBuildDirs();
+    fInclDirs = fSettings->getInclDirs();
     fIncDirModel->setStringList( fInclDirs );
-    fExecutables = settings.value( "Executables" ).value< QHash< QString, QList< QPair< QString, bool > > > >();
-    auto customBuilds = settings.value( "CustomBuilds" ).value< QList< QPair< QString, QString > > >();
+    auto selectedIncDirs = fSettings->getSelectedInclDirs();
+    if ( selectedIncDirs.isEmpty() )
+        fIncDirModel->checkAll( true );
+    else
+        fIncDirModel->setChecked( selectedIncDirs, true, true );
+
+    fExecutables = fSettings->getExecNames();
+    auto customBuilds = fSettings->getCustomBuilds();
     for ( auto && ii : customBuilds )
         addCustomBuild( ii );
 
-    auto dbgCmds = settings.value( "DebugCommands" ).value< QList< SDebugCmd > >();
+    fImpl->sourceRelDir->setText( fSettings->getSourceRelDir() );
+
+    auto dbgCmds = fSettings->getDebugCommands();
     for ( auto && ii : dbgCmds )
         addDebugCommand( ii );
 
-    fImpl->sourceRelDir->setText( settings.value( "SourceRelDir" ).toString() );
     slotChanged();
 }
 
@@ -575,6 +400,33 @@ void CMainWindow::slotChanged()
     fImpl->addDebugCommandBtn->setEnabled( sourceDirOK && bldDirOK );
     fImpl->addIncDirBtn->setEnabled( sourceDirOK );
     fImpl->generateBtn->setEnabled( cmakePathOK && clientDirOK && generatorOK && sourceDirOK && bldDirOK );
+}
+
+void CMainWindow::slotSelectProjectFile()
+{
+    auto currPath = fImpl->projectFile->text();
+    if ( currPath.isEmpty() )
+        currPath = fSettings->fileName();
+    if ( currPath.isEmpty() )
+        currPath = QString();
+    auto projFile = QFileDialog::getOpenFileName( this, tr( "Select Project File" ), currPath, "Project Files *.ini;;All Files *.*" );
+    if ( projFile.isEmpty() )
+        return;
+
+    fImpl->projectFile->setText( projFile );
+}
+
+void CMainWindow::slotProjectFileChanged()
+{
+    auto projFile = fImpl->projectFile->text();
+    if ( !fSettings->loadSettings( projFile ) )
+    {
+        QMessageBox::critical( this, tr( "Project File not Opened" ), QString( "Error: '%1' is not a valid project file" ).arg( projFile ) );
+        return;
+    }
+
+    setWindowTitle( tr( "Visual Studio Project Generator - %1" ).arg( projFile ) );
+    loadSettings();
 }
 
 void CMainWindow::slotSelectCMake()
@@ -704,7 +556,7 @@ void CMainWindow::slotSelectClientDir()
     QFileInfo fi( dir );
     if ( !fi.exists() || !fi.isDir() || !fi.isReadable() )
     {
-        QMessageBox::critical( this, tr( "Error Writable Directory not Selected" ), QString( "Error: '%1' is not an writeable directory" ).arg( dir ) );
+        QMessageBox::critical( this, tr( "Error Writable Directory not Selected" ), QString( "Error: '%1' is not an writable directory" ).arg( dir ) );
         return;
     }
 
@@ -725,7 +577,7 @@ void CMainWindow::slotSelectBuildDir()
     QFileInfo fi( dir );
     if ( !fi.exists() || !fi.isDir() || !fi.isWritable() )
     {
-        QMessageBox::critical( this, tr( "Error Writable Directory not Selected" ), QString( "Error: '%1' is not an writeable directory" ).arg( dir ) );
+        QMessageBox::critical( this, tr( "Error Writable Directory not Selected" ), QString( "Error: '%1' is not an writable directory" ).arg( dir ) );
         return;
     }
 
@@ -741,7 +593,7 @@ void CMainWindow::slotAddDebugCommand()
     }
 }
 
-void CMainWindow::addDebugCommand( const SDebugCmd & cmd )
+void CMainWindow::addDebugCommand( const NVSProjectMaker::SDebugCmd & cmd )
 {
     addDebugCommand( cmd.fSourceDir, cmd.fName, cmd.fCmd, cmd.fArgs, cmd.fWorkDir, cmd.fEnvVars );
 }
@@ -764,28 +616,15 @@ void CMainWindow::addDebugCommand( const QString & sourcePath, const QString & n
 
 void CMainWindow::slotAddCustomBuild()
 {
-    auto currPath = getSourceDir();
+    auto currPath = getBuildDir();
     if ( !currPath.has_value() )
-        currPath = QString();
-    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Directory to Build" ), currPath.value() );
-    if ( dir.isEmpty() )
         return;
 
-    QFileInfo fi( dir );
-    if ( !fi.exists() || !fi.isDir() || !fi.isReadable() )
+    CAddCustomBuild dlg( getBuildDir().value(), this );
+    if ( dlg.exec() == QDialog::Accepted && !dlg.buildDir().isEmpty() && !dlg.targetName().isEmpty() )
     {
-        QMessageBox::critical( this, tr( "Error Readable Directory not Selected" ), QString( "Error: '%1' is not an readable directory" ).arg( dir ) );
-        return;
+        addCustomBuild( qMakePair( dlg.buildDir(), dlg.targetName() ) );
     }
-
-    auto target = QInputDialog::getText( this, tr( "Target Name" ), tr( "Target Name:" ) );
-    if ( target.isEmpty() )
-        return;
-
-    auto relDir = QDir( currPath.value() );
-    relDir.cdUp();
-    auto relDirPath = relDir.relativeFilePath( dir );
-    addCustomBuild( qMakePair( relDirPath, target ) );
 }
 
 void CMainWindow::slotAddIncDir()
@@ -887,8 +726,8 @@ bool CMainWindow::loadSourceFiles( const QString & dir, QStandardItem * parent, 
         auto curr = QFileInfo( iter.next() );
         relDirPath = fSourceDir.value().relativeFilePath( curr.absoluteFilePath() );
         auto node = new QStandardItem( relDirPath );
-        node->setData( curr.isDir(), ERoles::eIsDirRole );
-        node->setData( relDirPath, ERoles::eRelPath );
+        node->setData( curr.isDir(), NVSProjectMaker::ERoles::eIsDirRole );
+        node->setData( relDirPath, NVSProjectMaker::ERoles::eRelPath );
         QList<QStandardItem *> row;
         row << node;
         if ( !curr.isDir() )
@@ -905,9 +744,9 @@ bool CMainWindow::loadSourceFiles( const QString & dir, QStandardItem * parent, 
             auto execList = CMainWindow::getExecutables( relDirPath );
 
 
-            node->setData( isBuildDir, ERoles::eIsBuildDir );
-            node->setData( isInclDir, ERoles::eIsIncludeDir );
-            node->setData( QVariant::fromValue( execList ), ERoles::eExecutables );
+            node->setData( isBuildDir, NVSProjectMaker::ERoles::eIsBuildDir );
+            node->setData( isInclDir, NVSProjectMaker::ERoles::eIsIncludeDir );
+            node->setData( QVariant::fromValue( execList ), NVSProjectMaker::ERoles::eExecutables );
 
             QStringList execNames;
             for ( auto && ii : execList )
@@ -952,9 +791,7 @@ void CMainWindow::slotQtChanged()
     saveSettings();
     fQtLibsModel->setStringList( QStringList() );
 
-    QSettings settings;
-    fImpl->qtDir->setText( settings.value( "QtDir" ).toString() );
-    fQtLibs = settings.value( "QtLibs" ).toStringList();
+    fImpl->qtDir->setText( fSettings->getQtDir() );
 
     loadQtSettings();
     connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
@@ -979,7 +816,7 @@ void CMainWindow::loadQtSettings()
         qtDirs << QFileInfo( iter.next() ).fileName();
     }
     fQtLibsModel->setStringList( qtDirs );
-    fQtLibsModel->setChecked( fQtLibs, true, true );
+    fQtLibsModel->setChecked( fSettings->getQtLibs(), true, true );
 }
 
 void CMainWindow::addInclDirs( const QStringList & inclDirs )
@@ -1001,7 +838,7 @@ void CMainWindow::slotLoadSource()
 
     auto text = fSourceDir.value().dirName();
     auto rootNode = new QStandardItem( text );
-    rootNode->setData( true, ERoles::eIsDirRole );
+    rootNode->setData( true, NVSProjectMaker::ERoles::eIsDirRole );
     fSourceModel->appendRow( rootNode );
 
     appendToLog( tr( "============================================" ) );
@@ -1038,6 +875,7 @@ void CMainWindow::slotLoadSource()
         appendToLog( results.getText( true ) );
         //QMessageBox::information( this, tr( "Results" ), results.getText( false ) );
     }
+    fImpl->tabWidget->setCurrentIndex( 0 );
 }
 
 bool CMainWindow::expandDirectories( QStandardItem * node )
@@ -1047,7 +885,7 @@ bool CMainWindow::expandDirectories( QStandardItem * node )
     for ( int ii = 0; ii < num; ++ii )
     {
         auto child = node->child( ii );
-        bool isDir = child->data( ERoles::eIsDirRole ).toBool();
+        bool isDir = child->data( NVSProjectMaker::ERoles::eIsDirRole ).toBool();
         hasDir = hasDir || isDir;
         if ( isDir )
             expandDirectories( child );
@@ -1057,12 +895,12 @@ bool CMainWindow::expandDirectories( QStandardItem * node )
     return hasDir;
 }
 
-std::list< SDirInfo > CMainWindow::getDirInfo( QStandardItem * parent, QProgressDialog * progress ) const
+std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > CMainWindow::getDirInfo( QStandardItem * parent, QProgressDialog * progress ) const
 {
-    std::list< SDirInfo > retVal;
+    std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > retVal;
 
     int numRows = parent ? parent->rowCount() : fSourceModel->rowCount();
-    if ( parent && !parent->data( ERoles::eIsDirRole ).toBool() )
+    if ( parent && !parent->data( NVSProjectMaker::ERoles::eIsDirRole ).toBool() )
         return {};
 
     progress->setRange( 0, numRows );
@@ -1076,15 +914,15 @@ std::list< SDirInfo > CMainWindow::getDirInfo( QStandardItem * parent, QProgress
             return {};
 
         auto curr = parent ? parent->child( ii ) : fSourceModel->item( ii );
-        if ( !curr->data( ERoles::eIsDirRole ).toBool() )
+        if ( !curr->data( NVSProjectMaker::ERoles::eIsDirRole ).toBool() )
         {
             continue;
         }
 
-        SDirInfo currInfo( curr );
-        currInfo.fExtraTargets  = getCustomBuildsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo.fRelToDir ) ).canonicalFilePath() );
-        currInfo.fDebugCommands = getDebugCommandsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo.fRelToDir ) ).canonicalFilePath() );
-        if ( currInfo.isValid() )
+        auto currInfo = std::make_shared< NVSProjectMaker::SDirInfo >( curr );
+        currInfo->fExtraTargets  = getCustomBuildsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir ) ).canonicalFilePath() );
+        currInfo->fDebugCommands = getDebugCommandsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir ) ).canonicalFilePath() );
+        if ( currInfo->isValid() )
         {
             retVal.push_back( currInfo );
         }
@@ -1119,7 +957,7 @@ QString CMainWindow::getIncludeDirs() const
     QStringList retVal;
 
     QDir sourceDir( getSourceDir().value() );
-    auto inclDirs = fIncDirModel->stringList();
+    auto inclDirs = fIncDirModel->getCheckedStrings();
     for ( auto && ii : inclDirs )
     {
         retVal << sourceDir.absoluteFilePath( ii );
@@ -1136,6 +974,7 @@ QString CMainWindow::getIncludeDirs() const
 
     return retVal.join( ";" );
 }
+
 void CMainWindow::slotGenerate()
 {
     QApplication::setOverrideCursor( Qt::WaitCursor );
@@ -1165,9 +1004,9 @@ void CMainWindow::slotGenerate()
         progress.setValue( currDir++ );
         if ( progress.wasCanceled() )
             break;
-        ii.writeCMakeFile( getBuildDir().value() );
-        ii.writePropSheet( getSourceDir().value(), getBuildDir().value(), inclDirs );
-        ii.createDebugProjects( getBuildDir().value() );
+        ii->writeCMakeFile( this, getBuildDir().value() );
+        ii->writePropSheet( this, getSourceDir().value(), getBuildDir().value(), inclDirs );
+        ii->createDebugProjects( this, getBuildDir().value() );
     }
     progress.setRange( 0, static_cast<int>( dirs.size() ) );
     appendToLog( tr( "============================================" ) );
@@ -1192,9 +1031,9 @@ void CMainWindow::slotGenerate()
     QApplication::restoreOverrideCursor();
 }
 
-std::list< SDirInfo > CMainWindow::generateTopLevelFiles( QProgressDialog * progress )
+std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > CMainWindow::generateTopLevelFiles( QProgressDialog * progress )
 {
-    readResourceFile( this, QString( ":/resources/Project.cmake" ),
+    NVSProjectMaker::readResourceFile( this, QString( ":/resources/Project.cmake" ),
                       [this]( QString & text )
     {
         QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( "Project.cmake" );
@@ -1211,7 +1050,7 @@ std::list< SDirInfo > CMainWindow::generateTopLevelFiles( QProgressDialog * prog
     }
     );
 
-    auto topDirText = readResourceFile( this, QString( ":/resources/%1.txt" ).arg( "topdir" ),
+    auto topDirText = NVSProjectMaker::readResourceFile( this, QString( ":/resources/%1.txt" ).arg( "topdir" ),
                                         [this]( QString & text )
     {
         text.replace( "%CLIENT_NAME%", fImpl->clientName->text() );
@@ -1231,7 +1070,7 @@ std::list< SDirInfo > CMainWindow::generateTopLevelFiles( QProgressDialog * prog
     QTextStream qts( &fo );
     qts << topDirText;
 
-    auto customTopBuilds = getCustomBuildsForSourceDir( QFileInfo( getSourceDir().value() ).fileName() );
+    auto customTopBuilds = getCustomBuildsForSourceDir( QFileInfo( getSourceDir().value() ).absoluteFilePath() );
     if ( !customTopBuilds.isEmpty() )
     {
         for ( auto && ii : customTopBuilds )
@@ -1245,7 +1084,7 @@ std::list< SDirInfo > CMainWindow::generateTopLevelFiles( QProgressDialog * prog
                 return {};
             }
             QString fileName = QString( "CustomBuild/%1/CMakeLists.txt" ).arg( ii );
-            auto topDirCustomBuildTxt = readResourceFile( this, QString( ":/resources/custombuilddir.txt" ),
+            auto topDirCustomBuildTxt = NVSProjectMaker::readResourceFile( this, QString( ":/resources/custombuilddir.txt" ),
                                                 [ii, fileName, this]( QString & text )
             {
                 text.replace( "%PROJECT_NAME%", ii );
@@ -1266,7 +1105,7 @@ std::list< SDirInfo > CMainWindow::generateTopLevelFiles( QProgressDialog * prog
                 }
                 QTextStream qts( &fo );
                 qts << text;
-                qts << "\n\nset_target_properties( " << ii << " PROPERTIES FOLDER " << "\"Top Level Targets\"" << " )\n";
+                qts << "\n\nset_target_properties( " << ii << " PROPERTIES FOLDER " << "\"CMakePredefinedTargets/Top Level Targets\"" << " )\n";
                 fo.close();
             }
             );
@@ -1291,7 +1130,7 @@ std::list< SDirInfo > CMainWindow::generateTopLevelFiles( QProgressDialog * prog
 
     for ( auto && ii : dirs )
     {
-        auto subDirs = ii.getSubDirs();
+        auto subDirs = ii->getSubDirs();
         for( auto && jj : subDirs )
             qts << QString( "add_subdirectory( %1 )\n" ).arg( jj );
     }
@@ -1339,308 +1178,5 @@ QString CMainWindow::SSourceFileInfo::getText( bool forText ) const
     return retVal;
 }
 
-SDirInfo::SDirInfo( QStandardItem * item ) :
-    fIsInclDir( item->data( CMainWindow::ERoles::eIsIncludeDir ).toBool() ),
-    fIsBuildDir( item->data( CMainWindow::ERoles::eIsBuildDir ).toBool() ),
-    fExecutables( item->data( CMainWindow::ERoles::eExecutables ).value< QList< QPair< QString, bool > > >() )
-{
-    computeRelToDir( item );
-    getFiles( item );
-}
 
-void SDirInfo::computeRelToDir( QStandardItem * item )
-{
-    fRelToDir = item->data( CMainWindow::ERoles::eRelPath ).toString();
-    fProjectName = fRelToDir;
-    fProjectName.replace( "/", "_" );
-    fProjectName = fProjectName.replace( "\\", "_" );
-    fProjectName = fProjectName.replace( " ", "_" );
-}
 
-bool SDirInfo::isValid() const
-{
-    if ( fRelToDir.isEmpty() )
-        return false;
-
-    return ( fIsInclDir || fIsBuildDir || !fExecutables.isEmpty() || !fExtraTargets.isEmpty() || !fDebugCommands.isEmpty() );
-}
-
-void SDirInfo::replaceFiles( QString & text, const QString & variable, const QStringList & files ) const
-{
-    QStringList values;
-    for ( auto && ii : files )
-    {
-        values << QString( "    \"${ROOT_SOURCE_DIR}/%1\"" ).arg( ii );
-    }
-    auto value = values.join( "\n" );
-    text.replace( variable, value );
-}
-
-QString SDebugCmd::getEnvVars() const
-{
-    QStringList tmp;
-    bool inParen = false;
-    QString curr;
-    for ( int ii = 0; ii < fEnvVars.length(); ++ii )
-    {
-        auto currChar = fEnvVars[ ii ];
-        if ( inParen )
-        {
-            if ( currChar == '}' )
-            {
-                inParen = false;
-                curr = curr.trimmed();
-                tmp << curr;
-                curr.clear();
-            }
-            else
-                curr += currChar;
-        }
-        else
-            inParen = currChar == '{';
-    }
-    if ( !curr.isEmpty() )
-        tmp << curr;
-    auto retVal = tmp.join( '\n' );
-    return retVal;
-}
-
-QString SDebugCmd::getProjectName() const
-{
-    QString retVal = fName;
-    retVal.replace( "/", "_" );
-    retVal = retVal.replace( "\\", "_" );
-    retVal = retVal.replace( " ", "_" );
-    return retVal;
-}
-
-void SDebugCmd::cleanUp( const CMainWindow * mainWindow )
-{
-    fCmd = fCmd.replace( "<CLIENTDIR>", mainWindow->getClientDir().value().absolutePath() );
-    fCmd = fCmd.replace( "<BUILDDIR>", mainWindow->getBuildDir().value() );
-    fCmd = fCmd.replace( "<SOURCEDIR>", mainWindow->getSourceDir().value() );
-
-    fArgs = fArgs.replace( "<CLIENTDIR>", mainWindow->getClientDir().value().absolutePath() );
-    fArgs = fArgs.replace( "<BUILDDIR>", mainWindow->getBuildDir().value() );
-    fArgs = fArgs.replace( "<SOURCEDIR>", mainWindow->getSourceDir().value() );
-
-    fWorkDir = fWorkDir.replace( "<CLIENTDIR>", mainWindow->getClientDir().value().absolutePath() );
-    fWorkDir = fWorkDir.replace( "<BUILDDIR>", mainWindow->getBuildDir().value() );
-    fWorkDir = fWorkDir.replace( "<SOURCEDIR>", mainWindow->getSourceDir().value() );
-
-    fEnvVars = fEnvVars.replace( "<CLIENTDIR>", mainWindow->getClientDir().value().absolutePath() );
-    fEnvVars = fEnvVars.replace( "<BUILDDIR>", mainWindow->getBuildDir().value() );
-    fEnvVars = fEnvVars.replace( "<SOURCEDIR>", mainWindow->getSourceDir().value() );
-}
-
-QStringList SDirInfo::getSubDirs() const
-{
-    QStringList retVal;
-    retVal << fRelToDir;
-    for ( auto && ii : fDebugCommands )
-    {
-        retVal << QString( "%1/DebugDir/%2" ).arg( fRelToDir ).arg( ii.getProjectName() );
-    }
-    return retVal;
-}
-void SDirInfo::createDebugProjects( const QString & bldDir ) const
-{
-    for ( auto && ii : fDebugCommands )
-    {
-        if ( !QDir( bldDir ).mkpath( QString( "%1/DebugDir/%2" ).arg( fRelToDir ).arg( ii.getProjectName() ) ) )
-        {
-            QApplication::restoreOverrideCursor();
-            QMessageBox::critical( nullptr, QObject::tr( "Error:" ), QObject::tr( "Error creating directory '%1" ).arg( QString( "CustomBuild/%1" ).arg( ii.fCmd ) ) );
-            return;
-        }
-
-        CMainWindow::readResourceFile( nullptr, QString( ":/resources/PropertySheetWithDebug.props" ),
-                                       [this, bldDir, ii]( QString & text )
-        {
-            QDir bldQDir( bldDir );
-            bldQDir.cd( fRelToDir );
-            bldQDir.cd( "DebugDir" );
-            bldQDir.cd( ii.getProjectName() );
-
-            QString outFile = bldQDir.absoluteFilePath( "PropertySheetWithDebug.props" );
-            QFile fo( outFile );
-            if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
-            {
-                QApplication::restoreOverrideCursor();
-                QMessageBox::critical( nullptr, QObject::tr( "Error:" ), QObject::tr( "Error opening output file '%1'\n%2" ).arg( outFile ).arg( fo.errorString() ) );
-                return;
-            }
-
-            text.replace( "%PROJECT_NAME%", ii.getProjectName() );
-            text.replace( "%DEBUG_COMMAND%", ii.fCmd );
-            text.replace( "%DEBUG_ARGS%", ii.fArgs );
-            text.replace( "%DEBUG_WORKDIR%", ii.fWorkDir );
-            text.replace( "%DEBUG_ENVVARS%", ii.getEnvVars() );
-            QTextStream qts( &fo );
-            qts << text;
-            fo.close();
-        } 
-        );
-        CMainWindow::readResourceFile( nullptr, QString( ":/resources/subdebugdir.txt" ),
-                                        [this, bldDir, ii]( QString & text )
-        {
-            QDir bldQDir( bldDir );
-            bldQDir.cd( fRelToDir );
-            bldQDir.cd( "DebugDir" );
-            bldQDir.cd( ii.getProjectName() );
-
-            QString outFile = bldQDir.absoluteFilePath( "CMakeLists.txt" );
-            QFile fo( outFile );
-            if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
-            {
-                QApplication::restoreOverrideCursor();
-                QMessageBox::critical( nullptr, QObject::tr( "Error:" ), QObject::tr( "Error opening output file '%1'\n%2" ).arg( outFile ).arg( fo.errorString() ) );
-                return;
-            }
-
-            text.replace( "%PROJECT_NAME%", ii.getProjectName() );
-            auto outDir = QDir( bldDir );
-            auto outPath = outDir.absoluteFilePath( fRelToDir );
-            text.replace( "%BUILD_DIR%", outPath );
-            text.replace( "%DEBUG_COMMAND%", ii.fCmd );
-            text.replace( "%PROPSFILENAME%", "PropertySheetWithDebug.props" );
-            
-            QTextStream qts( &fo );
-            qts << text;
-            qts << "\n\nset_target_properties( " << ii.getProjectName() << " PROPERTIES FOLDER " << "\"Debug Targets\"" << " )\n";
-            fo.close();
-        }
-        );
-
-    }
-}
-
-void SDirInfo::writePropSheet( const QString & srcDir, const QString & bldDir, const QString & includeDirs ) const
-{
-    QString fileName = "PropertySheetIncludes.props";
-    CMainWindow::readResourceFile( nullptr, QString( ":/resources/%1" ).arg( fileName ),
-                      [this, srcDir, bldDir, includeDirs, fileName ]( QString & text )
-    {
-        QDir bldQDir( bldDir );
-        bldQDir.cd( fRelToDir );
-        QString outFile = bldQDir.absoluteFilePath( fileName );
-        QFile fo( outFile );
-        if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
-        {
-            QApplication::restoreOverrideCursor();
-            QMessageBox::critical( nullptr, QObject::tr( "Error:" ), QObject::tr( "Error opening output file '%1'\n%2" ).arg( outFile ).arg( fo.errorString() ) );
-            return;
-        }
-        QString lclIncDirs = QDir( srcDir ).absoluteFilePath( fRelToDir ) + ";" + includeDirs;
-        text.replace( "%INCLUDE_DIRS%", lclIncDirs );
-        QTextStream qts( &fo );
-        qts << text;
-        fo.close();
-    }
-    );
-}
-
-void SDirInfo::writeCMakeFile( const QString & bldDir ) const
-{
-    auto outDir = QDir( bldDir );
-    auto outPath = outDir.absoluteFilePath( fRelToDir );
-
-    QString resourceFile = ( !fIsBuildDir && fExecutables.isEmpty() && fSourceFiles.isEmpty() ) ? "subheaderdir.txt" : "subbuilddir.txt";
-    auto resourceText = CMainWindow::readResourceFile( nullptr, QString( ":/resources/%1" ).arg( resourceFile ),
-                                        [this, outPath]( QString & resourceText )
-    {
-        resourceText.replace( "%PROJECT_NAME%", fProjectName );
-        resourceText.replace( "%BUILD_DIR%", outPath );
-        replaceFiles( resourceText, "%SOURCE_FILES%", fSourceFiles );
-        replaceFiles( resourceText, "%HEADER_FILES%", fHeaderFiles );
-        replaceFiles( resourceText, "%UI_FILES%", fUIFiles );
-        replaceFiles( resourceText, "%QRC_FILES%", fQRCFiles );
-        replaceFiles( resourceText, "%OTHER_FILES%", fOtherFiles );
-        resourceText.replace( "%PROPSFILENAME%", "PropertySheetIncludes.props" );
-    }
-    );
-
-    if ( !outDir.cd( fRelToDir ) )
-    {
-        if ( !outDir.mkpath( fRelToDir ) || !outDir.cd( fRelToDir ) )
-        {
-            QMessageBox::critical( nullptr, QObject::tr( "Error:" ), QObject::tr( "Could not create missing output directory '%1'" ).arg( outPath ) );
-            return;
-        }
-    }
-
-    QString outFile = outDir.absoluteFilePath( QString( "CMakeLists.txt" ) );
-    QFile fo( outFile );
-    if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
-    {
-        QMessageBox::critical( nullptr, QObject::tr( "Error:" ), QObject::tr( "Error opening output file '%1'\n%2" ).arg( outFile ).arg( fo.errorString() ) );
-        return;
-    }
-
-    QTextStream qts( &fo );
-    qts << resourceText;
-
-    QString folder = fRelToDir;
-    QFileInfo( fRelToDir ).path();
-    if ( fIsBuildDir || fExecutables.isEmpty() )
-    {
-        qts << "set_target_properties( " << fProjectName << " PROPERTIES FOLDER " << folder << " )\n";
-    }
-    else
-    {
-        for ( auto && ii : fExecutables )
-        {
-            qts << "set_target_properties( " << fProjectName << " PROPERTIES FOLDER " << folder << " )\n";
-        }
-    }
-}
-
-void SDirInfo::addDependencies( QTextStream & qts ) const
-{
-    qts << "                 ${project_SRCS}\n"
-        << "                 ${project_H}\n"
-        << "                 ${qtproject_UIS}\n"
-        << "                 ${qtproject_QRC}\n"
-        << "                 ${otherFILES}\n"
-        ;
-}
-
-void SDirInfo::getFiles( QStandardItem * parent )
-{
-    if ( !parent || !parent->data( CMainWindow::ERoles::eIsDirRole ).toBool() )
-        return;
-
-    int numRows = parent->rowCount();
-    for ( int ii = 0; ii < numRows; ++ii )
-    {
-        auto curr = parent->child( ii );
-        if ( curr->data( CMainWindow::ERoles::eIsDirRole ).toBool() )
-            continue;
-
-        addFile( curr->data( CMainWindow::ERoles::eRelPath ).toString() );
-    }
-}
-
-void SDirInfo::addFile( const QString & path )
-{
-    static std::unordered_set< QString > headerSuffixes =
-    {
-        "h", "hh", "hpp", "hxx"
-    };
-    static std::unordered_set< QString > sourceSuffixes =
-    {
-        "c", "cxx", "cpp"
-    };
-    QFileInfo fi( path );
-    auto suffix = fi.suffix().toLower();
-    if ( suffix == "ui" )
-        fUIFiles << path;
-    else if ( suffix == "qrc" )
-        fQRCFiles << path;
-    else if ( headerSuffixes.find( suffix ) != headerSuffixes.end() )
-        fHeaderFiles << path;
-    else if ( sourceSuffixes.find( suffix ) != sourceSuffixes.end() )
-        fSourceFiles << path;
-    else
-        fOtherFiles << path;
-}

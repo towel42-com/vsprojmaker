@@ -24,24 +24,22 @@ cmake_minimum_required(VERSION 3.1)
 if(CMAKE_VERSION VERSION_LESS "3.7.0")
     set(CMAKE_INCLUDE_CURRENT_DIR ON)
 endif()
+project( MainLib )
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED true)
-find_package(Threads REQUIRED)
-#find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
-#AddQtIncludes()
+include( include.cmake )
+include( ${CMAKE_SOURCE_DIR}/SABUtils/Project.cmake )
 
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
-SET(CMAKE_AUTOMOC OFF)
-SET(CMAKE_AUTORCC OFF)
-SET(CMAKE_AUTOUIC OFF)
-
-source_group("Generated Files" FILES ${qtproject_UIS_H} ${qtproject_MOC_SRCS} ${qtproject_QRC_SRCS} ${qtproject_CPPMOC_H})
-source_group("Resource Files" FILES ${qtproject_QRC} ${qtproject_QRC_SOURCES} )
-source_group("Other Files" FILES ${otherFILES} )
-source_group("Designer Files" FILES ${qtproject_UIS} )
-source_group("Header Files" FILES ${qtproject_H} ${project_H} )
-source_group("Source Files" FILES ${qtproject_CPPMOC_SRCS} )
-
-
+add_library(MainLib STATIC
+    ${project_SRCS} 
+    ${project_H}  
+    ${qtproject_SRCS} 
+    ${qtproject_QRC} 
+    ${qtproject_QRC_SRCS} 
+    ${qtproject_UIS_H} 
+    ${qtproject_MOC_SRCS} 
+    ${qtproject_H} 
+    ${qtproject_UIS}
+    ${qtproject_QRC_SOURCES}
+    ${_CMAKE_FILES}
+)
+set_target_properties( MainLib PROPERTIES FOLDER Libs )
