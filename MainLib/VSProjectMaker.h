@@ -39,10 +39,10 @@ namespace NVSProjectMaker
     enum ERoles
     {
         eIsDirRole = Qt::UserRole + 1,
-        eIsBuildDir,
-        eExecutables,
-        eIsIncludeDir,
-        eRelPath
+        eIsBuildDirRole,
+        eIsIncludeDirRole,
+        eExecutablesRole,
+        eRelPathRole
     };
 
     QString readResourceFile( QWidget * parent, const QString & resourceFile, const std::function< void( QString & data ) > & function = {} );

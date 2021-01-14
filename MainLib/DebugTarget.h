@@ -29,7 +29,7 @@
 
 namespace NVSProjectMaker
 {
-    struct SDebugCmd
+    struct SDebugTarget
     {
         QString fSourceDir;
         QString fName;
@@ -45,12 +45,12 @@ namespace NVSProjectMaker
     };
 }
 
-QDataStream & operator<<( QDataStream & stream, const NVSProjectMaker::SDebugCmd & value );
-QDataStream & operator>>( QDataStream & stream, NVSProjectMaker::SDebugCmd & value );
-QDataStream & operator<<( QDataStream & stream, const QList< NVSProjectMaker::SDebugCmd > & value );
-QDataStream & operator>>( QDataStream & stream, QList< NVSProjectMaker::SDebugCmd > & value );
+QDataStream & operator<<( QDataStream & stream, const NVSProjectMaker::SDebugTarget & value );
+QDataStream & operator>>( QDataStream & stream, NVSProjectMaker::SDebugTarget & value );
+QDataStream & operator<<( QDataStream & stream, const QList< NVSProjectMaker::SDebugTarget > & value );
+QDataStream & operator>>( QDataStream & stream, QList< NVSProjectMaker::SDebugTarget > & value );
 
-Q_DECLARE_METATYPE( NVSProjectMaker::SDebugCmd );
+Q_DECLARE_METATYPE( NVSProjectMaker::SDebugTarget );
 
 #endif 
 

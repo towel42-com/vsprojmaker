@@ -20,12 +20,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "DebugCmd.h"
+#include "DebugTarget.h"
 #include <QApplication>
 #include <QMessageBox>
 #include <QFile>
 
-QDataStream & operator<<( QDataStream & stream, const NVSProjectMaker::SDebugCmd & value )
+QDataStream & operator<<( QDataStream & stream, const NVSProjectMaker::SDebugTarget & value )
 {
     stream << value.fSourceDir
         << value.fName
@@ -37,7 +37,7 @@ QDataStream & operator<<( QDataStream & stream, const NVSProjectMaker::SDebugCmd
     return stream;
 }
 
-QDataStream & operator>>( QDataStream & stream, NVSProjectMaker::SDebugCmd & value )
+QDataStream & operator>>( QDataStream & stream, NVSProjectMaker::SDebugTarget & value )
 {
     stream >> value.fSourceDir;
     stream >> value.fName;
@@ -49,7 +49,7 @@ QDataStream & operator>>( QDataStream & stream, NVSProjectMaker::SDebugCmd & val
     return stream;
 }
 
-QDataStream & operator<<( QDataStream & stream, const QList< NVSProjectMaker::SDebugCmd > & value )
+QDataStream & operator<<( QDataStream & stream, const QList< NVSProjectMaker::SDebugTarget > & value )
 {
     stream << value.count();
     for ( auto ii = value.constBegin(); ii != value.constEnd(); ++ii )
@@ -59,14 +59,14 @@ QDataStream & operator<<( QDataStream & stream, const QList< NVSProjectMaker::SD
     return stream;
 }
 
-QDataStream & operator>>( QDataStream & stream, QList< NVSProjectMaker::SDebugCmd > & value )
+QDataStream & operator>>( QDataStream & stream, QList< NVSProjectMaker::SDebugTarget > & value )
 {
     int count;
     stream >> count;
 
     for ( int ii = 0; ii < count; ++ii )
     {
-        NVSProjectMaker::SDebugCmd curr;
+        NVSProjectMaker::SDebugTarget curr;
         stream >> curr;
         value.push_back( curr );
     }
@@ -75,7 +75,7 @@ QDataStream & operator>>( QDataStream & stream, QList< NVSProjectMaker::SDebugCm
 
 namespace NVSProjectMaker
 {
-    QString SDebugCmd::getEnvVars() const
+    QString SDebugTarget::getEnvVars() const
     {
         QStringList tmp;
         bool inParen = false;
@@ -104,7 +104,7 @@ namespace NVSProjectMaker
         return retVal;
     }
 
-    QString SDebugCmd::getProjectName() const
+    QString SDebugTarget::getProjectName() const
     {
         QString retVal = fName;
         retVal.replace( "/", "_" );
@@ -113,14 +113,14 @@ namespace NVSProjectMaker
         return retVal;
     }
 
-    QString SDebugCmd::getCmd() const
+    QString SDebugTarget::getCmd() const
     {
         QString retVal = fCmd;
         retVal.replace( "\\", "/" );
         return retVal;
     }
 
-    void SDebugCmd::cleanUp( const QMap< QString, QString > & map )
+    void SDebugTarget::cleanUp( const QMap< QString, QString > & map )
     {
         for ( auto && ii = map.cbegin(); ii != map.cend(); ++ii )
         {

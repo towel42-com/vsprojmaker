@@ -33,14 +33,15 @@
 #include <functional>
 #include <tuple>
 #include <QProcess>
-#include <optional>
 
 class QLineEdit;
 namespace NVSProjectMaker
 {
     struct SDirInfo;
-    struct SDebugCmd;
+    struct SDebugTarget;
     class CSettings;
+    struct SSourceFileResults;
+    struct SSourceFileInfo;
 }
 
 class CMainWindow;
@@ -82,11 +83,11 @@ public Q_SLOTS:
     void slotSelectClientDir();
     void slotAddIncDir();
     void slotAddCustomBuild();
-    void slotAddDebugCommand();
+    void slotAddDebugTarget();
     void slotCurrentProjectChanged( const QString & projFile );
 
-    void addDebugCommand( const QString & sourceDir, const QString & name, const QString & cmd, const QString & args, const QString & workDir, const QString & envVars );
-    void addDebugCommand( const NVSProjectMaker::SDebugCmd & dbgCmd );
+    void addDebugTarget( const QString & sourceDir, const QString & name, const QString & cmd, const QString & args, const QString & workDir, const QString & envVars );
+    void addDebugTarget( const NVSProjectMaker::SDebugTarget & dbgCmd );
 
     void slotGenerate();
 
@@ -94,6 +95,8 @@ public Q_SLOTS:
     void slotReadStdOut();
     void slotFinished( int exitCode, QProcess::ExitStatus status );
 private:
+    QStandardItem * loadSourceFileModel();
+        
     QStringList getProjects() const;
     void setProjects( QStringList projects );
 
@@ -105,33 +108,16 @@ private:
     void addInclDirs( const QStringList & inclDirs );
     std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > generateTopLevelFiles( QProgressDialog * progress );
     void loadSettings();
-    void loadQtSettings();
     void saveSettings();
     void appendToLog( const QString & txt );
-    struct SSourceFileInfo
-    {
-        int fDirs{ 0 };
-        int fFiles{ 0 };
-        QStringList fBuildDirs;
-        QStringList fInclDirs;
-        QList< QPair< QString, bool > >fExecutables;
-        QStringList fQtLibs;
-        QString getText( bool forText ) const;
-    };
-    std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > getDirInfo( QStandardItem * parent, QProgressDialog * progress ) const;
-    QList < NVSProjectMaker::SDebugCmd > getDebugCommandsForSourceDir( const QString & sourceDir ) const;
-    QList< NVSProjectMaker::SDebugCmd > getDebugCommands( bool abs ) const;
+    QList < NVSProjectMaker::SDebugTarget > getDebugCommandsForSourceDir( const QString & sourceDir ) const;
+    QList< NVSProjectMaker::SDebugTarget > getDebugCommands( bool abs ) const;
 
     QStringList getCustomBuildsForSourceDir( const QString & sourceDir ) const;
     QList< QPair< QString, QString > > getCustomBuilds( bool abs ) const;
     void addCustomBuild( const QPair< QString, QString > & buildInfo );
-    bool loadSourceFiles( const QString & dir, QStandardItem * parent, QProgressDialog * progress, SSourceFileInfo & results );
-    void incProgress( QProgressDialog * progress ) const;
-    bool isBuildDir( const QDir & relToDir, const QDir & dir ) const;
-    bool isInclDir( const QDir & relToDir, const QDir & dir ) const;
     QList< QPair< QString, bool > > getExecutables( const QDir & dir ) const;
     std::tuple< QSet< QString >, QHash< QString, QList< QPair< QString, bool > > > > findDirAttributes( QStandardItem * parent ) const;
-    QStringList getCmakeArgs() const;
     QString getIncludeDirs() const;
 
     void disconnectProjectSignal();
@@ -146,7 +132,7 @@ private:
     QStandardItemModel * fSourceModel{ nullptr };
     CCheckableStringListModel * fIncDirModel{ nullptr };
     QStandardItemModel * fCustomBuildModel{ nullptr };
-    QStandardItemModel * fDebugCommandsModel{ nullptr };
+    QStandardItemModel * fDebugTargetsModel{ nullptr };
     CCheckableStringListModel * fQtLibsModel{ nullptr };
     std::unique_ptr< Ui::CMainWindow > fImpl;
     QProcess * fProcess{ nullptr };

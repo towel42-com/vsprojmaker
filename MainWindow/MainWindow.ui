@@ -214,21 +214,21 @@
          </widget>
          <widget class="QWidget" name="tab_4">
           <attribute name="title">
-           <string>Debug Executables</string>
+           <string>Debug Targets</string>
           </attribute>
           <layout class="QGridLayout" name="gridLayout_6">
            <item row="0" column="0">
             <widget class="QLabel" name="label_9">
              <property name="text">
-              <string>Add Debug Command:</string>
+              <string>Add Debug Target:</string>
              </property>
             </widget>
            </item>
            <item row="2" column="0" colspan="3">
-            <widget class="QTreeView" name="debugCmds"/>
+            <widget class="QTreeView" name="debugTargets"/>
            </item>
            <item row="0" column="1">
-            <widget class="QToolButton" name="addDebugCommandBtn">
+            <widget class="QToolButton" name="addDebugTargetBtn">
              <property name="text">
               <string>...</string>
              </property>
@@ -401,8 +401,8 @@
   <tabstop>sourceTree</tabstop>
   <tabstop>addCustomBuildBtn</tabstop>
   <tabstop>customBuilds</tabstop>
-  <tabstop>addDebugCommandBtn</tabstop>
-  <tabstop>debugCmds</tabstop>
+  <tabstop>addDebugTargetBtn</tabstop>
+  <tabstop>debugTargets</tabstop>
   <tabstop>addIncDirBtn</tabstop>
   <tabstop>incPaths</tabstop>
   <tabstop>qtDir</tabstop>

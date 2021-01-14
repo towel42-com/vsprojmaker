@@ -22,7 +22,7 @@
 
 set(qtproject_SRCS
     DirInfo.cpp
-    DebugCmd.cpp
+    DebugTarget.cpp
     VSProjectMaker.cpp
     Settings.cpp
 )
@@ -32,7 +32,7 @@ set(qtproject_H
 
 set(project_H
     DirInfo.h
-    DebugCmd.h
+    DebugTarget.h
     VSProjectMaker.h
     Settings.h
 )

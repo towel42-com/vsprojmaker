@@ -49,7 +49,7 @@ target_link_libraries( VSProjectMakerCLI
                  MainLib
                  SABUtils
           )
-DeployQt( VSProjectMakerCLI . )
+DeployQt( VSProjectMakerCLI .)
 DeploySystem( VSProjectMakerCLI )
 
 INSTALL( TARGETS ${PROJECT_NAME} RUNTIME DESTINATION . )

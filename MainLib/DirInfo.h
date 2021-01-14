@@ -29,16 +29,16 @@
 #include <QStringList>
 #include <QMap>
 class QWidget;
-class QStandardItem;
 class QTextStream;
 
 namespace NVSProjectMaker
 {
-    struct SDebugCmd;
+    struct SDebugTarget;
+    struct SSourceFileInfo;
     struct SDirInfo
     {
         SDirInfo() {}
-        SDirInfo( QStandardItem * item );
+        SDirInfo( const std::shared_ptr< SSourceFileInfo > & fileInfo );
         bool isValid() const;
         void writeCMakeFile( QWidget * parent, const QString & bldDir ) const;
         void writePropSheet( QWidget * parent, const QString & srcDir, const QString & bldDir, const QString & includeDirs ) const;
@@ -47,7 +47,7 @@ namespace NVSProjectMaker
         QStringList getSubDirs() const;
         void replaceFiles( QString & text, const QString & variable, const QStringList & files ) const;
         void addDependencies( QTextStream & qts ) const;
-        void computeRelToDir( QStandardItem * item );
+        void computeRelToDir( const std::shared_ptr< SSourceFileInfo > & fileInfo );
 
         QString fRelToDir;
         QString fProjectName;
@@ -62,9 +62,9 @@ namespace NVSProjectMaker
         QStringList fOtherFiles;
 
         QStringList fExtraTargets;
-        QList<SDebugCmd> fDebugCommands;
+        QList<SDebugTarget> fDebugCommands;
 
-        void getFiles( QStandardItem * parent );
+        void getFiles( const std::shared_ptr< SSourceFileInfo > & fileInfo );
         void addFile( const QString & path );
     };
 

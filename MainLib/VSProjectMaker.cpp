@@ -22,8 +22,8 @@
 
 #include "VSProjectMaker.h"
 #include "Settings.h"
+#include "DebugTarget.h"
 
-#include "DebugCmd.h"
 #include <QSet>
 #include <QDataStream>
 #include <QFile>
@@ -180,7 +180,7 @@ namespace NVSProjectMaker
         qRegisterMetaTypeStreamOperators< QPair< QString, bool > >( "QPair<QString,bool>" );
         qRegisterMetaTypeStreamOperators< TListOfStringPair >( "TListOfStringPair" );
         qRegisterMetaTypeStreamOperators< QPair< QString, QString > >( "QPair<QString,QString>" );
-        qRegisterMetaTypeStreamOperators< SDebugCmd >( "SDebugCmd" );
-        qRegisterMetaTypeStreamOperators< QList< SDebugCmd > >( "QList< SDebugCmd >" );
+        qRegisterMetaTypeStreamOperators< SDebugTarget >( "SDebugTarget" );
+        qRegisterMetaTypeStreamOperators< QList< SDebugTarget > >( "QList< SDebugTarget >" );
     }
 }

@@ -21,8 +21,10 @@
 // SOFTWARE.
 
 #include "DirInfo.h"
-#include "DebugCmd.h"
+#include "DebugTarget.h"
 #include "VSProjectMaker.h"
+#include "Settings.h"
+
 #include <QStandardItem>
 #include <QDir>
 #include <QApplication>
@@ -32,18 +34,18 @@
 
 namespace NVSProjectMaker
 {
-    SDirInfo::SDirInfo( QStandardItem * item ) :
-        fIsInclDir( item->data( ERoles::eIsIncludeDir ).toBool() ),
-        fIsBuildDir( item->data( ERoles::eIsBuildDir ).toBool() ),
-        fExecutables( item->data( ERoles::eExecutables ).value< QList< QPair< QString, bool > > >() )
+    SDirInfo::SDirInfo( const std::shared_ptr< SSourceFileInfo > & fileInfo ) :
+        fIsInclDir( fileInfo->fIsIncludeDir ),
+        fIsBuildDir( fileInfo->fIsBuildDir ),
+        fExecutables( fileInfo->fExecutables )
     {
-        computeRelToDir( item );
-        getFiles( item );
+        computeRelToDir( fileInfo );
+        getFiles( fileInfo );
     }
 
-    void SDirInfo::computeRelToDir( QStandardItem * item )
+    void SDirInfo::computeRelToDir( const std::shared_ptr< SSourceFileInfo > & fileInfo )
     {
-        fRelToDir = item->data( ERoles::eRelPath ).toString();
+        fRelToDir = fileInfo->fRelPath;
         fProjectName = fRelToDir;
         fProjectName.replace( "/", "_" );
         fProjectName = fProjectName.replace( "\\", "_" );
@@ -144,7 +146,7 @@ namespace NVSProjectMaker
 
                 QTextStream qts( &fo );
                 qts << text;
-                qts << "\n\nset_target_properties( " << ii.getProjectName() << " PROPERTIES FOLDER " << "\"CMakePredefinedTargets/Debug Targets\"" << " )\n";
+                qts << "\n\nset_target_properties( " << ii.getProjectName() << " PROPERTIES FOLDER " << "\"Debug Targets\"" << " )\n";
                 fo.close();
             }
             );
@@ -217,7 +219,7 @@ namespace NVSProjectMaker
         QTextStream qts( &fo );
         qts << resourceText;
 
-        QString folder = fRelToDir;
+        QString folder = "Directories/" + fRelToDir;
         QFileInfo( fRelToDir ).path();
         if ( fIsBuildDir || fExecutables.isEmpty() )
         {
@@ -242,19 +244,18 @@ namespace NVSProjectMaker
             ;
     }
 
-    void SDirInfo::getFiles( QStandardItem * parent )
+    void SDirInfo::getFiles( const std::shared_ptr< SSourceFileInfo > & fileInfo )
     {
-        if ( !parent || !parent->data( ERoles::eIsDirRole ).toBool() )
+        if ( !fileInfo || !fileInfo->fIsDir )
             return;
 
-        int numRows = parent->rowCount();
-        for ( int ii = 0; ii < numRows; ++ii )
+        size_t numRows = fileInfo->fChildren.size();
+        for ( auto && curr : fileInfo->fChildren )
         {
-            auto curr = parent->child( ii );
-            if ( curr->data( ERoles::eIsDirRole ).toBool() )
+            if ( curr->fIsDir )
                 continue;
 
-            addFile( curr->data( ERoles::eRelPath ).toString() );
+            addFile( curr->fRelPath );
         }
     }
 
