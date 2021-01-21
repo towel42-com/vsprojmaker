@@ -20,6 +20,33 @@
    <string>Visual Studio Project Generator</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_7">
+   <item row="0" column="0">
+    <widget class="QLabel" name="label_11">
+     <property name="text">
+      <string>Project File:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="3">
+    <widget class="QToolButton" name="saveProjectFileBtn">
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="4">
+    <spacer name="horizontalSpacer_6">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
    <item row="1" column="0" colspan="5">
     <widget class="QSplitter" name="splitter">
      <property name="orientation">
@@ -27,27 +54,7 @@
      </property>
      <widget class="QWidget" name="layoutWidget">
       <layout class="QGridLayout" name="gridLayout_4">
-       <item row="3" column="0">
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="3" column="1">
-        <widget class="QPushButton" name="generateBtn">
-         <property name="text">
-          <string>Generate</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0" colspan="2">
+       <item row="1" column="0" colspan="3">
         <widget class="QGroupBox" name="groupBox_2">
          <property name="title">
           <string>Client Information</string>
@@ -124,46 +131,27 @@
          </layout>
         </widget>
        </item>
-       <item row="0" column="0" colspan="2">
-        <widget class="QGroupBox" name="groupBox">
-         <property name="title">
-          <string>CMake Information:</string>
+       <item row="2" column="0">
+        <widget class="QLabel" name="label_12">
+         <property name="text">
+          <string>Prod Directory:</string>
          </property>
-         <layout class="QGridLayout" name="gridLayout_5">
-          <item row="0" column="1">
-           <widget class="QLineEdit" name="cmakePath"/>
-          </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="label">
-            <property name="text">
-             <string>CMake Path:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="label_2">
-            <property name="text">
-             <string>Generator:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="2">
-           <widget class="QToolButton" name="cmakePathBtn">
-            <property name="text">
-             <string>...</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QComboBox" name="generator"/>
-          </item>
-         </layout>
         </widget>
        </item>
-       <item row="2" column="0" colspan="2">
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="prodDir"/>
+       </item>
+       <item row="2" column="2">
+        <widget class="QToolButton" name="prodDirBtn">
+         <property name="text">
+          <string>...</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0" colspan="3">
         <widget class="QTabWidget" name="tabWidget">
          <property name="currentIndex">
-          <number>0</number>
+          <number>4</number>
          </property>
          <widget class="QWidget" name="tab">
           <attribute name="title">
@@ -328,6 +316,62 @@
          </widget>
         </widget>
        </item>
+       <item row="0" column="0" colspan="2">
+        <widget class="QGroupBox" name="groupBox">
+         <property name="title">
+          <string>CMake Information:</string>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_5">
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="cmakePath"/>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label">
+            <property name="text">
+             <string>CMake Path:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_2">
+            <property name="text">
+             <string>Generator:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QToolButton" name="cmakePathBtn">
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QComboBox" name="generator"/>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="4" column="2">
+        <widget class="QPushButton" name="generateBtn">
+         <property name="text">
+          <string>Generate</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0" colspan="2">
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
       </layout>
      </widget>
      <widget class="QPlainTextEdit" name="log">
@@ -335,40 +379,6 @@
        <bool>true</bool>
       </property>
      </widget>
-    </widget>
-   </item>
-   <item row="0" column="3">
-    <widget class="QToolButton" name="saveProjectFileBtn">
-     <property name="text">
-      <string>...</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="4">
-    <spacer name="horizontalSpacer_6">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>40</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="0" column="2">
-    <widget class="QToolButton" name="openProjectFileBtn">
-     <property name="text">
-      <string>...</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="label_11">
-     <property name="text">
-      <string>Project File:</string>
-     </property>
     </widget>
    </item>
    <item row="0" column="1">
@@ -381,10 +391,18 @@
      </property>
     </widget>
    </item>
+   <item row="0" column="2">
+    <widget class="QToolButton" name="openProjectFileBtn">
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <tabstops>
+  <tabstop>projectFile</tabstop>
   <tabstop>openProjectFileBtn</tabstop>
   <tabstop>saveProjectFileBtn</tabstop>
   <tabstop>cmakePath</tabstop>
@@ -397,6 +415,8 @@
   <tabstop>sourceDirBtn</tabstop>
   <tabstop>buildRelDir</tabstop>
   <tabstop>buildDirBtn</tabstop>
+  <tabstop>prodDir</tabstop>
+  <tabstop>prodDirBtn</tabstop>
   <tabstop>tabWidget</tabstop>
   <tabstop>sourceTree</tabstop>
   <tabstop>addCustomBuildBtn</tabstop>
@@ -408,8 +428,8 @@
   <tabstop>qtDir</tabstop>
   <tabstop>qtDirBtn</tabstop>
   <tabstop>qtLibs</tabstop>
-  <tabstop>log</tabstop>
   <tabstop>generateBtn</tabstop>
+  <tabstop>log</tabstop>
  </tabstops>
  <resources>
   <include location="application.qrc"/>

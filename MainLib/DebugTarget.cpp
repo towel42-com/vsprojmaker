@@ -21,6 +21,8 @@
 // SOFTWARE.
 
 #include "DebugTarget.h"
+#include "Settings.h"
+
 #include <QApplication>
 #include <QMessageBox>
 #include <QFile>
@@ -120,17 +122,11 @@ namespace NVSProjectMaker
         return retVal;
     }
 
-    void SDebugTarget::cleanUp( const QMap< QString, QString > & map )
+    void SDebugTarget::cleanUp( const CSettings * settings )
     {
-        for ( auto && ii = map.cbegin(); ii != map.cend(); ++ii )
-        {
-            auto key = "<" + ii.key() + ">";
-            auto value = ii.value();
-            fCmd = fCmd.replace( key, value );
-            fArgs = fArgs.replace( key, value );
-            fWorkDir = fWorkDir.replace( key, value );
-            fEnvVars = fEnvVars.replace( key, value );
-        }
+        fCmd = settings->cleanUp( fCmd );
+        fArgs = settings->cleanUp( fArgs );
+        fWorkDir = settings->cleanUp( fWorkDir );
+        fEnvVars = settings->cleanUp( fEnvVars );
     }
-
 }

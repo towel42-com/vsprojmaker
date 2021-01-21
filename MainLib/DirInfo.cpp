@@ -45,7 +45,7 @@ namespace NVSProjectMaker
 
     void SDirInfo::computeRelToDir( const std::shared_ptr< SSourceFileInfo > & fileInfo )
     {
-        fRelToDir = fileInfo->fRelPath;
+        fRelToDir = fileInfo->fRelToDir;
         fProjectName = fRelToDir;
         fProjectName.replace( "/", "_" );
         fProjectName = fProjectName.replace( "\\", "_" );
@@ -75,6 +75,7 @@ namespace NVSProjectMaker
     {
         QStringList retVal;
         retVal << fRelToDir;
+
         for ( auto && ii : fDebugCommands )
         {
             retVal << QString( "%1/DebugDir/%2" ).arg( fRelToDir ).arg( ii.getProjectName() );
@@ -154,6 +155,25 @@ namespace NVSProjectMaker
         }
     }
 
+    std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > SDirInfo::findPairDirs( const std::unordered_map < QString, std::shared_ptr< NVSProjectMaker::SDirInfo > > & map ) const
+    {
+        if ( !fRelToDir.endsWith( "src" ) )
+            return {};
+
+        auto relDir = fRelToDir;
+        relDir = relDir.replace( '\\', '/' );
+
+        auto pos = relDir.lastIndexOf( '/' );
+        if ( pos != -1 )
+            relDir = relDir.left( pos );
+
+        relDir += "/incl";
+        auto pos2 = map.find( relDir );
+        if ( pos2 == map.end() )
+            return {};
+        return { (*pos2).second };
+    }
+
     void SDirInfo::writePropSheet( QWidget * parent, const QString & srcDir, const QString & bldDir, const QString & includeDirs ) const
     {
         QString fileName = "PropertySheetIncludes.props";
@@ -182,19 +202,19 @@ namespace NVSProjectMaker
     void SDirInfo::writeCMakeFile( QWidget * parent, const QString & bldDir ) const
     {
         auto outDir = QDir( bldDir );
-        auto outPath = outDir.absoluteFilePath( fRelToDir );
+        auto outPath = outDir.absoluteFilePath( fBuildDir.isEmpty() ? fRelToDir : fBuildDir );
 
         QString resourceFile = ( !fIsBuildDir && fExecutables.isEmpty() && fSourceFiles.isEmpty() ) ? "subheaderdir.txt" : "subbuilddir.txt";
         auto resourceText = NVSProjectMaker::readResourceFile( parent, QString( ":/resources/%1" ).arg( resourceFile ),
-                                              [this, outPath, parent]( QString & resourceText )
+                                              [this, outPath, parent ]( QString & resourceText )
         {
             resourceText.replace( "%PROJECT_NAME%", fProjectName );
             resourceText.replace( "%BUILD_DIR%", outPath );
-            replaceFiles( resourceText, "%SOURCE_FILES%", fSourceFiles );
-            replaceFiles( resourceText, "%HEADER_FILES%", fHeaderFiles );
-            replaceFiles( resourceText, "%UI_FILES%", fUIFiles );
-            replaceFiles( resourceText, "%QRC_FILES%", fQRCFiles );
-            replaceFiles( resourceText, "%OTHER_FILES%", fOtherFiles );
+            replaceFiles( resourceText, "%SOURCE_FILES%", QStringList() << fSourceFiles );
+            replaceFiles( resourceText, "%HEADER_FILES%", QStringList() << fHeaderFiles );
+            replaceFiles( resourceText, "%UI_FILES%", QStringList() << fUIFiles );
+            replaceFiles( resourceText, "%QRC_FILES%", QStringList() << fQRCFiles );
+            replaceFiles( resourceText, "%OTHER_FILES%", QStringList() << fOtherFiles );
             resourceText.replace( "%PROPSFILENAME%", "PropertySheetIncludes.props" );
         }
         );
@@ -249,14 +269,23 @@ namespace NVSProjectMaker
         if ( !fileInfo || !fileInfo->fIsDir )
             return;
 
-        size_t numRows = fileInfo->fChildren.size();
         for ( auto && curr : fileInfo->fChildren )
         {
             if ( curr->fIsDir )
                 continue;
 
-            addFile( curr->fRelPath );
+            addFile( curr->fRelToDir );
         }
+
+        bool srcFound = false;
+        for ( auto && ii : fileInfo->fPairedChildDirectores )
+        {
+            if ( ii->fRelToDir.endsWith( "src" ) )
+                srcFound = true;
+            getFiles( ii );
+        }
+        if ( srcFound )
+            fBuildDir = fRelToDir + "/src";
     }
 
     void SDirInfo::addFile( const QString & path )

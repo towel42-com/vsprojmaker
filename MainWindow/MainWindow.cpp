@@ -75,6 +75,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     connect( fImpl->sourceDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectSourceDir );
     connect( fImpl->buildDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectBuildDir );
     connect( fImpl->qtDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectQtDir );
+    connect( fImpl->prodDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectProdDir );
     connect( fImpl->addIncDirBtn, &QToolButton::clicked, this, &CMainWindow::slotAddIncDir );
     connect( fImpl->addCustomBuildBtn, &QToolButton::clicked, this, &CMainWindow::slotAddCustomBuild );
     connect( fImpl->addDebugTargetBtn, &QToolButton::clicked, this, &CMainWindow::slotAddDebugTarget );
@@ -288,6 +289,7 @@ void CMainWindow::saveSettings()
     auto bldDir = getBuildDir( true );
     fSettings->setBuildRelDir( bldDir.has_value() ? bldDir.value() : QString() );
     fSettings->setQtDir( fImpl->qtDir->text() );
+    fSettings->setProdDir( fImpl->prodDir->text() );
     fSettings->setSelectedQtDirs( fQtLibsModel->getCheckedStrings() );
 
     auto attribs = findDirAttributes( nullptr );
@@ -314,6 +316,8 @@ void CMainWindow::loadSettings()
     fImpl->clientDir->setText( fSettings->getClientDir() );
     fImpl->buildRelDir->setText( fSettings->getBuildRelDir() );
     fImpl->qtDir->setText( fSettings->getQtDir() );
+    fImpl->prodDir->setText( fSettings->getProdDir() );
+
     fQtLibsModel->setStringList( fSettings->getQtDirs() );
     fQtLibsModel->setChecked( fSettings->getSelectedQtDirs(), true, true );
 
@@ -684,6 +688,26 @@ void CMainWindow::slotSelectQtDir()
     fImpl->qtDir->setText( dir );
 }
 
+
+void CMainWindow::slotSelectProdDir()
+{
+    auto currPath = fImpl->prodDir->text();
+    if ( currPath.isEmpty() )
+        currPath = QString();
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Product Directory" ), currPath );
+    if ( dir.isEmpty() )
+        return;
+
+    QFileInfo fi( dir );
+    if ( !fi.exists() || !fi.isDir() || !fi.isReadable() )
+    {
+        QMessageBox::critical( this, tr( "Error Readable Directory not Selected" ), QString( "Error: '%1' is not an readable directory" ).arg( dir ) );
+        return;
+    }
+
+    fImpl->prodDir->setText( dir );
+}
+
 void CMainWindow::appendToLog( const QString & txt )
 {
     fImpl->log->appendPlainText( txt.trimmed() );
@@ -838,46 +862,16 @@ void CMainWindow::slotGenerate()
     saveSettings();
     fSettings->generate( &progress, this, [this]( const QString & msg ) { appendToLog( msg ); } );
     progress.close();
-    
-    appendToLog( tr( "============================================" ) );
-    appendToLog( tr( "Running CMake" ) );
 
-
-    connect( fProcess, &QProcess::readyReadStandardError, this, &CMainWindow::slotReadStdErr );
-    connect( fProcess, &QProcess::readyReadStandardOutput, this, &CMainWindow::slotReadStdOut );
-    connect( fProcess, QOverload<int, QProcess::ExitStatus>::of( &QProcess::finished ), this, &CMainWindow::slotFinished );
-
-    auto buildDir = getBuildDir().value();
-    auto cmakeExec = fImpl->cmakePath->text();
-    auto args = fSettings->getCmakeArgs();
-    appendToLog( tr( "Build Dir: %1" ).arg( buildDir ) );
-    appendToLog( tr( "CMake Path: %1" ).arg( cmakeExec ) );
-    appendToLog( tr( "Args: %1" ).arg( args.join( " " ) ) );
-
-    fProcess->setWorkingDirectory( buildDir );
-    fProcess->start( cmakeExec, args );
-
-    QApplication::restoreOverrideCursor();
+    fSettings->runCMake(
+        [this]( const QString & outMsg )
+    {
+        appendToLog( outMsg );
+    },
+        [this]( const QString & errMsg )
+    {
+        appendToLog( "ERROR: " + errMsg );
+    },
+        fProcess
+        , { false, [this]() { QApplication::restoreOverrideCursor(); } } );
 }
-
-void CMainWindow::slotFinished( int exitCode, QProcess::ExitStatus status )
-{
-    disconnect( fProcess, &QProcess::readyReadStandardError, this, &CMainWindow::slotReadStdErr );
-    disconnect( fProcess, &QProcess::readyReadStandardOutput, this, &CMainWindow::slotReadStdOut );
-    disconnect( fProcess, QOverload<int, QProcess::ExitStatus>::of( &QProcess::finished ), this, &CMainWindow::slotFinished );
-    appendToLog( tr( "============================================" ) );
-    appendToLog( QString( "Finished: Exit Code: %1 Status: %2 " ).arg( exitCode ).arg( status == QProcess::NormalExit ? tr( "Normal" ) : tr( "Crashed" ) ) );
-}
-
-void CMainWindow::slotReadStdErr()
-{
-    appendToLog( "ERROR: " + fProcess->readAllStandardError() );
-}
-
-void CMainWindow::slotReadStdOut()
-{
-    appendToLog( fProcess->readAllStandardOutput() );
-}
-
-
-

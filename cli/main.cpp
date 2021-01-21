@@ -28,6 +28,7 @@
 #include <QVariant>
 #include <QCommandLineParser>
 #include <QProcess>
+#include <QEventLoop>
 #include <iostream>
 
 int main( int argc, char ** argv )
@@ -103,37 +104,6 @@ int main( int argc, char ** argv )
     std::cout << "============================================" << "\n"
         << "Running CMake" << "\n";
 
-    auto buildDir = settings.getBuildDir().value();
-    auto cmakeExec = settings.getCMakePath();
-    auto args = settings.getCmakeArgs();
-    std::cout
-        << QString( "Build Dir: %1" ).arg( buildDir ).toStdString() << "\n"
-        << QString( "CMake Path: %1" ).arg( cmakeExec ).toStdString() << "\n"
-        << QString( "Args: %1" ).arg( args.join( " " ) ).toStdString() << "\n"
-        ;
-
     QProcess process;
-    QObject::connect( &process, &QProcess::readyReadStandardError, 
-             [&process]()
-    {
-        std::cerr << process.readAllStandardError().toStdString();
-    } );
-    QObject::connect( &process, &QProcess::readyReadStandardOutput, 
-                      [&process]()
-    {
-        std::cerr << process.readAllStandardOutput().toStdString();
-    } );
-
-    QObject::connect( &process, QOverload<int, QProcess::ExitStatus>::of( &QProcess::finished ),
-             [&process]( int exitCode, QProcess::ExitStatus status )
-    {
-        std::cout
-            << "============================================" << "\n"
-            << QString( "Finished: Exit Code: %1 Status: %2 " ).arg( exitCode ).arg( status == QProcess::NormalExit ? "Normal" : "Crashed" ).toStdString() << "\n";
-        QCoreApplication::quit();
-    } );
-    process.setWorkingDirectory( buildDir );
-    process.start( cmakeExec, args );
-
-    return appl.exec();
+    return settings.runCMake( []( const QString & outMsg ) { std::cout << outMsg.toStdString(); }, []( const QString & errMsg ) { std::cerr << errMsg.toStdString(); }, &process, { true, {} } );
 }

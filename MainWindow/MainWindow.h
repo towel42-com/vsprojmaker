@@ -79,6 +79,7 @@ public Q_SLOTS:
     void slotSelectCMake();
     void slotSelectSourceDir();
     void slotSelectQtDir();
+    void slotSelectProdDir();
     void slotSelectBuildDir();
     void slotSelectClientDir();
     void slotAddIncDir();
@@ -90,10 +91,6 @@ public Q_SLOTS:
     void addDebugTarget( const NVSProjectMaker::SDebugTarget & dbgCmd );
 
     void slotGenerate();
-
-    void slotReadStdErr();
-    void slotReadStdOut();
-    void slotFinished( int exitCode, QProcess::ExitStatus status );
 private:
     QStandardItem * loadSourceFileModel();
         

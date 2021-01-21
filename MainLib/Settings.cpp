@@ -38,6 +38,7 @@
 #include <QProgressDialog>
 #include <QMessageBox>
 #include <QTextStream>
+#include <QProcess>
 
 namespace NVSProjectMaker
 {
@@ -163,7 +164,8 @@ namespace NVSProjectMaker
         auto inclDirs = getSelectedInclDirs();
         for ( auto && ii : inclDirs )
         {
-            retVal << sourceDir.absoluteFilePath( ii );
+            auto curr = cleanUp( sourceDir.absoluteFilePath( ii ) );
+            retVal << curr;
         }
 
         auto qtDirs = getSelectedQtDirs();
@@ -225,10 +227,33 @@ namespace NVSProjectMaker
                 if ( progress->wasCanceled() )
                     break;
             }
+        }
+        
+        for ( auto && ii : dirs )
+        {
+            if ( progress )
+            {
+                progress->setValue( currDir++ );
+                if ( progress->wasCanceled() )
+                    break;
+            }
             ii->writeCMakeFile( parent, getBuildDir().value() );
             ii->writePropSheet( parent, getSourceDir().value(), getBuildDir().value(), inclDirs );
             ii->createDebugProjects( parent, getBuildDir().value() );
         }
+    }
+
+    QMap< QString, QString > CSettings::getVarMap() const
+    {
+        static QMap< QString, QString > map =
+        {
+              { "CLIENTDIR", QDir( getClientDir() ).absolutePath() }
+            , { "SOURCEDIR", getSourceDir().value() }
+            , { "BUILDDIR", getBuildDir().value() }
+            , { "PRODDIR", QDir( getProdDir() ).absolutePath() }
+        };
+
+        return map;
     }
 
     QList < NVSProjectMaker::SDebugTarget > CSettings::getDebugCommandsForSourceDir( const QString & inSourcePath ) const
@@ -245,13 +270,7 @@ namespace NVSProjectMaker
         {
             //( QStringList() << "Source Dir" << "Name" << "Command" << "Args" << "Work Dir" << "EnvVars" )
 
-            QMap< QString, QString > map =
-            {
-                  { "CLIENTDIR", QDir( getClientDir() ).absolutePath() }
-                , { "SOURCEDIR", getSourceDir().value() }
-                , { "BUILDDIR", getBuildDir().value() }
-            };
-            curr.cleanUp( map );
+            curr.cleanUp( this );
 
             if ( sourceDir.absoluteFilePath( curr.fSourceDir ) == inSourcePath )
             {
@@ -379,6 +398,13 @@ namespace NVSProjectMaker
             progress->setLabelText( QObject::tr( "Finding Directories" ) );
             progress->adjustSize();
         }
+
+        if ( !getParentOfPairDirectoriesMap( nullptr, progress ) )
+        {
+            QApplication::restoreOverrideCursor();
+            return {};
+        }
+
         auto dirs = getDirInfo( nullptr, progress );
         if ( progress && progress->wasCanceled() )
         {
@@ -389,13 +415,55 @@ namespace NVSProjectMaker
             << "##### Sub Directories\n"
             ;
 
+        if ( progress )
+            progress->setRange( 0, static_cast<int>( dirs.size() ) );
+
         for ( auto && ii : dirs )
         {
+            if ( progress && progress->wasCanceled() )
+                return {};
+
             auto subDirs = ii->getSubDirs();
             for ( auto && jj : subDirs )
                 qts << QString( "add_subdirectory( %1 )\n" ).arg( jj );
         }
         return dirs;
+    }
+
+    bool CSettings::getParentOfPairDirectoriesMap( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const
+    {
+        auto && childList = parent ? parent->fChildren : fResults->fRootDir->fChildren;
+        auto numRows = childList.size();
+        if ( progress )
+            progress->setRange( 0, static_cast<int>( numRows ) );
+        QDir sourceDir( getSourceDir().value() );
+
+        auto currNum = 0;
+        for ( auto && curr : childList )
+        {
+            if ( progress )
+                progress->setValue( currNum++ );
+            qApp->processEvents();
+            if ( progress && progress->wasCanceled() )
+                return false;
+
+            if ( !curr->fIsDir )
+                continue;
+
+            if ( !getParentOfPairDirectoriesMap( curr, progress ) )
+                 return false;
+
+            if ( !curr->isPairedInclSrcDir( getSourceDir().value() ) )
+                continue;
+
+            if ( parent )
+                parent->fPairedChildDirectores.push_back( curr );
+            else
+                fResults->fRootDir->fPairedChildDirectores.push_back( curr );
+        }
+        if ( progress && progress->wasCanceled() )
+            return false;
+        return true;
     }
 
     std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > CSettings::getDirInfo( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const
@@ -425,10 +493,23 @@ namespace NVSProjectMaker
                 continue;
             }
 
+            if ( curr->isPairedInclSrcDir( getSourceDir().value() ) )
+                 continue;
+
             auto currInfo = std::make_shared< NVSProjectMaker::SDirInfo >( curr );
             currInfo->fExtraTargets = getCustomBuildsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir ) ).canonicalFilePath() );
             currInfo->fDebugCommands = getDebugCommandsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir ) ).canonicalFilePath() );
-            if ( currInfo->isValid() )
+
+            if ( curr->isParentToPairedDirs( getSourceDir().value() ) )
+            {
+                currInfo->fExtraTargets  << getCustomBuildsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir + "/src" ) ).canonicalFilePath() );
+                currInfo->fExtraTargets  << getCustomBuildsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir + "/incl" ) ).canonicalFilePath() );
+
+                currInfo->fDebugCommands << getDebugCommandsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir + "/src" ) ).canonicalFilePath() );
+                currInfo->fDebugCommands << getDebugCommandsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir + "/incl" ) ).canonicalFilePath() );
+                retVal.push_back( currInfo );
+            }
+            else if ( currInfo->isValid() )
             {
                 retVal.push_back( currInfo );
             }
@@ -451,6 +532,19 @@ namespace NVSProjectMaker
             return QString();
 
         return dir.dirName();
+    }
+
+    QString CSettings::cleanUp( const QString & str ) const
+    {
+        auto map = getVarMap();
+        QString retVal = str;
+        for ( auto && ii = map.cbegin(); ii != map.cend(); ++ii )
+        {
+            auto key = "<" + ii.key() + ">";
+            auto value = ii.value();
+            retVal = retVal.replace( key, value );
+        }
+        return retVal;
     }
 
     bool CSettings::loadSourceFiles( const QDir & sourceDir, const QString & dir, QProgressDialog * progress, std::shared_ptr< SSourceFileInfo  > parent, const std::function< void( const QString & msg ) > & logit )
@@ -480,7 +574,7 @@ namespace NVSProjectMaker
             relDirPath = sourceDir.relativeFilePath( curr.absoluteFilePath() );
             auto node = std::make_shared< SSourceFileInfo >();
             node->fIsDir = curr.isDir();
-            node->fRelPath = relDirPath;
+            node->fRelToDir = relDirPath;
             parent->fChildren.push_back( node );
             
             if ( !curr.isDir() )
@@ -569,6 +663,7 @@ namespace NVSProjectMaker
         ADD_SETTING_VALUE( QString, SourceRelDir );
         ADD_SETTING_VALUE( QString, BuildRelDir );
         ADD_SETTING_VALUE( QString, QtDir );
+        ADD_SETTING_VALUE( QString, ProdDir );
         ADD_SETTING_VALUE( QStringList, SelectedQtDirs );
         ADD_SETTING_VALUE( QSet< QString >, BuildDirs );
         ADD_SETTING_VALUE( QStringList, InclDirs );
@@ -616,6 +711,65 @@ namespace NVSProjectMaker
         return true;
     }
 
+    int CSettings::runCMake( const std::function< void( const QString & ) > & outFunc, const std::function< void( const QString & ) > & errFunc, QProcess * process, const std::pair< bool, std::function< void() > > & finishedInfo ) const
+    {
+        if ( !process )
+            return -1;
+
+        auto buildDir = getBuildDir().value();
+        auto cmakeExec = getCMakePath();
+        auto args = getCmakeArgs();
+        outFunc( QString( "Build Dir: %1" ).arg( buildDir ) + "\n" );
+        outFunc( QString( "CMake Path: %1" ).arg( cmakeExec ) + "\n" );
+        outFunc( QString( "Args: %1" ).arg( args.join( " " ) ) + "\n" );
+
+        outFunc( QObject::tr( "============================================" ) + "\n" );
+        outFunc( QObject::tr( "Running CMake" ) + "\n" );
+
+        QObject::connect( process, &QProcess::readyReadStandardOutput,
+                          [process, outFunc]()
+        {
+            outFunc( process->readAllStandardOutput() );
+        } );
+
+        QObject::connect( process, &QProcess::readyReadStandardError,
+                          [process, errFunc]()
+        {
+            errFunc( process->readAllStandardError() );
+        } );
+
+        int returnExitCode = -1;
+        auto returnExitStatus = QProcess::ExitStatus::NormalExit;
+
+        auto localCallback = new std::function< void() >( finishedInfo.second );
+        QObject::connect( process, QOverload<int, QProcess::ExitStatus>::of( &QProcess::finished ),
+                          [process, outFunc, errFunc, &returnExitCode, &returnExitStatus, localCallback ]( int exitCode, QProcess::ExitStatus status )
+        {
+            QString msg = 
+                QString( "============================================\n" )
+                + QString( "Finished: Exit Code: %1 Status: %2\n" ).arg( exitCode ).arg( status == QProcess::NormalExit ? "Normal" : "Crashed" );
+
+            returnExitStatus = status;
+            returnExitCode = exitCode;
+            if ( ( exitCode != 0 ) || ( status != QProcess::ExitStatus::NormalExit ) )
+                errFunc( msg );
+            else
+                outFunc( msg );
+            if ( *localCallback )
+                ( *localCallback )( );
+        } );
+        process->setWorkingDirectory( buildDir );
+        process->start( cmakeExec, args );
+
+        if ( finishedInfo.first )
+        {
+            process->waitForFinished( -1 );
+            return ( returnExitStatus == QProcess::ExitStatus::NormalExit ) ? returnExitCode : -1;
+        }
+        else
+            return 0;
+    }
+
     QString SSourceFileResults::getText( bool forText ) const
     {
         QString retVal = ( forText ?
@@ -640,10 +794,10 @@ namespace NVSProjectMaker
 
     void SSourceFileInfo::createItem( QStandardItem * parent ) const
     {
-        auto node = new QStandardItem( fRelPath );
+        auto node = new QStandardItem( fRelToDir );
         QList<QStandardItem *> row;
         node->setData( fIsDir, NVSProjectMaker::ERoles::eIsDirRole );
-        node->setData( fRelPath, NVSProjectMaker::ERoles::eRelPathRole );
+        node->setData( fRelToDir, NVSProjectMaker::ERoles::eRelPathRole );
         row << node;
 
         if ( fIsDir )
@@ -670,4 +824,29 @@ namespace NVSProjectMaker
 
         parent->appendRow( row );
     }
+
+    bool SSourceFileInfo::isPairedInclSrcDir( const QString & srcDir ) const // return true when name is incl or src, and the peer directory exists
+    {
+        if ( !fRelToDir.endsWith( "incl" ) && !fRelToDir.endsWith( "src" ) )
+            return false;
+
+        QDir dir( srcDir );
+        dir.cd( fRelToDir );
+        dir.cdUp();
+
+        bool otherExists = false;
+        if ( fRelToDir.endsWith( "incl" ) )
+            otherExists = QFileInfo( dir.absoluteFilePath( "src" ) ).exists();
+        else if ( fRelToDir.endsWith( "src" ) )
+            otherExists = QFileInfo( dir.absoluteFilePath( "incl" ) ).exists();
+        return otherExists;
+    }
+
+    bool SSourceFileInfo::isParentToPairedDirs( const QString & srcDir ) const // return true when name is incl or src, and the peer directory exists
+    {
+        QDir dir( srcDir );
+        dir.cd( fRelToDir );
+        return QFileInfo( dir.absoluteFilePath( "src" ) ).exists() && QFileInfo( dir.absoluteFilePath( "incl" ) ).exists();
+    }
+
 }

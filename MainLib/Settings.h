@@ -34,6 +34,7 @@
 #include <optional>
 class QStandardItem;
 class QProgressDialog;
+class QProcess;
 
 #define ADD_SETTING( Type, Name ) \
 public: \
@@ -70,7 +71,7 @@ namespace NVSProjectMaker
     struct SSourceFileInfo
     {
         QString fName;
-        QString fRelPath;
+        QString fRelToDir;
 
         bool fIsBuildDir{ false };
         bool fIsDir{ false };
@@ -79,7 +80,12 @@ namespace NVSProjectMaker
 
         std::list< std::shared_ptr< SSourceFileInfo > > fChildren;
 
+        std::list< std::shared_ptr< SSourceFileInfo > > fPairedChildDirectores;
+
         void createItem( QStandardItem * parent ) const;
+
+        bool isPairedInclSrcDir( const QString & srcDir ) const; // return true when name is incl or src, and the peer directory exists
+        bool isParentToPairedDirs( const QString & srcDir ) const; // returns true when the dir has both an incl and src child dir
     };
 
     struct SSourceFileResults
@@ -138,9 +144,13 @@ namespace NVSProjectMaker
         void generate( QProgressDialog * progress, QWidget * parent, const std::function< void( const QString & msg ) > & logit ) const;
         std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > generateTopLevelFiles( QProgressDialog * progress, const std::function< void( const QString & msg ) > & logit, QWidget * parent ) const;
         std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > getDirInfo( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;
+        bool getParentOfPairDirectoriesMap( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;
 
         std::shared_ptr< NVSProjectMaker::SSourceFileResults > getResults() const { return fResults; }
         QString getClientName() const;
+        
+        [[nodiscard]] QString cleanUp( const QString & str ) const;
+        int runCMake( const std::function< void( const QString & ) > & outFunc, const std::function< void( const QString & ) > & errFunc, QProcess * process, const std::pair< bool, std::function< void() > > & finishedInfo ) const;
         ADD_SETTING( QString, CMakePath );
         ADD_SETTING( QString, Generator );
         ADD_SETTING( QString, ClientDir );
@@ -148,6 +158,7 @@ namespace NVSProjectMaker
         ADD_SETTING( QString, BuildRelDir );
         ADD_SETTING_SETFUNC( QString, QtDir, [ this ]() { loadQtSettings(); } );
         ADD_SETTING( QStringList, QtDirs );
+        ADD_SETTING( QString, ProdDir );
         ADD_SETTING( QStringList, SelectedQtDirs );
         ADD_SETTING( QSet< QString >, BuildDirs );
         ADD_SETTING( QStringList, InclDirs );
@@ -157,6 +168,8 @@ namespace NVSProjectMaker
         ADD_SETTING( TListOfDebugTargets, DebugCommands );
 
     private:
+        QMap< QString, QString > getVarMap() const;
+
         template< typename Type >
         void registerSetting( const QString & attribName, QVariant * value ) const
         {

@@ -44,12 +44,15 @@ namespace NVSProjectMaker
         void writePropSheet( QWidget * parent, const QString & srcDir, const QString & bldDir, const QString & includeDirs ) const;
         void createDebugProjects( QWidget * parent, const QString & bldDir ) const;
 
+        std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > findPairDirs( const std::unordered_map < QString, std::shared_ptr< NVSProjectMaker::SDirInfo > > & map ) const;
+
         QStringList getSubDirs() const;
         void replaceFiles( QString & text, const QString & variable, const QStringList & files ) const;
         void addDependencies( QTextStream & qts ) const;
         void computeRelToDir( const std::shared_ptr< SSourceFileInfo > & fileInfo );
 
         QString fRelToDir;
+        QString fBuildDir;
         QString fProjectName;
         bool fIsInclDir{ false };
         bool fIsBuildDir{ false };

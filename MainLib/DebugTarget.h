@@ -29,6 +29,7 @@
 
 namespace NVSProjectMaker
 {
+    class CSettings;
     struct SDebugTarget
     {
         QString fSourceDir;
@@ -41,7 +42,7 @@ namespace NVSProjectMaker
         QString getEnvVars() const;
         QString getProjectName() const;
         QString getCmd() const;
-        void cleanUp( const QMap< QString, QString > & map );
+        void cleanUp( const CSettings * settings );
     };
 }
 
