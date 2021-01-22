@@ -9,5 +9,9 @@
         <file>resources/custombuilddir.txt</file>
         <file>resources/subdebugdir.txt</file>
         <file>resources/PropertySheetWithDebug.props</file>
+        <file>resources/download.png</file>
+        <file>resources/plus.png</file>
+        <file>resources/open.png</file>
+        <file>resources/generate.png</file>
     </qresource>
 </RCC>

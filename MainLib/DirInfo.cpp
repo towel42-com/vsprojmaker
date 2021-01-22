@@ -239,7 +239,7 @@ namespace NVSProjectMaker
         QTextStream qts( &fo );
         qts << resourceText;
 
-        QString folder = "Directories/" + fRelToDir;
+        QString folder = "src/" + fRelToDir;
         QFileInfo( fRelToDir ).path();
         if ( fIsBuildDir || fExecutables.isEmpty() )
         {
