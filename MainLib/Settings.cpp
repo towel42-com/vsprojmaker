@@ -37,6 +37,7 @@
 #include <QDirIterator>
 #include <QProgressDialog>
 #include <QMessageBox>
+#include <QRegularExpression>
 #include <QTextStream>
 #include <QProcess>
 
@@ -217,7 +218,6 @@ namespace NVSProjectMaker
             qApp->processEvents();
         }
 
-        auto inclDirs = getIncludeDirs();
         int currDir = 0;
         for ( auto && ii : dirs )
         {
@@ -237,9 +237,9 @@ namespace NVSProjectMaker
                 if ( progress->wasCanceled() )
                     break;
             }
-            ii->writeCMakeFile( parent, getBuildDir().value() );
-            ii->writePropSheet( parent, getSourceDir().value(), getBuildDir().value(), inclDirs );
-            ii->createDebugProjects( parent, getBuildDir().value() );
+            ii->writeCMakeFile( parent, this );
+            ii->writePropSheet( parent, this );
+            ii->createDebugProjects( parent, this );
         }
     }
 
@@ -249,8 +249,10 @@ namespace NVSProjectMaker
         {
               { "CLIENTDIR", QDir( getClientDir() ).absolutePath() }
             , { "SOURCEDIR", getSourceDir().value() }
-            , { "BUILDDIR", getBuildDir().value() }
+            , { "BUILD_DIR", getBuildDir().value() }
             , { "PRODDIR", QDir( getProdDir() ).absolutePath() }
+            , { "MSYS64DIR_MSYS", getMSys64Dir( true ) }
+            , { "MSYS64DIR_WIN", getMSys64Dir( false ) }
         };
 
         return map;
@@ -360,19 +362,40 @@ namespace NVSProjectMaker
                     QMessageBox::critical( parent, QObject::tr( "Error:" ), QObject::tr( "Error creating directory '%1" ).arg( QString( "CustomBuild/%1" ).arg( ii ) ) );
                     return {};
                 }
-                QString fileName = QString( "CustomBuild/%1/CMakeLists.txt" ).arg( ii );
-                auto topDirCustomBuildTxt = NVSProjectMaker::readResourceFile( parent, QString( ":/resources/custombuilddir.txt" ),
-                                                                               [ii, fileName, this, parent]( QString & text )
+
+                auto buildItFileName = QDir( getBuildDir().value() ).absoluteFilePath( QString( "CustomBuild/%1/buildit.sh" ).arg( ii ) );
+
+                QFile fo( buildItFileName );
+                if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
+                {
+                    QApplication::restoreOverrideCursor();
+                    QMessageBox::critical( parent, QObject::tr( "Error:" ), QObject::tr( "Error opening output file '%1'\n%2" ).arg( buildItFileName ).arg( fo.errorString() ) );
+                    return {};
+                }
+
+                QTextStream qts( &fo );
+                QString cmd = QString( "mtimake -w -j24 --directory=\"%1\" %2" ).arg( getBuildDir().value() ).arg( ii );
+                qts << "echo " << cmd << "\n"
+                    << "cd \"%1\" \n"
+                    << cmd << "\n";
+                fo.close();
+
+                QString cmakeFileName = QString( "CustomBuild/%1/CMakeLists.txt" ).arg( ii );
+                NVSProjectMaker::readResourceFile( parent, QString( ":/resources/custombuilddir.txt" ),
+                                                                               [ii, cmakeFileName, buildItFileName, this, parent]( QString & text )
                 {
                     text.replace( "%PROJECT_NAME%", ii );
                     text.replace( "%BUILD_DIR%", getBuildDir().value() );
+                    text.replace( "%MSYS64DIR_MSYS%", getMSys64Dir( true ) );
+                    text.replace( "%MSYS64DIR_WIN%", getMSys64Dir( false ) );
+                    text.replace( "%BUILDITSHELL%", buildItFileName );
                     text.replace( "%SOURCE_FILES%", QString() );
                     text.replace( "%HEADER_FILES%", QString() );
                     text.replace( "%UI_FILES%", QString() );
                     text.replace( "%QRC_FILES%", QString() );
                     text.replace( "%OTHER_FILES%", QString() );
 
-                    QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( fileName );
+                    QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( cmakeFileName );
                     QFile fo( outFile );
                     if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
                     {
@@ -534,6 +557,23 @@ namespace NVSProjectMaker
         return dir.dirName();
     }
 
+    QString CSettings::getMSys64Dir( bool msys ) const
+    {
+        auto msysdir = QDir( getMSys64Dir() ).absolutePath();
+        if ( msys )
+        {
+            if ( msysdir.indexOf( QRegularExpression( "[a-zA-Z]\\:" ) ) == 0 )
+            {
+                auto retVal = "/" + msysdir[ 0 ];
+                if ( msysdir[ 2 ] != '/' )
+                    retVal += "/";
+                retVal += msysdir.mid( 2 );
+                msysdir = retVal.replace( "\\", "/" );
+            }
+        }
+        return msysdir;
+    }
+
     QString CSettings::cleanUp( const QString & str ) const
     {
         auto map = getVarMap();
@@ -664,6 +704,7 @@ namespace NVSProjectMaker
         ADD_SETTING_VALUE( QString, BuildRelDir );
         ADD_SETTING_VALUE( QString, QtDir );
         ADD_SETTING_VALUE( QString, ProdDir );
+        ADD_SETTING_VALUE( QString, MSys64Dir );
         ADD_SETTING_VALUE( QStringList, SelectedQtDirs );
         ADD_SETTING_VALUE( QSet< QString >, BuildDirs );
         ADD_SETTING_VALUE( QStringList, InclDirs );

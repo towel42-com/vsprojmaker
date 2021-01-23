@@ -83,11 +83,11 @@ namespace NVSProjectMaker
         return retVal;
     }
 
-    void SDirInfo::createDebugProjects( QWidget * parent, const QString & bldDir ) const
+    void SDirInfo::createDebugProjects( QWidget * parent, const CSettings * settings ) const
     {
         for ( auto && ii : fDebugCommands )
         {
-            if ( !QDir( bldDir ).mkpath( QString( "%1/DebugDir/%2" ).arg( fRelToDir ).arg( ii.getProjectName() ) ) )
+            if ( !QDir( settings->getBuildDir().value() ).mkpath( QString( "%1/DebugDir/%2" ).arg( fRelToDir ).arg( ii.getProjectName() ) ) )
             {
                 QApplication::restoreOverrideCursor();
                 QMessageBox::critical( parent, QObject::tr( "Error:" ), QObject::tr( "Error creating directory '%1" ).arg( QString( "CustomBuild/%1" ).arg( ii.fCmd ) ) );
@@ -95,9 +95,9 @@ namespace NVSProjectMaker
             }
 
             NVSProjectMaker::readResourceFile( parent, QString( ":/resources/PropertySheetWithDebug.props" ),
-                                [this, bldDir, ii, parent]( QString & text )
+                                [this, settings, ii, parent]( QString & text )
             {
-                QDir bldQDir( bldDir );
+                QDir bldQDir( settings->getBuildDir().value() );
                 bldQDir.cd( fRelToDir );
                 bldQDir.cd( "DebugDir" );
                 bldQDir.cd( ii.getProjectName() );
@@ -122,9 +122,9 @@ namespace NVSProjectMaker
             }
             );
             NVSProjectMaker::readResourceFile( parent, QString( ":/resources/subdebugdir.txt" ),
-                              [this, bldDir, ii, parent]( QString & text )
+                              [this, settings, ii, parent]( QString & text )
             {
-                QDir bldQDir( bldDir );
+                QDir bldQDir( settings->getBuildDir().value() );
                 bldQDir.cd( fRelToDir );
                 bldQDir.cd( "DebugDir" );
                 bldQDir.cd( ii.getProjectName() );
@@ -139,7 +139,7 @@ namespace NVSProjectMaker
                 }
 
                 text.replace( "%PROJECT_NAME%", ii.getProjectName() );
-                auto outDir = QDir( bldDir );
+                auto outDir = QDir( settings->getBuildDir().value() );
                 auto outPath = outDir.absoluteFilePath( fRelToDir );
                 text.replace( "%BUILD_DIR%", outPath );
                 text.replace( "%DEBUG_COMMAND%", ii.getCmd() );
@@ -174,13 +174,13 @@ namespace NVSProjectMaker
         return { (*pos2).second };
     }
 
-    void SDirInfo::writePropSheet( QWidget * parent, const QString & srcDir, const QString & bldDir, const QString & includeDirs ) const
+    void SDirInfo::writePropSheet( QWidget * parent, const CSettings * settings ) const
     {
         QString fileName = "PropertySheetIncludes.props";
         NVSProjectMaker::readResourceFile( parent, QString( ":/resources/%1" ).arg( fileName ),
-                          [this, srcDir, bldDir, includeDirs, fileName, parent]( QString & text )
+                          [this, settings, fileName, parent]( QString & text )
         {
-            QDir bldQDir( bldDir );
+            QDir bldQDir( settings->getBuildDir().value() );
             bldQDir.cd( fRelToDir );
             QString outFile = bldQDir.absoluteFilePath( fileName );
             QFile fo( outFile );
@@ -190,7 +190,7 @@ namespace NVSProjectMaker
                 QMessageBox::critical( parent, QObject::tr( "Error:" ), QObject::tr( "Error opening output file '%1'\n%2" ).arg( outFile ).arg( fo.errorString() ) );
                 return;
             }
-            QString lclIncDirs = QDir( srcDir ).absoluteFilePath( fRelToDir ) + ";" + includeDirs;
+            QString lclIncDirs = QDir( settings->getSourceDir().value() ).absoluteFilePath( fRelToDir ) + ";" + settings->getIncludeDirs();
             text.replace( "%INCLUDE_DIRS%", lclIncDirs );
             QTextStream qts( &fo );
             qts << text;
@@ -199,25 +199,10 @@ namespace NVSProjectMaker
         );
     }
 
-    void SDirInfo::writeCMakeFile( QWidget * parent, const QString & bldDir ) const
+    void SDirInfo::writeCMakeFile( QWidget * parent, const CSettings * settings ) const
     {
-        auto outDir = QDir( bldDir );
+        auto outDir = QDir( settings->getBuildDir().value() );
         auto outPath = outDir.absoluteFilePath( fBuildDir.isEmpty() ? fRelToDir : fBuildDir );
-
-        QString resourceFile = ( !fIsBuildDir && fExecutables.isEmpty() && fSourceFiles.isEmpty() ) ? "subheaderdir.txt" : "subbuilddir.txt";
-        auto resourceText = NVSProjectMaker::readResourceFile( parent, QString( ":/resources/%1" ).arg( resourceFile ),
-                                              [this, outPath, parent ]( QString & resourceText )
-        {
-            resourceText.replace( "%PROJECT_NAME%", fProjectName );
-            resourceText.replace( "%BUILD_DIR%", outPath );
-            replaceFiles( resourceText, "%SOURCE_FILES%", QStringList() << fSourceFiles );
-            replaceFiles( resourceText, "%HEADER_FILES%", QStringList() << fHeaderFiles );
-            replaceFiles( resourceText, "%UI_FILES%", QStringList() << fUIFiles );
-            replaceFiles( resourceText, "%QRC_FILES%", QStringList() << fQRCFiles );
-            replaceFiles( resourceText, "%OTHER_FILES%", QStringList() << fOtherFiles );
-            resourceText.replace( "%PROPSFILENAME%", "PropertySheetIncludes.props" );
-        }
-        );
 
         if ( !outDir.cd( fRelToDir ) )
         {
@@ -228,7 +213,45 @@ namespace NVSProjectMaker
             }
         }
 
-        QString outFile = outDir.absoluteFilePath( QString( "CMakeLists.txt" ) );
+        bool isSubHeader = ( !fIsBuildDir && fExecutables.isEmpty() && fSourceFiles.isEmpty() );
+        QString buildItFileName = outDir.absoluteFilePath( QString( "buildit.sh" ) );
+        if ( !isSubHeader )
+        {
+            QFile fo( buildItFileName );
+            if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
+            {
+                QApplication::restoreOverrideCursor();
+                QMessageBox::critical( parent, QObject::tr( "Error:" ), QObject::tr( "Error opening output file '%1'\n%2" ).arg( buildItFileName ).arg( fo.errorString() ) );
+                return;
+            }
+
+            QTextStream qts( &fo );
+            QString cmd = QString( "%1/usr/bin/make -w -j24" ).arg( settings->getMSys64Dir( true ) );
+            qts << "echo cd " << outPath << "\n"
+                << "cd \"" << outPath << "\"\n"
+                << "echo " << cmd << "\n"
+                << cmd << "\n";
+            fo.close();
+        }
+        QString resourceFile = isSubHeader ? "subheaderdir.txt" : "subbuilddir.txt";
+        auto resourceText = NVSProjectMaker::readResourceFile( parent, QString( ":/resources/%1" ).arg( resourceFile ),
+                                              [this, settings, buildItFileName, outPath, parent ]( QString & resourceText )
+        {
+            resourceText.replace( "%PROJECT_NAME%", fProjectName );
+            resourceText.replace( "%BUILD_DIR%", outPath );
+            resourceText.replace( "%MSYS64DIR_MSYS%", settings->getMSys64Dir( true ) );
+            resourceText.replace( "%MSYS64DIR_WIN%", settings->getMSys64Dir( false ) );
+            resourceText.replace( "%BUILDITSHELL%", buildItFileName );
+            replaceFiles( resourceText, "%SOURCE_FILES%", QStringList() << fSourceFiles );
+            replaceFiles( resourceText, "%HEADER_FILES%", QStringList() << fHeaderFiles );
+            replaceFiles( resourceText, "%UI_FILES%", QStringList() << fUIFiles );
+            replaceFiles( resourceText, "%QRC_FILES%", QStringList() << fQRCFiles );
+            replaceFiles( resourceText, "%OTHER_FILES%", QStringList() << fOtherFiles );
+            resourceText.replace( "%PROPSFILENAME%", "PropertySheetIncludes.props" );
+        }
+        );
+
+        auto outFile = outDir.absoluteFilePath( QString( "CMakeLists.txt" ) );
         QFile fo( outFile );
         if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
         {

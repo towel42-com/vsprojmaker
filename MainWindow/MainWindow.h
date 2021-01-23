@@ -80,6 +80,7 @@ public Q_SLOTS:
     void slotSelectSourceDir();
     void slotSelectQtDir();
     void slotSelectProdDir();
+    void slotSelectMSys64Dir();
     void slotSelectBuildDir();
     void slotSelectClientDir();
     void slotAddIncDir();

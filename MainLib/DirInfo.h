@@ -33,6 +33,7 @@ class QTextStream;
 
 namespace NVSProjectMaker
 {
+    class CSettings;
     struct SDebugTarget;
     struct SSourceFileInfo;
     struct SDirInfo
@@ -40,9 +41,9 @@ namespace NVSProjectMaker
         SDirInfo() {}
         SDirInfo( const std::shared_ptr< SSourceFileInfo > & fileInfo );
         bool isValid() const;
-        void writeCMakeFile( QWidget * parent, const QString & bldDir ) const;
-        void writePropSheet( QWidget * parent, const QString & srcDir, const QString & bldDir, const QString & includeDirs ) const;
-        void createDebugProjects( QWidget * parent, const QString & bldDir ) const;
+        void writeCMakeFile( QWidget * parent, const CSettings * settings ) const;
+        void writePropSheet( QWidget * parent, const CSettings * settings ) const;
+        void createDebugProjects( QWidget * parent, const CSettings * settings ) const;
 
         std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > findPairDirs( const std::unordered_map < QString, std::shared_ptr< NVSProjectMaker::SDirInfo > > & map ) const;
 

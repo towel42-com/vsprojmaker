@@ -76,6 +76,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     connect( fImpl->buildDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectBuildDir );
     connect( fImpl->qtDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectQtDir );
     connect( fImpl->prodDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectProdDir );
+    connect( fImpl->msys64DirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectMSys64Dir );
     connect( fImpl->addIncDirBtn, &QToolButton::clicked, this, &CMainWindow::slotAddIncDir );
     connect( fImpl->addCustomBuildBtn, &QToolButton::clicked, this, &CMainWindow::slotAddCustomBuild );
     connect( fImpl->addDebugTargetBtn, &QToolButton::clicked, this, &CMainWindow::slotAddDebugTarget );
@@ -290,6 +291,7 @@ void CMainWindow::saveSettings()
     fSettings->setBuildRelDir( bldDir.has_value() ? bldDir.value() : QString() );
     fSettings->setQtDir( fImpl->qtDir->text() );
     fSettings->setProdDir( fImpl->prodDir->text() );
+    fSettings->setMSys64Dir( fImpl->msys64Dir->text() );
     fSettings->setSelectedQtDirs( fQtLibsModel->getCheckedStrings() );
 
     auto attribs = findDirAttributes( nullptr );
@@ -317,6 +319,7 @@ void CMainWindow::loadSettings()
     fImpl->buildRelDir->setText( fSettings->getBuildRelDir() );
     fImpl->qtDir->setText( fSettings->getQtDir() );
     fImpl->prodDir->setText( fSettings->getProdDir() );
+    fImpl->msys64Dir->setText( fSettings->getMSys64Dir() );
 
     fQtLibsModel->setStringList( fSettings->getQtDirs() );
     fQtLibsModel->setChecked( fSettings->getSelectedQtDirs(), true, true );
@@ -706,6 +709,25 @@ void CMainWindow::slotSelectProdDir()
     }
 
     fImpl->prodDir->setText( dir );
+}
+
+void CMainWindow::slotSelectMSys64Dir()
+{
+    auto currPath = fImpl->msys64Dir->text();
+    if ( currPath.isEmpty() )
+        currPath = QString();
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select MSys64 Directory" ), currPath );
+    if ( dir.isEmpty() )
+        return;
+
+    QFileInfo fi( dir );
+    if ( !fi.exists() || !fi.isDir() || !fi.isReadable() )
+    {
+        QMessageBox::critical( this, tr( "Error Readable Directory not Selected" ), QString( "Error: '%1' is not an readable directory" ).arg( dir ) );
+        return;
+    }
+
+    fImpl->msys64Dir->setText( dir );
 }
 
 void CMainWindow::appendToLog( const QString & txt )

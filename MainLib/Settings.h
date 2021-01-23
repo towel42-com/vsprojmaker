@@ -148,7 +148,10 @@ namespace NVSProjectMaker
 
         std::shared_ptr< NVSProjectMaker::SSourceFileResults > getResults() const { return fResults; }
         QString getClientName() const;
-        
+
+        QString getMSys64Dir( bool msys ) const;
+        QString getIncludeDirs() const;
+
         [[nodiscard]] QString cleanUp( const QString & str ) const;
         int runCMake( const std::function< void( const QString & ) > & outFunc, const std::function< void( const QString & ) > & errFunc, QProcess * process, const std::pair< bool, std::function< void() > > & finishedInfo ) const;
         ADD_SETTING( QString, CMakePath );
@@ -159,6 +162,7 @@ namespace NVSProjectMaker
         ADD_SETTING_SETFUNC( QString, QtDir, [ this ]() { loadQtSettings(); } );
         ADD_SETTING( QStringList, QtDirs );
         ADD_SETTING( QString, ProdDir );
+        ADD_SETTING( QString, MSys64Dir );
         ADD_SETTING( QStringList, SelectedQtDirs );
         ADD_SETTING( QSet< QString >, BuildDirs );
         ADD_SETTING( QStringList, InclDirs );
@@ -191,7 +195,6 @@ namespace NVSProjectMaker
         void incProgress( QProgressDialog * progress ) const;
         void registerSettings();
         void loadQtSettings();
-        QString getIncludeDirs() const;
 
         std::unique_ptr< QSettings > fSettingsFile;
         std::shared_ptr< NVSProjectMaker::SSourceFileResults > fResults;
