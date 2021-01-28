@@ -201,12 +201,12 @@ namespace NVSProjectMaker
 
     void SDirInfo::writeCMakeFile( QWidget * parent, const CSettings * settings ) const
     {
-        auto outDir = QDir( settings->getBuildDir().value() );
-        auto outPath = outDir.absoluteFilePath( fBuildDir.isEmpty() ? fRelToDir : fBuildDir );
+        auto vsProjDir = QDir( settings->getBuildDir().value() );
+        auto outPath = vsProjDir.absoluteFilePath( fBuildDir.isEmpty() ? fRelToDir : fBuildDir );
 
-        if ( !outDir.cd( fRelToDir ) )
+        if ( !vsProjDir.cd( fRelToDir ) )
         {
-            if ( !outDir.mkpath( fRelToDir ) || !outDir.cd( fRelToDir ) )
+            if ( !vsProjDir.mkpath( fRelToDir ) || !vsProjDir.cd( fRelToDir ) )
             {
                 QMessageBox::critical( parent, QObject::tr( "Error:" ), QObject::tr( "Could not create missing output directory '%1'" ).arg( outPath ) );
                 return;
@@ -214,7 +214,7 @@ namespace NVSProjectMaker
         }
 
         bool isSubHeader = ( !fIsBuildDir && fExecutables.isEmpty() && fSourceFiles.isEmpty() );
-        QString buildItFileName = outDir.absoluteFilePath( QString( "buildit.sh" ) );
+        QString buildItFileName = vsProjDir.absoluteFilePath( QString( "buildit.sh" ) );
         if ( !isSubHeader )
         {
             QFile fo( buildItFileName );
@@ -235,10 +235,11 @@ namespace NVSProjectMaker
         }
         QString resourceFile = isSubHeader ? "subheaderdir.txt" : "subbuilddir.txt";
         auto resourceText = NVSProjectMaker::readResourceFile( parent, QString( ":/resources/%1" ).arg( resourceFile ),
-                                              [this, settings, buildItFileName, outPath, parent ]( QString & resourceText )
+                                              [this, settings, buildItFileName, outPath, vsProjDir, parent ]( QString & resourceText )
         {
             resourceText.replace( "%PROJECT_NAME%", fProjectName );
             resourceText.replace( "%BUILD_DIR%", outPath );
+            resourceText.replace( "%VSPROJDIR%", vsProjDir.absolutePath() );
             resourceText.replace( "%MSYS64DIR_MSYS%", settings->getMSys64Dir( true ) );
             resourceText.replace( "%MSYS64DIR_WIN%", settings->getMSys64Dir( false ) );
             resourceText.replace( "%BUILDITSHELL%", buildItFileName );
@@ -251,7 +252,7 @@ namespace NVSProjectMaker
         }
         );
 
-        auto outFile = outDir.absoluteFilePath( QString( "CMakeLists.txt" ) );
+        auto outFile = vsProjDir.absoluteFilePath( QString( "CMakeLists.txt" ) );
         QFile fo( outFile );
         if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
         {

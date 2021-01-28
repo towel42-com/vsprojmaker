@@ -165,7 +165,7 @@ namespace NVSProjectMaker
         auto inclDirs = getSelectedInclDirs();
         for ( auto && ii : inclDirs )
         {
-            auto curr = cleanUp( sourceDir.absoluteFilePath( ii ) );
+            auto curr = cleanUp( sourceDir, ii );
             retVal << curr;
         }
 
@@ -405,7 +405,7 @@ namespace NVSProjectMaker
                     }
                     QTextStream qts( &fo );
                     qts << text;
-                    qts << "\n\nset_target_properties( " << ii << " PROPERTIES FOLDER " << "\"Top Level Targets\"" << " )\n";
+                    qts << "\n\nset_target_properties( " << ii << " PROPERTIES FOLDER " << "\"Global Build Targets\"" << " )\n";
                     fo.close();
                 }
                 );
@@ -572,6 +572,20 @@ namespace NVSProjectMaker
             }
         }
         return msysdir;
+    }
+
+    QString CSettings::cleanUp( const QDir & relToDir, const QString & str ) const
+    {
+        auto tmp = cleanUp( str );
+        QFileInfo fi( tmp );
+        if ( fi.isAbsolute() && fi.exists() )
+            return fi.canonicalFilePath();
+        if ( fi.isAbsolute() )
+            return fi.absolutePath();
+        QFileInfo fi2( relToDir.absoluteFilePath( tmp ) );
+        if ( fi2.exists() )
+            return fi2.canonicalFilePath();
+        return fi2.absolutePath();
     }
 
     QString CSettings::cleanUp( const QString & str ) const

@@ -152,6 +152,7 @@ namespace NVSProjectMaker
         QString getMSys64Dir( bool msys ) const;
         QString getIncludeDirs() const;
 
+        [[nodiscard]] QString cleanUp( const QDir & relToDir, const QString & str ) const;
         [[nodiscard]] QString cleanUp( const QString & str ) const;
         int runCMake( const std::function< void( const QString & ) > & outFunc, const std::function< void( const QString & ) > & errFunc, QProcess * process, const std::pair< bool, std::function< void() > > & finishedInfo ) const;
         ADD_SETTING( QString, CMakePath );

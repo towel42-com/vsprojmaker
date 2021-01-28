@@ -40,4 +40,4 @@ add_custom_target( %PROJECT_NAME% ALL
                  COMMENT Debug Only Directory
            )
 
-set_target_properties( %PROJECT_NAME% PROPERTIES VS_USER_PROPS %BUILD_DIR%/DebugDir/%PROJECT_NAME%/%PROPSFILENAME% )
+set_target_properties( %PROJECT_NAME% PROPERTIES VS_USER_PROPS %VSPROJDIR%/DebugDir/%PROJECT_NAME%/%PROPSFILENAME% )
