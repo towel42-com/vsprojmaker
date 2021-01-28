@@ -25,17 +25,17 @@ if(CMAKE_VERSION VERSION_LESS "3.7.0")
     set(CMAKE_INCLUDE_CURRENT_DIR ON)
 endif()
 
-project( %PROJECT_NAME% ) 
+project( <PROJECT_NAME> ) 
 
 include( ${CMAKE_BINARY_DIR}/Project.cmake )
 
-add_custom_target( %PROJECT_NAME% ALL
-                 COMMAND %MSYS64DIR_WIN%/usr/bin/bash.exe -login -c "%BUILDITSHELL%"
+add_custom_target( <PROJECT_NAME> ALL
+                 COMMAND <MSYS64DIR_WIN>/usr/bin/bash.exe -login -c "<BUILDITSHELL>"
                  SOURCES ${project_SRCS}
                  ${project_H}
                  ${qtproject_UIS}
                  ${qtproject_QRC}
                  ${otherFILES}
-                 COMMENT Building %PROJECT_NAME% via External Makefile
+                 COMMENT Building <PROJECT_NAME> via External Makefile
            )
 

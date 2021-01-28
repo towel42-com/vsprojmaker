@@ -872,18 +872,25 @@ void CMainWindow::slotGenerate()
 {
     QApplication::setOverrideCursor( Qt::WaitCursor );
 
-    QProgressDialog progress( tr( "Generating CMake Files..." ), tr( "Cancel" ), 0, 0, this );
-    progress.setAutoReset( false );
-    progress.setAutoClose( false );
-    progress.setWindowModality( Qt::WindowModal );
-    progress.setMinimumDuration( 1 );
-    progress.setRange( 0, 100 );
-    progress.setValue( 0 );
+    auto progress = new QProgressDialog( tr( "Generating CMake Files..." ), tr( "Cancel" ), 0, 0, this );
+    QPushButton * pb = new QPushButton( tr( "Cancel" ) );
+    progress->setCancelButton( pb );
+    progress->setWindowFlags( progress->windowFlags() & ~Qt::WindowCloseButtonHint );
+    progress->setAutoReset( false );
+    progress->setAutoClose( false );
+    progress->setWindowModality( Qt::WindowModal );
+    progress->setMinimumDuration( 1 );
+    progress->setRange( 0, 100 );
+    progress->setValue( 0 );
     qApp->processEvents();
 
     saveSettings();
-    fSettings->generate( &progress, this, [this]( const QString & msg ) { appendToLog( msg ); } );
-    progress.close();
+    if ( !fSettings->generate( progress, this, [this]( const QString & msg ) { appendToLog( msg ); } ) )
+        return;
+
+    progress->setLabelText( tr( "Running CMake" ) );
+    pb->setEnabled( false );
+    progress->setRange( 0, 0 );
 
     fSettings->runCMake(
         [this]( const QString & outMsg )
@@ -895,5 +902,5 @@ void CMainWindow::slotGenerate()
         appendToLog( "ERROR: " + errMsg );
     },
         fProcess
-        , { false, [this]() { QApplication::restoreOverrideCursor(); } } );
+        , { false, [this, progress]() { QApplication::restoreOverrideCursor(); progress->deleteLater(); } } );
 }

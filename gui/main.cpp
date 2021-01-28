@@ -34,7 +34,8 @@ int main( int argc, char ** argv )
     appl.setOrganizationName( "Scott Aron Bloom" );
     appl.setOrganizationDomain( "www.towel42.com" );
 
-    Q_INIT_RESOURCE( application );
+    Q_INIT_RESOURCE( MainWindow );
+    Q_INIT_RESOURCE( MainLib );
     CMainWindow mainWindow;
     return mainWindow.exec();
 }

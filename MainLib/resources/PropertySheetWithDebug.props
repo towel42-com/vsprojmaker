@@ -3,13 +3,13 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);%INCLUDE_DIRS%</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);<INCLUDE_DIRS></IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LocalDebuggerCommand>%DEBUG_COMMAND%</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>%DEBUG_ARGS%</LocalDebuggerCommandArguments>
-    <LocalDebuggerWorkingDirectory>%DEBUG_WORKDIR%</LocalDebuggerWorkingDirectory>
-    <LocalDebuggerEnvironment>%DEBUG_ENVVARS%$(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
+    <LocalDebuggerCommand><DEBUG_COMMAND></LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments><DEBUG_ARGS></LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory><DEBUG_WORKDIR></LocalDebuggerWorkingDirectory>
+    <LocalDebuggerEnvironment><DEBUG_ENVVARS>$(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup />

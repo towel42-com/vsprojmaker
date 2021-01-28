@@ -42,7 +42,7 @@ set(qtproject_UIS
 )
 
 set(qtproject_QRC
-    application.qrc
+    MainWindow.qrc
 )
 
 file(GLOB qtproject_QRC_SOURCES "resources/*")

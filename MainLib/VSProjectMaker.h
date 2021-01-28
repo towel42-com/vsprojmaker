@@ -45,7 +45,7 @@ namespace NVSProjectMaker
         eRelPathRole
     };
 
-    QString readResourceFile( QWidget * parent, const QString & resourceFile, const std::function< void( QString & data ) > & function = {} );
+    QString readResourceFile( QWidget * parent, const QString & resourceFile, const std::function< void( QString & resourceText ) > & function = {} );
     void registerTypes();
 }
 

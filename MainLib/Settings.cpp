@@ -198,12 +198,12 @@ namespace NVSProjectMaker
         return retVal;
     }
 
-    void CSettings::generate( QProgressDialog * progress, QWidget * parent, const std::function< void( const QString & msg ) > & logit ) const
+    bool CSettings::generate( QProgressDialog * progress, QWidget * parent, const std::function< void( const QString & msg ) > & logit ) const
     {
         if ( !getBuildDir().has_value() )
-            return;
+            return false;
         if ( !getSourceDir().has_value() )
-            return;
+            return false;
 
         auto dirs = generateTopLevelFiles( progress, logit, parent );
 
@@ -218,22 +218,14 @@ namespace NVSProjectMaker
             qApp->processEvents();
         }
 
-        int currDir = 0;
+        progress->setRange( 0, static_cast<int>( dirs.size() ) );
+        progress->setValue( 0 );
+
         for ( auto && ii : dirs )
         {
             if ( progress )
             {
-                progress->setValue( currDir++ );
-                if ( progress->wasCanceled() )
-                    break;
-            }
-        }
-        
-        for ( auto && ii : dirs )
-        {
-            if ( progress )
-            {
-                progress->setValue( currDir++ );
+                progress->setValue( progress->value() + 1 );
                 if ( progress->wasCanceled() )
                     break;
             }
@@ -241,6 +233,7 @@ namespace NVSProjectMaker
             ii->writePropSheet( parent, this );
             ii->createDebugProjects( parent, this );
         }
+        return progress ? !progress->wasCanceled() : true;
     }
 
     QMap< QString, QString > CSettings::getVarMap() const
@@ -313,7 +306,7 @@ namespace NVSProjectMaker
     std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > CSettings::generateTopLevelFiles( QProgressDialog * progress, const std::function< void( const QString & msg ) > & logit, QWidget * parent ) const
     {
         NVSProjectMaker::readResourceFile( parent, QString( ":/resources/Project.cmake" ),
-                                           [this, parent]( QString & text )
+                                           [this, parent]( QString & resourceText )
         {
             QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( "Project.cmake" );
             QFile fo( outFile );
@@ -324,20 +317,20 @@ namespace NVSProjectMaker
                 return;
             }
             QTextStream qts( &fo );
-            qts << text;
+            qts << resourceText;
             fo.close();
         }
         );
 
-        auto topDirText = NVSProjectMaker::readResourceFile( parent, QString( ":/resources/%1.txt" ).arg( "topdir" ),
-                                                             [this]( QString & text )
+        auto topDirText = NVSProjectMaker::readResourceFile( parent, QString( ":/resources/topdir.cmake" ),
+                                                             [this]( QString & resourceText )
         {
-            text.replace( "%CLIENT_NAME%", getClientName() );
-            text.replace( "%ROOT_SOURCE_DIR%", getSourceDir().value() );
+            resourceText.replace( "<CLIENT_NAME>", getClientName() );
+            resourceText.replace( "<ROOT_SOURCE_DIR>", getSourceDir().value() );
         }
         );
 
-        QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( "CMakeLists.txt" );
+        QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( "CMakeLists.cmake" );
         QFile fo( outFile );
         if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
         {
@@ -381,19 +374,19 @@ namespace NVSProjectMaker
                 fo.close();
 
                 QString cmakeFileName = QString( "CustomBuild/%1/CMakeLists.txt" ).arg( ii );
-                NVSProjectMaker::readResourceFile( parent, QString( ":/resources/custombuilddir.txt" ),
-                                                                               [ii, cmakeFileName, buildItFileName, this, parent]( QString & text )
+                NVSProjectMaker::readResourceFile( parent, QString( ":/resources/custombuilddir.cmake" ),
+                                                                               [ii, cmakeFileName, buildItFileName, this, parent]( QString & resourceText )
                 {
-                    text.replace( "%PROJECT_NAME%", ii );
-                    text.replace( "%BUILD_DIR%", getBuildDir().value() );
-                    text.replace( "%MSYS64DIR_MSYS%", getMSys64Dir( true ) );
-                    text.replace( "%MSYS64DIR_WIN%", getMSys64Dir( false ) );
-                    text.replace( "%BUILDITSHELL%", buildItFileName );
-                    text.replace( "%SOURCE_FILES%", QString() );
-                    text.replace( "%HEADER_FILES%", QString() );
-                    text.replace( "%UI_FILES%", QString() );
-                    text.replace( "%QRC_FILES%", QString() );
-                    text.replace( "%OTHER_FILES%", QString() );
+                    resourceText.replace( "<PROJECT_NAME>", ii );
+                    resourceText.replace( "<BUILD_DIR>", getBuildDir().value() );
+                    resourceText.replace( "<MSYS64DIR_MSYS>", getMSys64Dir( true ) );
+                    resourceText.replace( "<MSYS64DIR_WIN>", getMSys64Dir( false ) );
+                    resourceText.replace( "<BUILDITSHELL>", buildItFileName );
+                    resourceText.replace( "<SOURCE_FILES>", QString() );
+                    resourceText.replace( "<HEADER_FILES>", QString() );
+                    resourceText.replace( "<UI_FILES>", QString() );
+                    resourceText.replace( "<QRC_FILES>", QString() );
+                    resourceText.replace( "<OTHER_FILES>", QString() );
 
                     QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( cmakeFileName );
                     QFile fo( outFile );
@@ -404,7 +397,7 @@ namespace NVSProjectMaker
                         return;
                     }
                     QTextStream qts( &fo );
-                    qts << text;
+                    qts << resourceText;
                     qts << "\n\nset_target_properties( " << ii << " PROPERTIES FOLDER " << "\"Global Build Targets\"" << " )\n";
                     fo.close();
                 }
@@ -413,12 +406,18 @@ namespace NVSProjectMaker
             qts << "\n\n";
         }
 
+        logit( QObject::tr( "============================================" ) );
+        logit( QObject::tr( "Computing totals" ) );
+        int totalChildren = fResults->computeTotal( progress );
+
         qApp->processEvents();
         logit( QObject::tr( "============================================" ) );
         logit( QObject::tr( "Finding Directories" ) );
         if ( progress )
         {
-            progress->setLabelText( QObject::tr( "Finding Directories" ) );
+            progress->setRange( 0, totalChildren*2 );
+            progress->setValue( 0 );
+            progress->setLabelText( QObject::tr( "Determining Build Directories" ) );
             progress->adjustSize();
         }
 
@@ -456,16 +455,12 @@ namespace NVSProjectMaker
     bool CSettings::getParentOfPairDirectoriesMap( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const
     {
         auto && childList = parent ? parent->fChildren : fResults->fRootDir->fChildren;
-        auto numRows = childList.size();
-        if ( progress )
-            progress->setRange( 0, static_cast<int>( numRows ) );
         QDir sourceDir( getSourceDir().value() );
 
-        auto currNum = 0;
         for ( auto && curr : childList )
         {
             if ( progress )
-                progress->setValue( currNum++ );
+                progress->setValue( progress->value() + 1 );
             qApp->processEvents();
             if ( progress && progress->wasCanceled() )
                 return false;
@@ -497,19 +492,18 @@ namespace NVSProjectMaker
             return {};
 
         auto && childList = parent ? parent->fChildren : fResults->fRootDir->fChildren;
-        auto numRows = childList.size();
-        if ( progress )
-            progress->setRange( 0, static_cast<int>( numRows ) );
         QDir sourceDir( getSourceDir().value() );
 
         auto currNum = 0;
         for( auto && curr : childList )
         {
             if ( progress )
-                progress->setValue( currNum++ );
-            qApp->processEvents();
-            if ( progress && progress->wasCanceled() )
-                return {};
+            {
+                progress->setValue( progress->value() + 1 );
+                qApp->processEvents();
+                if ( progress->wasCanceled() )
+                    return {};
+            }
 
             if ( !curr->fIsDir )
             {
@@ -844,6 +838,38 @@ namespace NVSProjectMaker
             .arg( fInclDirs.count() )
             .arg( fBuildDirs.count() )
             ;
+        return retVal;
+    }
+
+    int SSourceFileResults::computeTotal( QProgressDialog * progress )
+    {
+        int retVal = 0;
+        if ( progress )
+        {
+            progress->setLabelText( QObject::tr( "Computing total number of children" ) );
+            progress->setRange( 0, static_cast<int>( fRootDir->fChildren.size() ) );
+            progress->setValue( 0 );
+            qApp->processEvents();
+        }
+        for ( auto && curr : fRootDir->fChildren )
+        {
+            if ( progress )
+                progress->setValue( progress->value() + 1 );
+            retVal += computeTotal( curr );
+        }
+        return retVal;
+    }
+
+    int SSourceFileResults::computeTotal( std::shared_ptr< SSourceFileInfo > parent )
+    {
+        if ( !parent )
+            return 0;
+
+        int retVal = static_cast<int>( parent->fChildren.size() );
+        for ( auto && ii : parent->fChildren )
+        {
+            retVal += computeTotal( ii );
+        }
         return retVal;
     }
 

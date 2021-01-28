@@ -25,32 +25,32 @@ if(CMAKE_VERSION VERSION_LESS "3.7.0")
     set(CMAKE_INCLUDE_CURRENT_DIR ON)
 endif()
 
-project( %PROJECT_NAME% ) 
+project( <PROJECT_NAME> ) 
 
 set(project_SRCS
-%SOURCE_FILES%
+<SOURCE_FILES>
 )
 
 set(project_H
-%HEADER_FILES%
+<HEADER_FILES>
 )
 
 set(qtproject_UIS
-%UI_FILES%
+<UI_FILES>
 )
 
 set(qtproject_QRC
-%QRC_FILES%
+<QRC_FILES>
 )
 
 set(otherFILES
-%OTHER_FILES%
+<OTHER_FILES>
 )
 
 include( ${CMAKE_BINARY_DIR}/Project.cmake )
 
-add_custom_target( %PROJECT_NAME% ALL
-                 COMMAND %MSYS64DIR_WIN%/usr/bin/bash.exe -login -c "%BUILDITSHELL%"
+add_custom_target( <PROJECT_NAME> ALL
+                 COMMAND <MSYS64DIR_WIN>/usr/bin/bash.exe -login -c "<BUILDITSHELL>"
                  SOURCES ${project_SRCS}
                  ${project_H}
                  ${qtproject_UIS}
@@ -59,4 +59,7 @@ add_custom_target( %PROJECT_NAME% ALL
                  COMMENT Building via External Makefile
            )
 
-set_target_properties( %PROJECT_NAME% PROPERTIES VS_USER_PROPS %VSPROJDIR%/%PROPSFILENAME% )
+if( NOT EXISTS "<VSPROJDIR>/<PROPSFILENAME>" )
+    MESSAGE( FATAL_ERROR "Could not find property file '<VSPROJDIR>/<PROPSFILENAME>'" )
+endif()
+set_target_properties( <PROJECT_NAME> PROPERTIES VS_USER_PROPS <VSPROJDIR>/<PROPSFILENAME> )

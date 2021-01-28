@@ -95,7 +95,7 @@ namespace NVSProjectMaker
             }
 
             NVSProjectMaker::readResourceFile( parent, QString( ":/resources/PropertySheetWithDebug.props" ),
-                                [this, settings, ii, parent]( QString & text )
+                                [this, settings, ii, parent]( QString & resourceText )
             {
                 QDir bldQDir( settings->getBuildDir().value() );
                 bldQDir.cd( fRelToDir );
@@ -111,18 +111,21 @@ namespace NVSProjectMaker
                     return;
                 }
 
-                text.replace( "%PROJECT_NAME%", ii.getProjectName() );
-                text.replace( "%DEBUG_COMMAND%", ii.getCmd() );
-                text.replace( "%DEBUG_ARGS%", ii.fArgs );
-                text.replace( "%DEBUG_WORKDIR%", ii.fWorkDir );
-                text.replace( "%DEBUG_ENVVARS%", ii.getEnvVars() );
+                resourceText.replace( "<PROJECT_NAME>", ii.getProjectName() );
+                resourceText.replace( "<DEBUG_COMMAND>", ii.getCmd() );
+                resourceText.replace( "<DEBUG_ARGS>", ii.fArgs );
+                resourceText.replace( "<DEBUG_WORKDIR>", ii.fWorkDir );
+                resourceText.replace( "<DEBUG_ENVVARS>", ii.getEnvVars() );
+
+                QString lclIncDirs = QDir( settings->getSourceDir().value() ).absoluteFilePath( fRelToDir ) + ";" + settings->getIncludeDirs();
+                resourceText.replace( "<INCLUDE_DIRS>", lclIncDirs );
                 QTextStream qts( &fo );
-                qts << text;
+                qts << resourceText;
                 fo.close();
             }
             );
-            NVSProjectMaker::readResourceFile( parent, QString( ":/resources/subdebugdir.txt" ),
-                              [this, settings, ii, parent]( QString & text )
+            NVSProjectMaker::readResourceFile( parent, QString( ":/resources/subdebugdir.cmake" ),
+                              [this, settings, ii, parent]( QString & resourceText )
             {
                 QDir bldQDir( settings->getBuildDir().value() );
                 bldQDir.cd( fRelToDir );
@@ -138,15 +141,16 @@ namespace NVSProjectMaker
                     return;
                 }
 
-                text.replace( "%PROJECT_NAME%", ii.getProjectName() );
+                resourceText.replace( "<PROJECT_NAME>", ii.getProjectName() );
                 auto outDir = QDir( settings->getBuildDir().value() );
                 auto outPath = outDir.absoluteFilePath( fRelToDir );
-                text.replace( "%BUILD_DIR%", outPath );
-                text.replace( "%DEBUG_COMMAND%", ii.getCmd() );
-                text.replace( "%PROPSFILENAME%", "PropertySheetWithDebug.props" );
+                resourceText.replace( "<BUILD_DIR>", outPath );
+                resourceText.replace( "<VSPROJDIR>", outPath );
+                resourceText.replace( "<DEBUG_COMMAND>", ii.getCmd() );
+                resourceText.replace( "<PROPSFILENAME>", "PropertySheetWithDebug.props" );
 
                 QTextStream qts( &fo );
-                qts << text;
+                qts << resourceText;
                 qts << "\n\nset_target_properties( " << ii.getProjectName() << " PROPERTIES FOLDER " << "\"Debug Targets\"" << " )\n";
                 fo.close();
             }
@@ -178,7 +182,7 @@ namespace NVSProjectMaker
     {
         QString fileName = "PropertySheetIncludes.props";
         NVSProjectMaker::readResourceFile( parent, QString( ":/resources/%1" ).arg( fileName ),
-                          [this, settings, fileName, parent]( QString & text )
+                          [this, settings, fileName, parent]( QString & resourceText )
         {
             QDir bldQDir( settings->getBuildDir().value() );
             bldQDir.cd( fRelToDir );
@@ -191,9 +195,9 @@ namespace NVSProjectMaker
                 return;
             }
             QString lclIncDirs = QDir( settings->getSourceDir().value() ).absoluteFilePath( fRelToDir ) + ";" + settings->getIncludeDirs();
-            text.replace( "%INCLUDE_DIRS%", lclIncDirs );
+            resourceText.replace( "<INCLUDE_DIRS>", lclIncDirs );
             QTextStream qts( &fo );
-            qts << text;
+            qts << resourceText;
             fo.close();
         }
         );
@@ -233,22 +237,22 @@ namespace NVSProjectMaker
                 << cmd << "\n";
             fo.close();
         }
-        QString resourceFile = isSubHeader ? "subheaderdir.txt" : "subbuilddir.txt";
+        QString resourceFile = isSubHeader ? "subheaderdir.cmake" : "subbuilddir.cmake";
         auto resourceText = NVSProjectMaker::readResourceFile( parent, QString( ":/resources/%1" ).arg( resourceFile ),
                                               [this, settings, buildItFileName, outPath, vsProjDir, parent ]( QString & resourceText )
         {
-            resourceText.replace( "%PROJECT_NAME%", fProjectName );
-            resourceText.replace( "%BUILD_DIR%", outPath );
-            resourceText.replace( "%VSPROJDIR%", vsProjDir.absolutePath() );
-            resourceText.replace( "%MSYS64DIR_MSYS%", settings->getMSys64Dir( true ) );
-            resourceText.replace( "%MSYS64DIR_WIN%", settings->getMSys64Dir( false ) );
-            resourceText.replace( "%BUILDITSHELL%", buildItFileName );
-            replaceFiles( resourceText, "%SOURCE_FILES%", QStringList() << fSourceFiles );
-            replaceFiles( resourceText, "%HEADER_FILES%", QStringList() << fHeaderFiles );
-            replaceFiles( resourceText, "%UI_FILES%", QStringList() << fUIFiles );
-            replaceFiles( resourceText, "%QRC_FILES%", QStringList() << fQRCFiles );
-            replaceFiles( resourceText, "%OTHER_FILES%", QStringList() << fOtherFiles );
-            resourceText.replace( "%PROPSFILENAME%", "PropertySheetIncludes.props" );
+            resourceText.replace( "<PROJECT_NAME>", fProjectName );
+            resourceText.replace( "<BUILD_DIR>", outPath );
+            resourceText.replace( "<VSPROJDIR>", vsProjDir.absolutePath() );
+            resourceText.replace( "<MSYS64DIR_MSYS>", settings->getMSys64Dir( true ) );
+            resourceText.replace( "<MSYS64DIR_WIN>", settings->getMSys64Dir( false ) );
+            resourceText.replace( "<BUILDITSHELL>", buildItFileName );
+            replaceFiles( resourceText, "<SOURCE_FILES>", QStringList() << fSourceFiles );
+            replaceFiles( resourceText, "<HEADER_FILES>", QStringList() << fHeaderFiles );
+            replaceFiles( resourceText, "<UI_FILES>", QStringList() << fUIFiles );
+            replaceFiles( resourceText, "<QRC_FILES>", QStringList() << fQRCFiles );
+            replaceFiles( resourceText, "<OTHER_FILES>", QStringList() << fOtherFiles );
+            resourceText.replace( "<PROPSFILENAME>", "PropertySheetIncludes.props" );
         }
         );
 

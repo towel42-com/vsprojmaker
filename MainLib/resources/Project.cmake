@@ -28,8 +28,6 @@ endif()
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 find_package(Threads REQUIRED)
-#find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
-#AddQtIncludes()
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 

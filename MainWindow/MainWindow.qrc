@@ -1,16 +1,5 @@
 <RCC>
     <qresource prefix="/">
-        <file>resources/Project.cmake</file>
-
-        <file>resources/topdir.txt</file>
-        <file>resources/subbuilddir.txt</file>
-        <file>resources/subheaderdir.txt</file>
-        <file>resources/custombuilddir.txt</file>
-        <file>resources/subdebugdir.txt</file>
-
-        <file>resources/PropertySheetIncludes.props</file>
-        <file>resources/PropertySheetWithDebug.props</file>
-
         <file>resources/application.png</file>
         <file>resources/download.png</file>
         <file>resources/plus.png</file>

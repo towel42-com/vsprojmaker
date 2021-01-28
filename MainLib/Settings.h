@@ -113,6 +113,10 @@ namespace NVSProjectMaker
             fQtLibs.clear();
             fRootDir = std::make_shared< SSourceFileInfo >();
         }
+        int computeTotal( std::shared_ptr< SSourceFileInfo > parent );
+
+        int computeTotal( QProgressDialog * progress );
+
         std::shared_ptr< SSourceFileInfo > fRootDir;
     };
 
@@ -141,7 +145,7 @@ namespace NVSProjectMaker
         QList< QPair< QString, bool > > getExecutables( const QDir & dir ) const;
 
         QStringList addInclDirs( const QStringList & inclDirs );
-        void generate( QProgressDialog * progress, QWidget * parent, const std::function< void( const QString & msg ) > & logit ) const;
+        bool generate( QProgressDialog * progress, QWidget * parent, const std::function< void( const QString & msg ) > & logit ) const;
         std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > generateTopLevelFiles( QProgressDialog * progress, const std::function< void( const QString & msg ) > & logit, QWidget * parent ) const;
         std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > getDirInfo( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;
         bool getParentOfPairDirectoriesMap( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;

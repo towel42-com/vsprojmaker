@@ -25,13 +25,13 @@ if(CMAKE_VERSION VERSION_LESS "3.7.0")
     set(CMAKE_INCLUDE_CURRENT_DIR ON)
 endif()
 
-project( %PROJECT_NAME% ) 
+project( <PROJECT_NAME> ) 
 
 #include( ${CMAKE_BINARY_DIR}/Project.cmake )
 
-add_custom_target( %PROJECT_NAME% ALL
+add_custom_target( <PROJECT_NAME> ALL
                  COMMAND echo "Debug Only"
-                 OUTPUT "%DEBUG_COMMAND%"
+                 OUTPUT "<DEBUG_COMMAND>"
                  SOURCES ${project_SRCS}
                  ${project_H}
                  ${qtproject_UIS}
@@ -40,4 +40,7 @@ add_custom_target( %PROJECT_NAME% ALL
                  COMMENT Debug Only Directory
            )
 
-set_target_properties( %PROJECT_NAME% PROPERTIES VS_USER_PROPS %VSPROJDIR%/DebugDir/%PROJECT_NAME%/%PROPSFILENAME% )
+if( NOT EXISTS "<VSPROJDIR>/DebugDir/<PROJECT_NAME>/<PROPSFILENAME>" )
+    MESSAGE( FATAL_ERROR "Could not find property file '<VSPROJDIR>/DebugDir/<PROJECT_NAME>/<PROPSFILENAME>'" )
+endif()
+set_target_properties( <PROJECT_NAME> PROPERTIES VS_USER_PROPS <VSPROJDIR>/DebugDir/<PROJECT_NAME>/<PROPSFILENAME> )
