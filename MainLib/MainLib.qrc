@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resources/buildit.sh</file>
+        <file>resources/Project.cmake</file>
+        <file>resources/topdir.cmake</file>
+        <file>resources/subbuilddir.cmake</file>
+        <file>resources/subheaderdir.cmake</file>
+        <file>resources/custombuilddir.cmake</file>
+        <file>resources/subdebugdir.cmake</file>
+        <file>resources/PropertySheetIncludes.props</file>
+        <file>resources/PropertySheetWithDebug.props</file>
+    </qresource>
+</RCC>
