@@ -68,7 +68,7 @@ public:
 public Q_SLOTS:
     void slotChanged();
     void slotQtChanged();
-    void slotCMakeChanged();
+    void slotVSChanged();
 
     void slotLoadSource();
 
@@ -76,7 +76,8 @@ public Q_SLOTS:
 
     void slotOpenProjectFile();
     void slotSaveProjectFile();
-    void slotSelectCMake();
+    void slotRunWizard();
+    void slotSelectVS();
     void slotSelectSourceDir();
     void slotSelectQtDir();
     void slotSelectProdDir();
@@ -93,6 +94,11 @@ public Q_SLOTS:
 
     void slotGenerate();
 private:
+    void loadBuildTargets( const QStringList & target );
+    void loadDebugTargets( const QStringList & targets );
+    void loadIncludePages( const QStringList & includeDirs );
+
+    void reset();
     QStandardItem * loadSourceFileModel();
         
     QStringList getProjects() const;
@@ -120,9 +126,9 @@ private:
 
     void disconnectProjectSignal();
     void connectProjectSignal();
+    void doChanged( bool loadSource );
 
     int fProjectSignalConnection{ 0 };
-    QSet< QString > fBuildDirs;
     QStringList fInclDirs;
     QHash< QString, QList< QPair< QString, bool > > > fExecutables;
 

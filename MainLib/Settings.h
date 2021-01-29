@@ -116,7 +116,6 @@ namespace NVSProjectMaker
         int computeTotal( std::shared_ptr< SSourceFileInfo > parent );
 
         int computeTotal( QProgressDialog * progress );
-
         std::shared_ptr< SSourceFileInfo > fRootDir;
     };
 
@@ -128,6 +127,7 @@ namespace NVSProjectMaker
 
         ~CSettings();
 
+        void clear();
         QString fileName() const;
         bool loadSourceFiles( const QDir & sourceDir, const QString & dir, QProgressDialog * progress, const std::function< void( const QString & msg ) > & logit );
         std::optional< QString > getBuildDir( bool relPath = false ) const;
@@ -150,16 +150,22 @@ namespace NVSProjectMaker
         std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > getDirInfo( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;
         bool getParentOfPairDirectoriesMap( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;
 
-        std::shared_ptr< NVSProjectMaker::SSourceFileResults > getResults() const { return fResults; }
-        QString getClientName() const;
+        [[nodiscard]] std::shared_ptr< NVSProjectMaker::SSourceFileResults > getResults() const { return fResults; }
+        [[nodiscard]] QString getClientName() const;
 
-        QString getMSys64Dir( bool msys ) const;
-        QString getIncludeDirs() const;
+        [[nodiscard]] static QString getCMakeExec( const QString & dir );
+        [[nodiscard]] QString getCMakeExec() const;
+
+        [[nodiscard]] QString getMSys64Dir( bool msys ) const;
+        [[nodiscard]] QString getIncludeDirs() const;
 
         [[nodiscard]] QString cleanUp( const QDir & relToDir, const QString & str ) const;
         [[nodiscard]] QString cleanUp( const QString & str ) const;
+
+        static [[nodiscard]] QStringList getQtIncludeDirs( const QString & qtDir );
         int runCMake( const std::function< void( const QString & ) > & outFunc, const std::function< void( const QString & ) > & errFunc, QProcess * process, const std::pair< bool, std::function< void() > > & finishedInfo ) const;
-        ADD_SETTING( QString, CMakePath );
+
+        ADD_SETTING( QString, VSPath );
         ADD_SETTING( QString, Generator );
         ADD_SETTING( QString, ClientDir );
         ADD_SETTING( QString, SourceRelDir );

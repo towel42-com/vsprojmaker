@@ -20,40 +20,26 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-project(VSProjectMakerGUI) 
+cmake_minimum_required(VERSION 3.1)
+if(CMAKE_VERSION VERSION_LESS "3.7.0")
+    set(CMAKE_INCLUDE_CURRENT_DIR ON)
+endif()
+project( WizardPages )
 
 include( include.cmake )
 include( ${CMAKE_SOURCE_DIR}/SABUtils/Project.cmake )
 
-add_executable( VSProjectMakerGUI WIN32
-                 ${project_SRCS} 
-                 ${project_H} 
-                 ${qtproject_SRCS} 
-                 ${qtproject_QRC} 
-                 ${qtproject_QRC_SRCS} 
-                 ${qtproject_UIS_H} 
-                 ${qtproject_MOC_SRCS} 
-                 ${qtproject_H} 
-                 ${qtproject_UIS}
-                 ${qtproject_QRC_SOURCES}
-                 ${_CMAKE_FILES}
-                 ${_CMAKE_MODULE_FILES}
-                application.rc
-          )
-set_target_properties( VSProjectMakerGUI PROPERTIES FOLDER Apps )
-          
-target_link_libraries( VSProjectMakerGUI 
-                 Qt5::Widgets
-                 Qt5::Core
-                 MainWindow
-                 WizardPages
-                 MainLib
-                 SABUtils
-          )
-DeployQt( VSProjectMakerGUI . )
-DeploySystem( VSProjectMakerGUI )
-
-INSTALL( TARGETS ${PROJECT_NAME} RUNTIME DESTINATION . )
-INSTALL( FILES ${CMAKE_CURRENT_BINARY_DIR}/Debug/${PROJECT_NAME}.pdb DESTINATION . CONFIGURATIONS Debug )
-
-
+add_library(WizardPages STATIC
+    ${project_SRCS} 
+    ${project_H}  
+    ${qtproject_SRCS} 
+    ${qtproject_QRC} 
+    ${qtproject_QRC_SRCS} 
+    ${qtproject_UIS_H} 
+    ${qtproject_MOC_SRCS} 
+    ${qtproject_H} 
+    ${qtproject_UIS}
+    ${qtproject_QRC_SOURCES}
+    ${_CMAKE_FILES}
+)
+set_target_properties( WizardPages PROPERTIES FOLDER Libs )

@@ -66,6 +66,14 @@ namespace NVSProjectMaker
         saveSettings();
     }
 
+    void CSettings::clear()
+    {
+        setFileName( QString(), false );
+        fResults = std::make_shared< SSourceFileResults >();
+        for ( auto && ii : fSettings )
+            *ii.second = QVariant();
+    }
+
     QString CSettings::fileName() const
     {
         if ( !fSettingsFile )
@@ -330,7 +338,7 @@ namespace NVSProjectMaker
         }
         );
 
-        QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( "CMakeLists.cmake" );
+        QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( "CMakeLists.txt" );
         QFile fo( outFile );
         if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
         {
@@ -551,6 +559,25 @@ namespace NVSProjectMaker
         return dir.dirName();
     }
 
+    QString CSettings::getCMakeExec( const QString & dir )
+    {
+        if ( dir.isEmpty() )
+            return QString();
+
+        auto vsDir = QDir( dir );
+        if ( !vsDir.exists() )
+            return QString();
+        auto cmake = QFileInfo( vsDir.absoluteFilePath( "Professional/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe" ) );
+        if ( !cmake.exists() )
+            return QString();
+        return cmake.absoluteFilePath();
+    }
+
+    QString CSettings::getCMakeExec() const
+    {
+        return getCMakeExec( getVSPath() );
+    }
+
     QString CSettings::getMSys64Dir( bool msys ) const
     {
         auto msysdir = QDir( getMSys64Dir() ).absolutePath();
@@ -705,7 +732,7 @@ namespace NVSProjectMaker
 
     void CSettings::registerSettings()
     {
-        ADD_SETTING_VALUE( QString, CMakePath );
+        ADD_SETTING_VALUE( QString, VSPath );
         ADD_SETTING_VALUE( QString, Generator );
         ADD_SETTING_VALUE( QString, ClientDir );
         ADD_SETTING_VALUE( QString, SourceRelDir );
@@ -722,26 +749,34 @@ namespace NVSProjectMaker
         ADD_SETTING_VALUE( TListOfDebugTargets, DebugCommands );
     }
 
-    void CSettings::loadQtSettings()
+    QStringList CSettings::getQtIncludeDirs( const QString & qtDirStr )
     {
-        if ( !fQtDir.isValid() || fQtDir.toString().isEmpty() )
-            return;
+        if ( qtDirStr.isEmpty() )
+             return {};
 
-        auto qtDir = QDir( fQtDir.toString() );
+        auto qtDir = QDir( qtDirStr );
         if ( !qtDir.exists() )
-            return;
+            return {};
 
         if ( !qtDir.cd( "include" ) )
-            return;
+            return {};
 
         QDirIterator iter( qtDir.absolutePath(), QStringList(), QDir::Filter::AllDirs | QDir::Filter::NoDotAndDotDot | QDir::Filter::Readable, QDirIterator::IteratorFlag::NoIteratorFlags );
-        fQtDirs = QVariant();
         QStringList qtDirs;
         while ( iter.hasNext() )
         {
             qtDirs << QFileInfo( iter.next() ).fileName();
         }
-        fQtDirs = qtDirs;
+        return qtDirs;
+    }
+
+    void CSettings::loadQtSettings()
+    {
+        fQtDirs.clear();
+        if ( !fQtDir.isValid() )
+            return;
+
+        fQtDirs = getQtIncludeDirs( fQtDir.toString() );
     }
 
     bool CSettings::loadData()
@@ -766,7 +801,7 @@ namespace NVSProjectMaker
             return -1;
 
         auto buildDir = getBuildDir().value();
-        auto cmakeExec = getCMakePath();
+        auto cmakeExec = getCMakeExec();
         auto args = getCmakeArgs();
         outFunc( QString( "Build Dir: %1" ).arg( buildDir ) + "\n" );
         outFunc( QString( "CMake Path: %1" ).arg( cmakeExec ) + "\n" );

@@ -6,7 +6,7 @@
 // of this software and associated documentation files( the "Software" ), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sub-license, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
+// copies of the Softwa , and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions :
 //
 // The above copyright notice and this permission notice shall be included in
@@ -23,9 +23,13 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
 #include "SetupDebug.h"
-#include <QSet>
 #include "AddCustomBuild.h"
-
+#include "WizardPages/ClientInfoPage.h"
+#include "WizardPages/QtPage.h"
+#include "WizardPages/SystemInfoPage.h"
+#include "WizardPages/BuildTargetsPage.h"
+#include "WizardPages/DebugTargetsPage.h"
+#include "WizardPages/IncludesPage.h"
 #include "MainLib/VSProjectMaker.h"
 #include "MainLib/DebugTarget.h"
 #include "MainLib/DirInfo.h"
@@ -33,6 +37,7 @@
 
 #include "SABUtils/UtilityModels.h"
 
+#include <QSet>
 #include <QFileInfo>
 #include <QProcess>
 #include <QFileDialog>
@@ -50,6 +55,7 @@
 #include <QDirIterator>
 #include <QDebug>
 #include <QInputDialog>
+#include <QWizard>
 
 CMainWindow::CMainWindow( QWidget * parent )
     : QDialog( parent ),
@@ -61,7 +67,7 @@ CMainWindow::CMainWindow( QWidget * parent )
 
     fImpl->setupUi( this );
     connect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
-    connect( fImpl->cmakePath, &QLineEdit::textChanged, this, &CMainWindow::slotCMakeChanged );
+    connect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
     connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
     connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
     connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
@@ -70,7 +76,8 @@ CMainWindow::CMainWindow( QWidget * parent )
 
     connect( fImpl->openProjectFileBtn, &QToolButton::clicked, this, &CMainWindow::slotOpenProjectFile );
     connect( fImpl->saveProjectFileBtn, &QToolButton::clicked, this, &CMainWindow::slotSaveProjectFile );
-    connect( fImpl->cmakePathBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectCMake );
+    connect( fImpl->runWizardBtn, &QToolButton::clicked, this, &CMainWindow::slotRunWizard );
+    connect( fImpl->vsPathBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectVS );
     connect( fImpl->clientDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectClientDir );
     connect( fImpl->sourceDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectSourceDir );
     connect( fImpl->buildDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectBuildDir );
@@ -139,6 +146,18 @@ QStringList CMainWindow::getProjects() const
     for ( int ii = 1; ii < fImpl->projectFile->count(); ++ii )
         projects << fImpl->projectFile->itemText( ii );
     return projects;
+}
+
+void CMainWindow::reset()
+{
+    fSettings->clear();
+    fImpl->cmakeExec->clear();
+    disconnect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
+    fImpl->generator->clear();
+    connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
+    fImpl->projectFile->setCurrentIndex( 0 );
+    fImpl->log->clear();
+    loadSettings();
 }
 
 void CMainWindow::setProjects( QStringList projects )
@@ -282,7 +301,7 @@ QList< QPair< QString, QString > > CMainWindow::getCustomBuilds( bool absDir ) c
 
 void CMainWindow::saveSettings()
 {
-    fSettings->setCMakePath( fImpl->cmakePath->text() );
+    fSettings->setVSPath( fImpl->vsPath->text() );
     fSettings->setGenerator( fImpl->generator->currentText() );
     fSettings->setClientDir( fImpl->clientDir->text() );
     auto srcDir = getSourceDir( true );
@@ -308,12 +327,12 @@ void CMainWindow::saveSettings()
 
 void CMainWindow::loadSettings()
 {
-    auto t1 = fSettings->getSourceRelDir();
+    disconnect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
     disconnect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
     disconnect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
     disconnect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
 
-    fImpl->cmakePath->setText( fSettings->getCMakePath() );
+    fImpl->vsPath->setText( fSettings->getVSPath() );
     fImpl->generator->setCurrentText( fSettings->getGenerator() );
     fImpl->clientDir->setText( fSettings->getClientDir() );
     fImpl->buildRelDir->setText( fSettings->getBuildRelDir() );
@@ -324,11 +343,11 @@ void CMainWindow::loadSettings()
     fQtLibsModel->setStringList( fSettings->getQtDirs() );
     fQtLibsModel->setChecked( fSettings->getSelectedQtDirs(), true, true );
 
+    connect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
     connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
     connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
     connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
 
-    fBuildDirs = fSettings->getBuildDirs();
     fInclDirs = fSettings->getInclDirs();
     fIncDirModel->setStringList( fInclDirs );
     auto selectedIncDirs = fSettings->getSelectedInclDirs();
@@ -359,9 +378,11 @@ void CMainWindow::loadSettings()
 
 void CMainWindow::slotChanged()
 {
-    QFileInfo fi( fImpl->cmakePath->text() );
-    bool cmakePathOK = !fImpl->cmakePath->text().isEmpty() && fi.exists() && fi.isExecutable();
+    doChanged( true );
+}
 
+void CMainWindow::doChanged( bool loadSource )
+{
     bool generatorOK = !fImpl->generator->currentText().isEmpty();
 
     auto clientDir = getClientDir();
@@ -370,9 +391,23 @@ void CMainWindow::slotChanged()
     {
         fImpl->clientName->setText( clientDir.value().dirName() );
     }
-    
+
+    auto vsDir = QDir( fImpl->vsPath->text() );
+    auto vsPath = QFileInfo( NVSProjectMaker::CSettings::getCMakeExec( fImpl->vsPath->text() ) );
+    bool cmakePathOK = false;
+    if ( vsDir.exists() && vsPath.exists() && vsPath.isExecutable() )
+    {
+        fImpl->cmakeExec->setText( vsPath.absoluteFilePath() );
+        QFileInfo fi( fImpl->cmakeExec->text() );
+        cmakePathOK = !fImpl->cmakeExec->text().isEmpty() && fi.exists() && fi.isExecutable();
+    }
+    if ( cmakePathOK )
+    {
+        slotVSChanged();
+    }
+
     auto sourceDirPath = getSourceDir();
-    fi = clientDirOK && sourceDirPath.has_value() ? QFileInfo( sourceDirPath.value() ) : QFileInfo();
+    auto fi = clientDirOK && sourceDirPath.has_value() ? QFileInfo( sourceDirPath.value() ) : QFileInfo();
     bool sourceDirOK = clientDirOK && getSourceDir().has_value() && fi.exists() && fi.isDir() && fi.isReadable();
 
     auto sourceDir = sourceDirPath.has_value() ? QDir( sourceDirPath.value() ) : QDir();
@@ -384,7 +419,8 @@ void CMainWindow::slotChanged()
     if ( sourceDirOK && ( !fSourceDir.has_value() || ( fSourceDir.has_value() && ( fSourceDir != sourceDir ) ) ) )
     {
         fSourceDir = sourceDir;
-        QTimer::singleShot( 0, this, &CMainWindow::slotLoadSource );
+        if ( loadSource )
+            QTimer::singleShot( 0, this, &CMainWindow::slotLoadSource );
     }
 
     if ( !sourceDirOK )
@@ -399,6 +435,124 @@ void CMainWindow::slotChanged()
     fImpl->addDebugTargetBtn->setEnabled( sourceDirOK && bldDirOK );
     fImpl->addIncDirBtn->setEnabled( sourceDirOK );
     fImpl->generateBtn->setEnabled( cmakePathOK && clientDirOK && generatorOK && sourceDirOK && bldDirOK );
+}
+
+void CMainWindow::slotRunWizard()
+{
+    reset();
+    QWizard wizard;
+    CSystemInfoPage * sysInfoPage = new CSystemInfoPage;
+    wizard.addPage( sysInfoPage );
+    sysInfoPage->setDefaults();
+    
+    auto qtPage = new CQtPage;
+    wizard.addPage( qtPage );
+    qtPage->setDefaults();
+
+    auto clientInfoPage = new CClientInfoPage;
+    wizard.addPage( clientInfoPage );
+    clientInfoPage->setDefaults();
+
+    auto buildTargetsPage = new CBuildTargetsPage;
+    wizard.addPage( buildTargetsPage );
+
+    auto debugTargetsPage = new CDebugTargetsPage;
+    wizard.addPage( debugTargetsPage );
+    
+    auto includesPage = new CIncludesPage;
+    wizard.addPage( includesPage );
+
+    if ( wizard.exec() == QWizard::Accepted )
+    {
+        disconnect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
+        disconnect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
+        disconnect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        disconnect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        disconnect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        disconnect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
+        disconnect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
+
+        fSettings->setClientDir( wizard.field( "clientDir" ).toString() );
+
+        fImpl->vsPath->setText( wizard.field( "vsPath" ).toString() );
+        fImpl->prodDir->setText( wizard.field( "prodDir" ).toString() );
+        fImpl->msys64Dir->setText( wizard.field( "msys64Dir" ).toString() );
+
+        fImpl->clientDir->setText( wizard.field( "clientDir" ).toString() );
+        fImpl->buildRelDir->setText( wizard.field( "buildRelDir" ).toString() );
+        fImpl->sourceRelDir->setText( wizard.field( "sourceRelDir" ).toString() );
+
+        fImpl->qtDir->setText( wizard.field( "qtDir" ).toString() );
+
+        auto qtDirs = qtPage->qtDirs();
+        fQtLibsModel->setStringList( qtDirs.first );
+        fQtLibsModel->setChecked( qtDirs.second, true, true );
+
+        loadBuildTargets( buildTargetsPage->enabledBuildTargets() );
+        loadDebugTargets( debugTargetsPage->enabledDebugTargets() );
+
+        connect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
+        connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
+        connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
+        connect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
+
+        doChanged( false );
+        slotLoadSource();
+        loadIncludePages( includesPage->enabledIncludeDirs() );
+        QString projFile = QDir( wizard.field( "clientDir" ).toString() ).absoluteFilePath( wizard.field( "clientName" ).toString() ) + ".ini";
+        setProjectFile( projFile, false );
+        doChanged( false );
+    }
+}
+
+void CMainWindow::loadBuildTargets( const QStringList & targets )
+{
+    for ( auto && ii : targets )
+    {
+        addCustomBuild( qMakePair( fImpl->buildRelDir->text(), ii ) );
+    }
+}
+
+void CMainWindow::loadDebugTargets( const QStringList & targets )
+{
+    for ( auto && ii : targets )
+    {
+        auto path = QString( "src/hdloffice/hdlstudio/cxx/main/src" );
+        auto name = QString( "HDL Client" );
+        QString args;
+        if ( ii != "<no external client>" )
+        {
+            name += QString( " + %1" ).arg( ii );
+            args = QString( "+external_client+<CLIENTDIR>/devapps/visualizer/win64/%1.dll" ).arg( ii );
+        }
+
+        auto executable = QString( "<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlclient.exe" );
+        auto workDir = QString( "<CLIENTDIR>" );
+
+        QString envVars;
+        if ( ii == "vxcSampleWithProject" )
+            envVars = QString( "{SKIP_LIMITED_FEATURES_KEY=1}{ENABLE_VFPRJ=1}" );
+        else if ( ii == "vxcSampleWithFlowNav" )
+            envVars = QString( "{SKIP_LIMITED_FEATURES_KEY=1}{ENABLE_FLOWNAV=1}" );
+
+        addDebugTarget( path, name, executable, args, workDir, envVars );
+    }
+}
+
+void CMainWindow::loadIncludePages( const QStringList & includeDirs )
+{
+    auto currDirs = QStringList() << includeDirs << fIncDirModel->stringList();
+
+    std::list< std::pair< QString, bool > > newIncludes;
+    for ( auto && ii : currDirs )
+    {
+        auto checked = !ii.startsWith( "solver/alanmi" );
+        newIncludes.push_back( std::make_pair( ii, checked ) );
+    }
+    fIncDirModel->setStringList( newIncludes );
 }
 
 void CMainWindow::slotOpenProjectFile()
@@ -448,33 +602,48 @@ void CMainWindow::setProjectFile( const QString & projFile, bool load )
     if ( load )
         loadSettings();
     else
+    {
         saveSettings();
-
+        fSettings->saveSettings();
+    }
 }
 
-void CMainWindow::slotSelectCMake()
+void CMainWindow::slotSelectVS()
 {
-    auto currPath = fImpl->cmakePath->text();
+    auto currPath = fImpl->vsPath->text();
     if ( currPath.isEmpty() )
-        currPath = QString();
-    auto exe = QFileDialog::getOpenFileName( this, tr( "Select CMake Executable" ), currPath, "All Executables *.exe;;All Files *.*" );
-    if ( exe.isEmpty() )
+        currPath = QString( "C:/Program Files (x86)/Microsoft Visual Studio/2017" );
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Visual Studio Directory" ), currPath );
+    if ( dir.isEmpty() )
         return;
 
-    QFileInfo fi( exe );
-    if ( !fi.exists() || !fi.isExecutable() )
+    QFileInfo fi( dir );
+    if ( !fi.exists() || !fi.isDir() )
     {
-        QMessageBox::critical( this, tr( "Error Executable not Selected" ), QString( "Error: '%1' is not an executable" ).arg( exe ) );
+        QMessageBox::critical( this, tr( "Error Valid Directory not Selected" ), QString( "Error: '%1' is not a directory" ).arg( dir ) );
         return;
     }
 
-    fImpl->cmakePath->setText( exe );
+    fi = QFileInfo( NVSProjectMaker::CSettings::getCMakeExec( dir ) );
+    if ( !fi.exists() || !fi.isExecutable() )
+    {
+        QMessageBox::critical( this, tr( "Error Valid Directory not Selected" ), QString( "Error: '%1' is not an executable" ).arg( fi.absoluteFilePath() ) );
+        return;
+    }
+    fImpl->vsPath->setText( dir );
 }
 
-void CMainWindow::slotCMakeChanged()
+void CMainWindow::slotVSChanged()
 {
-    QFileInfo fi( fImpl->cmakePath->text() );
-    if ( !fi.exists() || !fi.isExecutable() )
+    auto currPath = fImpl->vsPath->text();
+    if ( currPath.isEmpty() )
+        return;
+    QFileInfo fi( currPath );
+    if ( !fi.exists() || !fi.isDir() )
+        return;
+
+    auto cmakePath = NVSProjectMaker::CSettings::getCMakeExec( currPath );
+    if ( currPath.isEmpty() )
         return;
 
     disconnect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
@@ -484,7 +653,7 @@ void CMainWindow::slotCMakeChanged()
     QApplication::setOverrideCursor( Qt::WaitCursor );
 
     //process.setProcessChannelMode(QProcess::MergedChannels);
-    fProcess->start( fImpl->cmakePath->text(), QStringList() << "-help" );
+    fProcess->start( cmakePath, QStringList() << "-help" );
     if ( !fProcess->waitForFinished( -1 ) || ( fProcess->exitStatus() != QProcess::NormalExit ) || ( fProcess->exitCode() != 0 ) )
     {
         QMessageBox::critical( this, tr( "Error Running CMake" ), QString( "Error: '%1' Could not run cmake and determine Generators" ).arg( QString( fProcess->readAllStandardError() ) ) );
@@ -666,10 +835,8 @@ void CMainWindow::slotAddIncDir()
         return;
     }
 
-    auto curr = fIncDirModel->stringList();
     dir = QDir( currPath.value() ).relativeFilePath( dir );
-    curr.push_front( dir );
-    fIncDirModel->setStringList( curr );
+    fIncDirModel->insertFront( dir, true );
 }
 
 void CMainWindow::slotSelectQtDir()
@@ -696,7 +863,7 @@ void CMainWindow::slotSelectProdDir()
 {
     auto currPath = fImpl->prodDir->text();
     if ( currPath.isEmpty() )
-        currPath = QString();
+        currPath = "C:/localprod";
     auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Product Directory" ), currPath );
     if ( dir.isEmpty() )
         return;
@@ -715,7 +882,7 @@ void CMainWindow::slotSelectMSys64Dir()
 {
     auto currPath = fImpl->msys64Dir->text();
     if ( currPath.isEmpty() )
-        currPath = QString();
+        currPath = "C:/msys64";
     auto dir = QFileDialog::getExistingDirectory( this, tr( "Select MSys64 Directory" ), currPath );
     if ( dir.isEmpty() )
         return;
