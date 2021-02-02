@@ -218,7 +218,7 @@ namespace NVSProjectMaker
         }
 
         bool isSubHeader = ( !fIsBuildDir && fExecutables.isEmpty() && fSourceFiles.isEmpty() );
-        QString buildItFileName = vsProjDir.absoluteFilePath( QString( "buildit.sh" ) );
+        auto buildItFileName = vsProjDir.absoluteFilePath( QString( "buildit.sh" ) );
         if ( !isSubHeader )
         {
             QFile fo( buildItFileName );
@@ -234,6 +234,7 @@ namespace NVSProjectMaker
             qts << "echo cd " << outPath << "\n"
                 << "cd \"" << outPath << "\"\n"
                 << "echo " << cmd << "\n"
+                << "export VC_VERSION=15.0\n"
                 << cmd << "\n";
             fo.close();
         }

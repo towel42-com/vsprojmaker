@@ -377,6 +377,7 @@ namespace NVSProjectMaker
                 QTextStream qts( &fo );
                 QString cmd = QString( "mtimake -w -j24 --directory=\"%1\" %2" ).arg( getBuildDir().value() ).arg( ii );
                 qts << "echo " << cmd << "\n"
+                    << "export VC_VERSION=15.0\n"
                     << "cd \"" << getBuildDir().value() << "\" \n"
                     << cmd << "\n";
                 fo.close();
