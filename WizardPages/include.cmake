@@ -25,6 +25,7 @@ set(qtproject_SRCS
     BuildTargetsPage.cpp
     DebugTargetsPage.cpp
     IncludesPage.cpp
+    PreProcDefinesPage.cpp
     QtPage.cpp
     SystemInfoPage.cpp
 )
@@ -34,6 +35,7 @@ set(qtproject_H
     BuildTargetsPage.h
     DebugTargetsPage.h
     IncludesPage.h
+    PreProcDefinesPage.h
     QtPage.h
     SystemInfoPage.h
 )
@@ -46,6 +48,7 @@ set(qtproject_UIS
     BuildTargetsPage.ui
     DebugTargetsPage.ui
     IncludesPage.ui
+    PreProcDefinesPage.ui
     QtPage.ui
     SystemInfoPage.ui
 )

@@ -3,7 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);<INCLUDE_DIRS></IncludePath>
+    <IncludePath><INCLUDE_DIRS>;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <PreprocessorDefinitions><PREPROP_DEFS>;%(PreprocessorDefinitions)</PreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup />

@@ -118,6 +118,7 @@ namespace NVSProjectMaker
                 resourceText.replace( "<DEBUG_ENVVARS>", ii.getEnvVars() );
 
                 resourceText.replace( "<INCLUDE_DIRS>", getInclDirs( settings ) );
+                resourceText.replace( "<PREPROP_DEFS>", getPreprocessorDefines( settings ) );
                 QTextStream qts( &fo );
                 qts << resourceText;
                 fo.close();
@@ -193,6 +194,7 @@ namespace NVSProjectMaker
                 QMessageBox::critical( parent, QObject::tr( "Error:" ), QObject::tr( "Error opening output file '%1'\n%2" ).arg( outFile ).arg( fo.errorString() ) );
                 return;
             }
+            resourceText.replace( "<PREPROP_DEFS>", getPreprocessorDefines( settings ) );
             resourceText.replace( "<INCLUDE_DIRS>", getInclDirs( settings ) );
             QTextStream qts( &fo );
             qts << resourceText;
@@ -201,24 +203,31 @@ namespace NVSProjectMaker
         );
     }
 
+    QString SDirInfo::getPreprocessorDefines( const CSettings * settings ) const
+    {
+        auto preProcDefs = settings->getSelectedPreProcDefines();
+
+        return preProcDefs.join( ";" );
+    }
+
     QString SDirInfo::getInclDirs( const CSettings * settings ) const
     {
-        auto lclIncDirs = QStringList()
+        auto inclDirs = QStringList()
             << QDir( settings->getSourceDir().value() ).absoluteFilePath( getInclRelPath() )
             ;
     
         if ( getInclRelPath() != getSrcRelPath() )
         {
-            lclIncDirs
+            inclDirs
                 << QDir( settings->getSourceDir().value() ).absoluteFilePath( getSrcRelPath() )
                 ;
         }
 
-        lclIncDirs
+        inclDirs
             << QDir( settings->getBuildDir().value() ).absoluteFilePath( getSrcRelPath() )
             << settings->getIncludeDirs();
 
-        return lclIncDirs.join( ";" );
+        return inclDirs.join( ";" );
     }
 
     QString SDirInfo::getSrcRelPath() const

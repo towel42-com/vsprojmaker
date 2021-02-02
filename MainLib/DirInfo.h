@@ -44,6 +44,7 @@ namespace NVSProjectMaker
         void writeCMakeFile( QWidget * parent, const CSettings * settings ) const;
         void writePropSheet( QWidget * parent, const CSettings * settings ) const;
 
+        QString getPreprocessorDefines( const CSettings * settings ) const;
         QString getInclDirs( const CSettings * settings ) const;
 
         void createDebugProjects( QWidget * parent, const CSettings * settings ) const;

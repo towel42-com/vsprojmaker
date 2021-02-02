@@ -30,6 +30,7 @@
 #include "WizardPages/BuildTargetsPage.h"
 #include "WizardPages/DebugTargetsPage.h"
 #include "WizardPages/IncludesPage.h"
+#include "WizardPages/PreProcDefinesPage.h"
 #include "MainLib/VSProjectMaker.h"
 #include "MainLib/DebugTarget.h"
 #include "MainLib/DirInfo.h"
@@ -66,13 +67,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     NVSProjectMaker::registerTypes();
 
     fImpl->setupUi( this );
-    connect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
-    connect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
-    connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
-    connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-    connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-    connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-    connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
+    popDisconnected( true );
 
     connect( fImpl->openProjectFileBtn, &QToolButton::clicked, this, &CMainWindow::slotOpenProjectFile );
     connect( fImpl->saveProjectFileBtn, &QToolButton::clicked, this, &CMainWindow::slotSaveProjectFile );
@@ -85,6 +80,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     connect( fImpl->prodDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectProdDir );
     connect( fImpl->msys64DirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectMSys64Dir );
     connect( fImpl->addIncDirBtn, &QToolButton::clicked, this, &CMainWindow::slotAddIncDir );
+    connect( fImpl->addPreProcDefine, &QToolButton::clicked, this, &CMainWindow::slotAddPreProcDefine );
     connect( fImpl->addCustomBuildBtn, &QToolButton::clicked, this, &CMainWindow::slotAddCustomBuild );
     connect( fImpl->addDebugTargetBtn, &QToolButton::clicked, this, &CMainWindow::slotAddDebugTarget );
     
@@ -92,6 +88,9 @@ CMainWindow::CMainWindow( QWidget * parent )
 
     fSourceModel = new QStandardItemModel( this );
     fImpl->sourceTree->setModel( fSourceModel );
+
+    fPreProcDefineModel = new CCheckableStringListModel( this );
+    fImpl->preProcDefines->setModel( fPreProcDefineModel );
 
     fIncDirModel = new CCheckableStringListModel( this );
     fImpl->incPaths->setModel( fIncDirModel );
@@ -113,6 +112,37 @@ CMainWindow::CMainWindow( QWidget * parent )
     fImpl->projectFile->setFocus();
 }
 
+void CMainWindow::popDisconnected( bool force )
+{
+    if ( !force && fDisconnected )
+        fDisconnected--;
+    if ( force || fDisconnected == 0 )
+    {
+        connect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
+        connect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
+        connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
+        connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
+    }
+}
+
+void CMainWindow::pushDisconnected()
+{
+    if ( fDisconnected == 0 )
+    {
+        disconnect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
+        disconnect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
+        disconnect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
+        disconnect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        disconnect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        disconnect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        disconnect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
+    }
+    fDisconnected++;
+}
+
 CMainWindow::~CMainWindow()
 {
     saveSettings();
@@ -123,7 +153,7 @@ CMainWindow::~CMainWindow()
 
 void CMainWindow::setCurrentProject( const QString & projFile )
 {
-    disconnectProjectSignal();
+    pushDisconnected();
     auto projects = getProjects();
     for ( int ii = 0; ii < projects.count(); ++ii )
     {
@@ -136,7 +166,7 @@ void CMainWindow::setCurrentProject( const QString & projFile )
     projects.insert( 0, projFile );
     setProjects( projects );
     fImpl->projectFile->setCurrentText( projFile );
-    connectProjectSignal();
+    popDisconnected();
 }
 
 
@@ -152,9 +182,9 @@ void CMainWindow::reset()
 {
     fSettings->clear();
     fImpl->cmakeExec->clear();
-    disconnect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
+    pushDisconnected();
     fImpl->generator->clear();
-    connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
+    popDisconnected();
     fImpl->projectFile->setCurrentIndex( 0 );
     fImpl->log->clear();
     loadSettings();
@@ -171,10 +201,10 @@ void CMainWindow::setProjects( QStringList projects )
         }
     }
 
-    disconnectProjectSignal();
+    pushDisconnected();
     fImpl->projectFile->clear();
     fImpl->projectFile->addItems( QStringList() << QString() << projects );
-    connectProjectSignal();
+    popDisconnected();
 }
 
 std::tuple< QSet< QString >, QHash< QString, QList< QPair< QString, bool > > > > CMainWindow::findDirAttributes( QStandardItem * parent ) const
@@ -226,6 +256,12 @@ std::optional< QDir > CMainWindow::getClientDir() const
     return retVal;
 }
 
+
+void CMainWindow::addPreProccesorDefines( const QStringList & preProcDefines )
+{
+    auto newPreProcDefines = fSettings->addPreProcessorDefines( preProcDefines );
+    fPreProcDefineModel->setStringList( newPreProcDefines );
+}
 
 void CMainWindow::addInclDirs( const QStringList & inclDirs )
 {
@@ -319,6 +355,8 @@ void CMainWindow::saveSettings()
     fSettings->setBuildDirs( std::get< 0 >( attribs ) );
     fSettings->setInclDirs( fIncDirModel->stringList() );
     fSettings->setSelectedInclDirs( fIncDirModel->getCheckedStrings() );
+    fSettings->setPreProcDefines( fPreProcDefineModel->stringList() );
+    fSettings->setSelectedPreProcDefines( fPreProcDefineModel->getCheckedStrings() );
     fSettings->setExecNames( std::get< 1 >( attribs ) );
     fSettings->setCustomBuilds( customBuilds );
     fSettings->setDebugCommands( dbgCommands );
@@ -327,10 +365,7 @@ void CMainWindow::saveSettings()
 
 void CMainWindow::loadSettings()
 {
-    disconnect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
-    disconnect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
-    disconnect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-    disconnect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+    pushDisconnected();
 
     fImpl->vsPath->setText( fSettings->getVSPath() );
     fImpl->generator->setCurrentText( fSettings->getGenerator() );
@@ -343,18 +378,21 @@ void CMainWindow::loadSettings()
     fQtLibsModel->setStringList( fSettings->getQtDirs() );
     fQtLibsModel->setChecked( fSettings->getSelectedQtDirs(), true, true );
 
-    connect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
-    connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
-    connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-    connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+    popDisconnected();
 
-    fInclDirs = fSettings->getInclDirs();
-    fIncDirModel->setStringList( fInclDirs );
+    fIncDirModel->setStringList( fSettings->getInclDirs() );
     auto selectedIncDirs = fSettings->getSelectedInclDirs();
     if ( selectedIncDirs.isEmpty() )
         fIncDirModel->checkAll( true );
     else
         fIncDirModel->setChecked( selectedIncDirs, true, true );
+
+    fPreProcDefineModel->setStringList( fSettings->getPreProcDefines() );
+    auto selectedPreProcDefines = fSettings->getSelectedPreProcDefines();
+    if ( selectedPreProcDefines.isEmpty() )
+        fPreProcDefineModel->checkAll( true );
+    else
+        fPreProcDefineModel->setChecked( selectedPreProcDefines, true, true );
 
     fCustomBuildModel->clear();
     fCustomBuildModel->setHorizontalHeaderLabels( QStringList() << "Directory" << "Target Name" );
@@ -462,15 +500,12 @@ void CMainWindow::slotRunWizard()
     auto includesPage = new CIncludesPage;
     wizard.addPage( includesPage );
 
+    auto preProcDefinesPage = new CPreProcDefinesPage;
+    wizard.addPage( preProcDefinesPage );
+
     if ( wizard.exec() == QWizard::Accepted )
     {
-        disconnect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
-        disconnect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
-        disconnect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-        disconnect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-        disconnect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-        disconnect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
-        disconnect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
+        pushDisconnected();
 
         fSettings->setClientDir( wizard.field( "clientDir" ).toString() );
 
@@ -491,17 +526,12 @@ void CMainWindow::slotRunWizard()
         loadBuildTargets( buildTargetsPage->enabledBuildTargets() );
         loadDebugTargets( debugTargetsPage->enabledDebugTargets() );
 
-        connect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
-        connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
-        connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-        connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-        connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-        connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
-        connect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
+        popDisconnected();
 
         doChanged( false );
         slotLoadSource();
-        loadIncludePages( includesPage->enabledIncludeDirs() );
+        loadIncludeDirs( includesPage->enabledIncludeDirs() );
+        loadPreProcessorDefines( preProcDefinesPage->enabledPreProcDefines() );
         QString projFile = QDir( wizard.field( "clientDir" ).toString() ).absoluteFilePath( wizard.field( "clientName" ).toString() ) + ".ini";
         setProjectFile( projFile, false );
         doChanged( false );
@@ -546,7 +576,7 @@ void CMainWindow::loadDebugTargets( const QStringList & targets )
     }
 }
 
-void CMainWindow::loadIncludePages( const QStringList & includeDirs )
+void CMainWindow::loadIncludeDirs( const QStringList & includeDirs )
 {
     auto currDirs = QStringList() << includeDirs << fIncDirModel->stringList();
 
@@ -557,6 +587,13 @@ void CMainWindow::loadIncludePages( const QStringList & includeDirs )
         newIncludes.push_back( std::make_pair( ii, checked ) );
     }
     fIncDirModel->setStringList( newIncludes );
+}
+
+void CMainWindow::loadPreProcessorDefines( const QStringList & preProcDefines )
+{
+    auto curr = QStringList() << preProcDefines << fPreProcDefineModel->stringList();
+
+    fPreProcDefineModel->setStringList( curr, true );
 }
 
 void CMainWindow::slotOpenProjectFile()
@@ -650,7 +687,7 @@ void CMainWindow::slotVSChanged()
     if ( currPath.isEmpty() )
         return;
 
-    disconnect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
+    pushDisconnected();
     auto currText = fImpl->generator->currentText();
     fImpl->generator->clear();
 
@@ -709,7 +746,7 @@ void CMainWindow::slotVSChanged()
     fImpl->generator->addItems( generators );
 
     QApplication::restoreOverrideCursor();
-    connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
+    popDisconnected();
 
     auto idx = fImpl->generator->findText( currText );
     if ( idx != -1 )
@@ -823,6 +860,15 @@ void CMainWindow::slotAddCustomBuild()
     }
 }
 
+void CMainWindow::slotAddPreProcDefine()
+{
+    auto define = QInputDialog::getText( this, tr( "PreProcessor Define:" ), tr( "Define:" ) );
+    if ( define.isEmpty() )
+        return;
+
+    fPreProcDefineModel->insertFront( define, true );
+}
+
 void CMainWindow::slotAddIncDir()
 {
     auto currPath = getSourceDir();
@@ -908,7 +954,7 @@ void CMainWindow::appendToLog( const QString & txt )
 
 void CMainWindow::slotQtChanged()
 {
-    disconnect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
+    pushDisconnected();
 
     saveSettings();
     fQtLibsModel->setStringList( QStringList() );
@@ -918,7 +964,7 @@ void CMainWindow::slotQtChanged()
     fQtLibsModel->setStringList( fSettings->getQtDirs() );
     fQtLibsModel->setChecked( fSettings->getSelectedQtDirs(), true, true );
 
-    connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
+    popDisconnected();
 }
 
 QStandardItem * CMainWindow::loadSourceFileModel()
@@ -1021,22 +1067,6 @@ QString CMainWindow::getIncludeDirs() const
     }
 
     return retVal.join( ";" );
-}
-
-void CMainWindow::disconnectProjectSignal()
-{
-    if ( fProjectSignalConnection == 0 )
-        disconnect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
-
-    fProjectSignalConnection++;
-}
-
-void CMainWindow::connectProjectSignal()
-{
-    if ( fProjectSignalConnection )
-        fProjectSignalConnection--;
-    if ( fProjectSignalConnection == 0 )
-        connect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
 }
 
 void CMainWindow::slotGenerate()

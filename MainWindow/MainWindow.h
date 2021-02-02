@@ -59,6 +59,7 @@ class CMainWindow : public QDialog
     Q_OBJECT
 public:
     CMainWindow(QWidget *parent = 0);
+
     ~CMainWindow();
 
     std::optional< QDir > getClientDir() const;
@@ -84,6 +85,7 @@ public Q_SLOTS:
     void slotSelectMSys64Dir();
     void slotSelectBuildDir();
     void slotSelectClientDir();
+    void slotAddPreProcDefine();
     void slotAddIncDir();
     void slotAddCustomBuild();
     void slotAddDebugTarget();
@@ -96,11 +98,14 @@ public Q_SLOTS:
 private:
     void loadBuildTargets( const QStringList & target );
     void loadDebugTargets( const QStringList & targets );
-    void loadIncludePages( const QStringList & includeDirs );
+    void loadIncludeDirs( const QStringList & includeDirs );
+    void loadPreProcessorDefines( const QStringList & preProcDefines );
 
     void reset();
     QStandardItem * loadSourceFileModel();
-        
+    void pushDisconnected();
+    void popDisconnected( bool force=false );
+
     QStringList getProjects() const;
     void setProjects( QStringList projects );
 
@@ -109,6 +114,7 @@ private:
     void setCurrentProject( const QString & projFile );
 
     std::optional< QString > getDir( const QLineEdit * lineEdit, bool relPath ) const;
+    void addPreProccesorDefines( const QStringList & preProcDefines );
     void addInclDirs( const QStringList & inclDirs );
     std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > generateTopLevelFiles( QProgressDialog * progress );
     void loadSettings();
@@ -124,22 +130,21 @@ private:
     std::tuple< QSet< QString >, QHash< QString, QList< QPair< QString, bool > > > > findDirAttributes( QStandardItem * parent ) const;
     QString getIncludeDirs() const;
 
-    void disconnectProjectSignal();
-    void connectProjectSignal();
     void doChanged( bool loadSource );
 
-    int fProjectSignalConnection{ 0 };
-    QStringList fInclDirs;
     QHash< QString, QList< QPair< QString, bool > > > fExecutables;
 
     std::optional< QDir > fSourceDir;
     QStandardItemModel * fSourceModel{ nullptr };
     CCheckableStringListModel * fIncDirModel{ nullptr };
+    CCheckableStringListModel * fPreProcDefineModel{ nullptr };
     QStandardItemModel * fCustomBuildModel{ nullptr };
     QStandardItemModel * fDebugTargetsModel{ nullptr };
     CCheckableStringListModel * fQtLibsModel{ nullptr };
     std::unique_ptr< Ui::CMainWindow > fImpl;
     QProcess * fProcess{ nullptr };
+
+    int fDisconnected{ 0 };
 
     std::unique_ptr< NVSProjectMaker::CSettings > fSettings;
 };

@@ -39,7 +39,7 @@ class QProcess;
 #define ADD_SETTING( Type, Name ) \
 public: \
 inline void set ## Name( const Type & value ){ f ## Name = QVariant::fromValue( value ); } \
-inline Type get ## Name() const { return f ## Name.value< Type >(); } \
+inline [[nodiscard]] Type get ## Name() const { return f ## Name.value< Type >(); } \
 private: \
 QVariant f ## Name
 
@@ -48,7 +48,7 @@ using TFuncType = std::function< void() >;
 #define ADD_SETTING_SETFUNC( Type, Name, func ) \
 public: \
 inline void set ## Name( const Type & value ){ f ## Name = QVariant::fromValue( value ); func(); } \
-inline Type get ## Name() const { return f ## Name.value< Type >(); } \
+inline [[nodiscard]] Type get ## Name() const { return f ## Name.value< Type >(); } \
 private: \
 QVariant f ## Name
 
@@ -145,6 +145,7 @@ namespace NVSProjectMaker
         QList< QPair< QString, bool > > getExecutables( const QDir & dir ) const;
 
         QStringList addInclDirs( const QStringList & inclDirs );
+        QStringList addPreProcessorDefines( const QStringList & preProcDefines );
         bool generate( QProgressDialog * progress, QWidget * parent, const std::function< void( const QString & msg ) > & logit ) const;
         std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > generateTopLevelFiles( QProgressDialog * progress, const std::function< void( const QString & msg ) > & logit, QWidget * parent ) const;
         std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > getDirInfo( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;
@@ -178,6 +179,8 @@ namespace NVSProjectMaker
         ADD_SETTING( QSet< QString >, BuildDirs );
         ADD_SETTING( QStringList, InclDirs );
         ADD_SETTING( QStringList, SelectedInclDirs );
+        ADD_SETTING( QStringList, PreProcDefines );
+        ADD_SETTING( QStringList, SelectedPreProcDefines );
         ADD_SETTING( TExecNameType, ExecNames );
         ADD_SETTING( TListOfStringPair, CustomBuilds );
         ADD_SETTING( TListOfDebugTargets, DebugCommands );

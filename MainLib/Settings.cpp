@@ -162,6 +162,18 @@ namespace NVSProjectMaker
         return current;
     }
 
+    QStringList CSettings::addPreProcessorDefines( const QStringList & preProcs )
+    {
+        auto current = getPreProcDefines();
+        for ( auto && ii : preProcs )
+        {
+            if ( !current.contains( ii ) )
+                current << ii;
+        }
+
+        return current;
+    }
+
     QStringList CSettings::getIncludeDirs() const
     {
         QStringList retVal;
@@ -745,6 +757,8 @@ namespace NVSProjectMaker
         ADD_SETTING_VALUE( QSet< QString >, BuildDirs );
         ADD_SETTING_VALUE( QStringList, InclDirs );
         ADD_SETTING_VALUE( QStringList, SelectedInclDirs );
+        ADD_SETTING_VALUE( QStringList, PreProcDefines );
+        ADD_SETTING_VALUE( QStringList, SelectedPreProcDefines );
         ADD_SETTING_VALUE( TExecNameType, ExecNames );
         ADD_SETTING_VALUE( TListOfStringPair, CustomBuilds );
         ADD_SETTING_VALUE( TListOfDebugTargets, DebugCommands );
