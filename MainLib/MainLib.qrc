@@ -1,6 +1,5 @@
 <RCC>
     <qresource prefix="/">
-        <file>resources/buildit.sh</file>
         <file>resources/Project.cmake</file>
         <file>resources/topdir.cmake</file>
         <file>resources/subbuilddir.cmake</file>
