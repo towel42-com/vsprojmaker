@@ -157,7 +157,7 @@ namespace NVSProjectMaker
         [[nodiscard]] QString getCMakeExec() const;
 
         [[nodiscard]] QString getMSys64Dir( bool msys ) const;
-        [[nodiscard]] QString getIncludeDirs() const;
+        [[nodiscard]] QStringList getIncludeDirs() const;
 
         [[nodiscard]] QString cleanUp( const QDir & relToDir, const QString & str ) const;
         [[nodiscard]] QString cleanUp( const QString & str ) const;

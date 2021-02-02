@@ -117,8 +117,7 @@ namespace NVSProjectMaker
                 resourceText.replace( "<DEBUG_WORKDIR>", ii.fWorkDir );
                 resourceText.replace( "<DEBUG_ENVVARS>", ii.getEnvVars() );
 
-                QString lclIncDirs = QDir( settings->getSourceDir().value() ).absoluteFilePath( fRelToDir ) + ";" + settings->getIncludeDirs();
-                resourceText.replace( "<INCLUDE_DIRS>", lclIncDirs );
+                resourceText.replace( "<INCLUDE_DIRS>", getInclDirs( settings ) );
                 QTextStream qts( &fo );
                 qts << resourceText;
                 fo.close();
@@ -182,7 +181,7 @@ namespace NVSProjectMaker
     {
         QString fileName = "PropertySheetIncludes.props";
         NVSProjectMaker::readResourceFile( parent, QString( ":/resources/%1" ).arg( fileName ),
-                          [this, settings, fileName, parent]( QString & resourceText )
+                                           [this, settings, fileName, parent]( QString & resourceText )
         {
             QDir bldQDir( settings->getBuildDir().value() );
             bldQDir.cd( fRelToDir );
@@ -194,8 +193,7 @@ namespace NVSProjectMaker
                 QMessageBox::critical( parent, QObject::tr( "Error:" ), QObject::tr( "Error opening output file '%1'\n%2" ).arg( outFile ).arg( fo.errorString() ) );
                 return;
             }
-            QString lclIncDirs = QDir( settings->getSourceDir().value() ).absoluteFilePath( fRelToDir ) + ";" + settings->getIncludeDirs();
-            resourceText.replace( "<INCLUDE_DIRS>", lclIncDirs );
+            resourceText.replace( "<INCLUDE_DIRS>", getInclDirs( settings ) );
             QTextStream qts( &fo );
             qts << resourceText;
             fo.close();
@@ -203,10 +201,46 @@ namespace NVSProjectMaker
         );
     }
 
+    QString SDirInfo::getInclDirs( const CSettings * settings ) const
+    {
+        auto lclIncDirs = QStringList()
+            << QDir( settings->getSourceDir().value() ).absoluteFilePath( getInclRelPath() )
+            ;
+    
+        if ( getInclRelPath() != getSrcRelPath() )
+        {
+            lclIncDirs
+                << QDir( settings->getSourceDir().value() ).absoluteFilePath( getSrcRelPath() )
+                ;
+        }
+
+        lclIncDirs
+            << QDir( settings->getBuildDir().value() ).absoluteFilePath( getSrcRelPath() )
+            << settings->getIncludeDirs();
+
+        return lclIncDirs.join( ";" );
+    }
+
+    QString SDirInfo::getSrcRelPath() const
+    {
+        QString retVal = fRelToDir;
+        if ( fIsPairedDir )
+            retVal = retVal + "/src";
+        return retVal;
+    }
+
+    QString SDirInfo::getInclRelPath() const
+    {
+        QString retVal = fRelToDir;
+        if ( fIsPairedDir )
+            retVal = retVal + "/incl";
+        return retVal;
+    }
+
     void SDirInfo::writeCMakeFile( QWidget * parent, const CSettings * settings ) const
     {
         auto vsProjDir = QDir( settings->getBuildDir().value() );
-        auto outPath = vsProjDir.absoluteFilePath( fBuildDir.isEmpty() ? fRelToDir : fBuildDir );
+        auto outPath = vsProjDir.absoluteFilePath( getSrcRelPath() );
 
         if ( !vsProjDir.cd( fRelToDir ) )
         {
@@ -314,7 +348,7 @@ namespace NVSProjectMaker
             getFiles( ii );
         }
         if ( srcFound )
-            fBuildDir = fRelToDir + "/src";
+            fIsPairedDir = true;
     }
 
     void SDirInfo::addFile( const QString & path )

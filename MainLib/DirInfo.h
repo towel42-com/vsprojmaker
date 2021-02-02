@@ -43,6 +43,9 @@ namespace NVSProjectMaker
         bool isValid() const;
         void writeCMakeFile( QWidget * parent, const CSettings * settings ) const;
         void writePropSheet( QWidget * parent, const CSettings * settings ) const;
+
+        QString getInclDirs( const CSettings * settings ) const;
+
         void createDebugProjects( QWidget * parent, const CSettings * settings ) const;
 
         std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > findPairDirs( const std::unordered_map < QString, std::shared_ptr< NVSProjectMaker::SDirInfo > > & map ) const;
@@ -52,8 +55,11 @@ namespace NVSProjectMaker
         void addDependencies( QTextStream & qts ) const;
         void computeRelToDir( const std::shared_ptr< SSourceFileInfo > & fileInfo );
 
+        QString getSrcRelPath() const;
+        QString getInclRelPath() const;
+
         QString fRelToDir;
-        QString fBuildDir;
+        bool fIsPairedDir{ false };
         QString fProjectName;
         bool fIsInclDir{ false };
         bool fIsBuildDir{ false };

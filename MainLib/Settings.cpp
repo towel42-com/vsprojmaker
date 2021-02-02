@@ -162,12 +162,12 @@ namespace NVSProjectMaker
         return current;
     }
 
-    QString CSettings::getIncludeDirs() const
+    QStringList CSettings::getIncludeDirs() const
     {
         QStringList retVal;
 
         if ( !getSourceDir().has_value() )
-            return QString();
+            return QStringList();
 
         QDir sourceDir( getSourceDir().value() );
         auto inclDirs = getSelectedInclDirs();
@@ -186,7 +186,7 @@ namespace NVSProjectMaker
             retVal << qtInclDir.absoluteFilePath( ii );
         }
 
-        return retVal.join( ";" );
+        return retVal;
     }
 
     QStringList CSettings::getCmakeArgs() const
