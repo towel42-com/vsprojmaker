@@ -521,21 +521,25 @@ void CMainWindow::loadDebugTargets( const QStringList & targets )
     for ( auto && ii : targets )
     {
         auto path = QString( "src/hdloffice/hdlstudio/cxx/main/src" );
-        auto name = QString( "HDL Client" );
+        auto name = ii;
         QString args;
-        if ( ii != "<no external client>" )
+        if ( ii.startsWith( "HDL Client+" ) )
         {
-            name += QString( " + %1" ).arg( ii );
-            args = QString( "+external_client+<CLIENTDIR>/devapps/visualizer/win64/%1.dll" ).arg( ii );
+            auto nm = ii.mid( 11 );
+            args = QString( "+external_client+<CLIENTDIR>/devapps/visualizer/win64/%1.dll" ).arg( nm );
         }
 
         auto executable = QString( "<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlclient.exe" );
+        if ( ii == "HDL Studio" )
+        {
+            executable = QString( "<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlstudio.exe" );
+        }
         auto workDir = QString( "<CLIENTDIR>" );
 
         QString envVars;
-        if ( ii == "vxcSampleWithProject" )
+        if ( ii == "HDL Client+vxcSampleWithProject" )
             envVars = QString( "{SKIP_LIMITED_FEATURES_KEY=1}{ENABLE_VFPRJ=1}" );
-        else if ( ii == "vxcSampleWithFlowNav" )
+        else if ( ii == "HDL Client+vxcSampleWithFlowNav" )
             envVars = QString( "{SKIP_LIMITED_FEATURES_KEY=1}{ENABLE_FLOWNAV=1}" );
 
         addDebugTarget( path, name, executable, args, workDir, envVars );

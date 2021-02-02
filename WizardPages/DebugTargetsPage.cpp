@@ -30,7 +30,7 @@ CDebugTargetsPage::CDebugTargetsPage( QWidget * parent )
 {
     fImpl->setupUi( this );
     fDebugTargets = new CCheckableStringListModel( this );
-    auto customTargets = QStringList() << "<no external client>" << "vxcModeSample" << "vxcSample" << "vxcSampleWithProject" << "vxcNWSample" << "vxcSampleWithFlowNav" << "vxcTreemapSample";
+    auto customTargets = QStringList() << "HDL Client" << "HDL Client+vxcModeSample" << "HDL Client+vxcSample" << "HDL Client+vxcSampleWithProject" << "HDL Client+vxcNWSample" << "HDL Client+vxcSampleWithFlowNav" << "HDL Client+vxcTreemapSample" << "HDL Studio";
     fDebugTargets->setStringList( customTargets );
     fDebugTargets->setChecked( customTargets, true, true );
     fImpl->debugTargets->setModel( fDebugTargets );
