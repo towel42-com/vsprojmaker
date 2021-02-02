@@ -84,6 +84,7 @@ void CQtPage::slotChanged()
         << "QtSql"
         << "QtSvg"
         << "QtWidgets"
+        << "QtWinExtras"
         << "QtXml"
         ;
     fQtLibsModel->setChecked( defaultChecked, true, true );
