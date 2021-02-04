@@ -29,7 +29,7 @@ project( WizardPages )
 include( include.cmake )
 include( ${CMAKE_SOURCE_DIR}/SABUtils/Project.cmake )
 
-add_library(WizardPages STATIC
+add_library(${PROJECT_NAME} STATIC
     ${project_SRCS} 
     ${project_H}  
     ${qtproject_SRCS} 
@@ -42,4 +42,4 @@ add_library(WizardPages STATIC
     ${qtproject_QRC_SOURCES}
     ${_CMAKE_FILES}
 )
-set_target_properties( WizardPages PROPERTIES FOLDER Libs )
+set_target_properties( ${PROJECT_NAME} PROPERTIES FOLDER Libs )
