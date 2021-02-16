@@ -90,6 +90,8 @@ public Q_SLOTS:
     void slotAddCustomBuild();
     void slotAddDebugTarget();
     void slotCurrentProjectChanged( const QString & projFile );
+    void slotSetBuildOutputFile();
+    void slotLoadOutputData();
 
     void addDebugTarget( const QString & sourceDir, const QString & name, const QString & cmd, const QString & args, const QString & workDir, const QString & envVars );
     void addDebugTarget( const NVSProjectMaker::SDebugTarget & dbgCmd );

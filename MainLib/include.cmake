@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 set(qtproject_SRCS
+    BuildinfoData.cpp
     DirInfo.cpp
     DebugTarget.cpp
     VSProjectMaker.cpp
@@ -31,6 +32,7 @@ set(qtproject_H
 )
 
 set(project_H
+    BuildinfoData.h
     DirInfo.h
     DebugTarget.h
     VSProjectMaker.h

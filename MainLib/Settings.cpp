@@ -40,6 +40,7 @@
 #include <QRegularExpression>
 #include <QTextStream>
 #include <QProcess>
+#include <QDebug>
 
 namespace NVSProjectMaker
 {
@@ -323,6 +324,14 @@ namespace NVSProjectMaker
         return retVal;
     }
 
+    QString CSettings::getEnvVarsForShell() const
+    {
+        auto retVal = QStringList() << "export VC_VERSION=15.0";
+
+
+        return retVal.join( "\n" ) + "\n";
+    }
+
     std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > CSettings::generateTopLevelFiles( QProgressDialog * progress, const std::function< void( const QString & msg ) > & logit, QWidget * parent ) const
     {
         NVSProjectMaker::readResourceFile( parent, QString( ":/resources/Project.cmake" ),
@@ -389,6 +398,7 @@ namespace NVSProjectMaker
                 QTextStream qts( &fo );
                 QString cmd = QString( "mtimake -w -j24 --directory=\"%1\" %2" ).arg( getBuildDir().value() ).arg( ii );
                 qts << "echo " << cmd << "\n"
+                    << getEnvVarsForShell()
                     << "export VC_VERSION=15.0\n"
                     << "cd \"" << getBuildDir().value() << "\" \n"
                     << cmd << "\n";
@@ -762,6 +772,7 @@ namespace NVSProjectMaker
         ADD_SETTING_VALUE( TExecNameType, ExecNames );
         ADD_SETTING_VALUE( TListOfStringPair, CustomBuilds );
         ADD_SETTING_VALUE( TListOfDebugTargets, DebugCommands );
+        ADD_SETTING_VALUE( QString, BuildOutputDataFile );
     }
 
     QStringList CSettings::getQtIncludeDirs( const QString & qtDirStr )
@@ -979,5 +990,4 @@ namespace NVSProjectMaker
         dir.cd( fRelToDir );
         return QFileInfo( dir.absoluteFilePath( "src" ) ).exists() && QFileInfo( dir.absoluteFilePath( "incl" ) ).exists();
     }
-
 }

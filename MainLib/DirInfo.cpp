@@ -277,7 +277,7 @@ namespace NVSProjectMaker
             qts << "echo cd " << outPath << "\n"
                 << "cd \"" << outPath << "\"\n"
                 << "echo " << cmd << "\n"
-                << "export VC_VERSION=15.0\n"
+                << settings->getEnvVarsForShell()
                 << cmd << "\n";
             fo.close();
         }

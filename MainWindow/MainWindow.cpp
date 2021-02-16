@@ -35,6 +35,7 @@
 #include "MainLib/DebugTarget.h"
 #include "MainLib/DirInfo.h"
 #include "MainLib/Settings.h"
+#include "MainLib/BuildInfoData.h"
 
 #include "SABUtils/UtilityModels.h"
 
@@ -83,6 +84,8 @@ CMainWindow::CMainWindow( QWidget * parent )
     connect( fImpl->addPreProcDefine, &QToolButton::clicked, this, &CMainWindow::slotAddPreProcDefine );
     connect( fImpl->addCustomBuildBtn, &QToolButton::clicked, this, &CMainWindow::slotAddCustomBuild );
     connect( fImpl->addDebugTargetBtn, &QToolButton::clicked, this, &CMainWindow::slotAddDebugTarget );
+    connect( fImpl->bldOutputFileBtn, &QToolButton::clicked, this, &CMainWindow::slotSetBuildOutputFile );
+    connect( fImpl->bldOutputFile, &QLineEdit::textChanged, this, &CMainWindow::slotLoadOutputData );
     
     connect( fImpl->generateBtn, &QToolButton::clicked, this, &CMainWindow::slotGenerate );
 
@@ -277,12 +280,14 @@ std::optional< QString > CMainWindow::getDir( const QLineEdit * lineEdit, bool r
 
 std::optional< QString > CMainWindow::getSourceDir( bool relPath ) const
 {
+    fSettings->setClientDir( fImpl->clientDir->text() );
     fSettings->setSourceRelDir( fImpl->sourceRelDir->text() );
     return fSettings->getSourceDir( relPath );
 }
 
 std::optional< QString > CMainWindow::getBuildDir( bool relPath ) const
 {
+    fSettings->setClientDir( fImpl->clientDir->text() );
     fSettings->setBuildRelDir( fImpl->buildRelDir->text() );
     return fSettings->getBuildDir( relPath );
 }
@@ -871,10 +876,10 @@ void CMainWindow::slotAddPreProcDefine()
 
 void CMainWindow::slotAddIncDir()
 {
-    auto currPath = getSourceDir();
-    if ( !currPath.has_value() )
-        currPath = QString();
-    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Directory to Include" ), currPath.value() );
+    auto sourceDir = getSourceDir();
+    if ( !sourceDir.has_value() )
+        sourceDir = QString();
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Directory to Include" ), sourceDir.value() );
     if ( dir.isEmpty() )
         return;
 
@@ -885,7 +890,10 @@ void CMainWindow::slotAddIncDir()
         return;
     }
 
-    dir = QDir( currPath.value() ).relativeFilePath( dir );
+    if ( fi.absolutePath().startsWith( fSettings->getProdDir() ) )
+        dir = QDir( fSettings->getProdDir() ).relativeFilePath( dir );
+    else
+        dir = QDir( sourceDir.value() ).relativeFilePath( dir );
     fIncDirModel->insertFront( dir, true );
 }
 
@@ -907,7 +915,6 @@ void CMainWindow::slotSelectQtDir()
 
     fImpl->qtDir->setText( dir );
 }
-
 
 void CMainWindow::slotSelectProdDir()
 {
@@ -946,6 +953,37 @@ void CMainWindow::slotSelectMSys64Dir()
 
     fImpl->msys64Dir->setText( dir );
 }
+
+void CMainWindow::slotSetBuildOutputFile()
+{
+    auto currPath = fImpl->bldOutputFile->text();
+    if ( currPath.isEmpty() && fSettings->getBuildDir().has_value() )
+        currPath = fSettings->getBuildDir().value();
+
+    auto newPath = QFileDialog::getOpenFileName( this, tr( "Select Output Data File from Build" ), currPath, tr( "Output Data Files *.txt;;All Files *.*" ) );
+    if ( newPath.isEmpty() )
+        return;
+
+    QFileInfo fi( newPath );
+    if ( !fi.exists() || !fi.isFile() || !fi.isReadable() )
+    {
+        QMessageBox::critical( this, tr( "Error Readable File not Selected" ), QString( "Error: '%1' is not an readable file" ).arg( newPath ) );
+        return;
+    }
+
+    fImpl->bldOutputFile->setText( newPath );
+}
+
+void CMainWindow::slotLoadOutputData()
+{
+    auto data = std::make_shared< NVSProjectMaker::CBuildInfoData >( fImpl->bldOutputFile->text() );
+    if ( !data->status() )
+    {
+        QMessageBox::critical( this, tr( "Could not read Output Data File" ), data->errorString() );
+        return;
+    }
+}
+
 
 void CMainWindow::appendToLog( const QString & txt )
 {

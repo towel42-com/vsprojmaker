@@ -151,6 +151,8 @@ namespace NVSProjectMaker
         std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > getDirInfo( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;
         bool getParentOfPairDirectoriesMap( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;
 
+        [[nodiscard]] QString getEnvVarsForShell() const;
+
         [[nodiscard]] std::shared_ptr< NVSProjectMaker::SSourceFileResults > getResults() const { return fResults; }
         [[nodiscard]] QString getClientName() const;
 
@@ -184,6 +186,7 @@ namespace NVSProjectMaker
         ADD_SETTING( TExecNameType, ExecNames );
         ADD_SETTING( TListOfStringPair, CustomBuilds );
         ADD_SETTING( TListOfDebugTargets, DebugCommands );
+        ADD_SETTING( QString, BuildOutputDataFile );
 
     private:
         QMap< QString, QString > getVarMap() const;
@@ -212,8 +215,6 @@ namespace NVSProjectMaker
 
         std::unique_ptr< QSettings > fSettingsFile;
         std::shared_ptr< NVSProjectMaker::SSourceFileResults > fResults;
-
-
         mutable std::unordered_map< QString, QVariant * > fSettings;
     };
 }
