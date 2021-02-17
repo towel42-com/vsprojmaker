@@ -980,6 +980,9 @@ void CMainWindow::slotSetBuildOutputFile()
 
 void CMainWindow::slotLoadOutputData()
 {
+    fBuildInfoDataModel->clear();
+    fImpl->log->clear();
+
     QProgressDialog * progress = new QProgressDialog( tr( "Reading Build Output..." ), tr( "Cancel" ), 0, 0, this );
     progress->setLabelText( "Reading Build Output" );
     progress->setAutoReset( false );

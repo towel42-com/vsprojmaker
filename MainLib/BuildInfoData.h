@@ -149,13 +149,27 @@ namespace NVSProjectMaker
         std::pair< bool, QString > fStatus = std::make_pair( false, QString() );
     };
 
-    struct SCompileItem : public SItem
+    struct SVSCLCompileItem : public SItem
     {
-        SCompileItem();
+        SVSCLCompileItem();
         virtual bool loadData( const QString & line, int pos ) override;
 
         virtual void initOptions();
         virtual QString outFileOption() const override { return "Fo"; };
+        virtual QString firstSrcFile() const override;
+        virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseSensitive; }
+        virtual QString getItemTypeName() const { return "Compile"; }
+
+        QStringList fSourceFiles;
+    };
+
+    struct SGccCompileItem : public SItem
+    {
+        SGccCompileItem();
+        virtual bool loadData( const QString & line, int pos ) override;
+
+        virtual void initOptions();
+        virtual QString outFileOption() const override { return "o"; };
         virtual QString firstSrcFile() const override;
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseSensitive; }
         virtual QString getItemTypeName() const { return "Compile"; }
@@ -208,16 +222,33 @@ namespace NVSProjectMaker
         virtual QString getItemTypeName() const { return "Manifest"; }
     };
 
+    struct SObfuscatedItem : public SItem
+    {
+        SObfuscatedItem();
+        virtual bool loadData( const QString & line, int pos ) override;
+
+        void initOptions();
+        virtual QString outFileOption() const override { return "o"; };
+
+        virtual QString firstSrcFile() const override { return fInputFile; }
+        virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
+        virtual QString getItemTypeName() const { return "Obfuscated"; }
+
+        QString fInputFile;
+    };
+
     struct SDirItem
     {
         SDirItem( const QString & dirName );
 
         QList< QStandardItem * > loadIntoTree();
         QString fDir;
-        std::list< std::shared_ptr< SCompileItem > > fCompiledFiles;
+        std::list< std::shared_ptr< SVSCLCompileItem > > fVSCLCompiledFiles;
+        std::list< std::shared_ptr< SGccCompileItem > > fGccCompiledFiles;
         std::list< std::shared_ptr< SLibraryItem > > fLibraryItems;
         std::list< std::shared_ptr< SExecItem > > fExecutables;
         std::list< std::shared_ptr< SManifestItem > > fManifests;
+        std::list< std::shared_ptr< SObfuscatedItem > > fObfuscatedItems;
     };
 
     class CBuildInfoData
@@ -230,11 +261,15 @@ namespace NVSProjectMaker
         void loadIntoTree( QStandardItemModel * model );
     private:
         std::shared_ptr< SItem > loadLine( QRegularExpression & regExp, const QString & line, int lineNum, std::shared_ptr< SItem > item );
-        
-        bool loadCompile( const QString & line, int lineNum );
+        QString getStatusString( size_t numDirectories, int numClLines, int numGccLines, int numLibLines, int numLinkLines, int numMTLines, int numCygwinCCLines, int numObfuscateLines, int numUnloadedLines, bool forGUI ) const;
+
+        bool loadVSCl( const QString & line, int lineNum );
+        bool loadGcc( const QString & line, int lineNum );
         bool loadLibrary( const QString & line, int lineNum );
         bool loadLink( const QString & line, int lineNum );
         bool loadManifest( const QString & line, int lineNum );
+        bool loadCygwinCC( const QString & line, int lineNum );
+        bool loadObfuscate( const QString & line, int lineNum );
 
         std::shared_ptr< SDirItem > addDir( const QString & dir );
         std::function< void( const QString & msg ) > fReportFunc;

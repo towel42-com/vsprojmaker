@@ -60,8 +60,12 @@ namespace NVSProjectMaker
         QString currLine;
         int numLibLines = 0;
         int numClLines = 0;
+        int numGccLines = 0;
         int numLinkLines = 0;
         int numMTLines = 0;
+        int numCygwinCCLines = 0;
+        int numUnhandledLines = 0;
+        int numObfuscateLines = 0;
         int lineNum = 0;
         while ( ts.readLineInto( &currLine ) )
         {
@@ -70,6 +74,9 @@ namespace NVSProjectMaker
                 progress->setValue( file.pos() );
                 if ( progress->wasCanceled() )
                     break;
+
+                auto labelText = getStatusString( fDirectories.size(), numClLines, numGccLines, numLibLines, numLinkLines, numMTLines, numCygwinCCLines, numObfuscateLines, numUnhandledLines, true );
+                progress->setLabelText( labelText );
             }
 
             lineNum++;
@@ -77,20 +84,27 @@ namespace NVSProjectMaker
             if ( currLine.isEmpty() )
                 continue;
 
-            if ( loadCompile( currLine, lineNum ) )
+            if ( loadVSCl( currLine, lineNum ) )
                 numClLines++;
+            else if ( loadGcc( currLine, lineNum ) )
+                numGccLines++;
             else if ( loadLibrary( currLine, lineNum ) )
                 numLibLines++;
             else if ( loadLink( currLine, lineNum ) )
                 numLinkLines++;
             else if ( loadManifest( currLine, lineNum ) )
                 numMTLines++;
+            else if ( loadCygwinCC( currLine, lineNum ) )
+                numCygwinCCLines++;
+            else if ( loadObfuscate( currLine, lineNum ) )
+                numObfuscateLines++;
             else
             {
+                numUnhandledLines++;
                 reportFunc( QString( "ERROR: LineNum: %1 Could not load line: %2" ).arg( lineNum ).arg( currLine ) );
             }
         }
-
+         //../../src/common/mtiObfuscate.pl
         if ( progress && progress->wasCanceled() )
         {
             reportFunc( QString( "Process Cancelled" ) );
@@ -98,13 +112,38 @@ namespace NVSProjectMaker
             return;
         }
 
-        reportFunc( QString( "Num Directories: %1 Num CL: %2 Num Libs: %3 Num Link: %3 Num MT: %4" )
-                    .arg( fDirectories.size() )
-                    .arg( numClLines )
-                    .arg( numLibLines )
-                    .arg( numLinkLines )
-                    .arg( numMTLines ) );
+        reportFunc( getStatusString( fDirectories.size(), numClLines, numGccLines, numLibLines, numLinkLines, numMTLines, numCygwinCCLines, numObfuscateLines, numUnhandledLines, false ) );
         fStatus = std::make_pair( true, QString() );
+    }
+
+    QString CBuildInfoData::getStatusString( size_t numDirectories, int numClLines, int numGccLines, int numLibLines, int numLinkLines, int numMTLines, int numCygwinCCLines, int numObfuscateLines, int numUnhandledLines, bool forGUI ) const
+    {
+        QStringList data = QStringList()
+            << QString( "Directories: %1" ).arg( numDirectories )
+            << QString( "CL: %1" ).arg( numClLines )
+            << QString( "GCC: %1" ).arg( numGccLines )
+            << QString( "Libs: %1" ).arg( numLibLines )
+            << QString( "Link: %1" ).arg( numLinkLines )
+            << QString( "Manifests: %1" ).arg( numMTLines )
+            << QString( "CygwinCC.pl: %1" ).arg( numCygwinCCLines )
+            << QString( "Obfuscated: %1" ).arg( numObfuscateLines )
+            << QString( "Unhandled: %1" ).arg( numUnhandledLines )
+            ;
+        QString prefix;
+        QString suffix;
+        if ( forGUI )
+        {
+            prefix = "<br>Reading Build Output...</br><ul align=\"center\">";
+            for ( auto && ii : data )
+                ii = "<li>" + ii + "</li>";
+            suffix = "<ul>";
+        }
+        else
+        {
+            for ( auto && ii : data )
+                ii = ii + "\n";
+        }
+        return prefix + data.join( " " ) + suffix;
     }
 
     std::shared_ptr< SItem > CBuildInfoData::loadLine( QRegularExpression & regExp, const QString & line, int lineNum, std::shared_ptr< SItem > item )
@@ -131,22 +170,35 @@ namespace NVSProjectMaker
         return item;
     }
 
-    bool CBuildInfoData::loadCompile( const QString & line, int lineNum )
+    bool CBuildInfoData::loadVSCl( const QString & line, int lineNum )
     {
-        auto regExp = QRegularExpression( "C\\:\\/.*\\/cl\\s+" );
-        auto item = std::dynamic_pointer_cast< SCompileItem >( loadLine( regExp, line, lineNum, std::make_shared< SCompileItem >() ) );
+        auto regExp = QRegularExpression( "^.*\\/cl(.exe)?\\s+" );
+        auto item = std::dynamic_pointer_cast< SVSCLCompileItem >( loadLine( regExp, line, lineNum, std::make_shared< SVSCLCompileItem >() ) );
         if ( !item )
             return false;
 
         auto dir = item->dirForItem();
         auto outDirItem = addDir( dir );
-        outDirItem->fCompiledFiles.push_back( item );
+        outDirItem->fVSCLCompiledFiles.push_back( item );
+        return true;
+    }
+
+    bool CBuildInfoData::loadGcc( const QString & line, int lineNum )
+    {
+        auto regExp = QRegularExpression( "^.*\\/(gcc|g++)(.exe)?\\s+" );
+        auto item = std::dynamic_pointer_cast<SGccCompileItem>( loadLine( regExp, line, lineNum, std::make_shared< SGccCompileItem >() ) );
+        if ( !item )
+            return false;
+
+        auto dir = item->dirForItem();
+        auto outDirItem = addDir( dir );
+        outDirItem->fGccCompiledFiles.push_back( item );
         return true;
     }
 
     bool CBuildInfoData::loadLibrary( const QString & line, int lineNum )
     {
-        auto regExp = QRegularExpression( "C\\:\\/.*\\/lib\\s+" );
+        auto regExp = QRegularExpression( "^.*\\/lib(.exe)?\\s+" );
         auto item = std::dynamic_pointer_cast<SLibraryItem>( loadLine( regExp, line, lineNum, std::make_shared< SLibraryItem >() ) );
         if ( !item )
             return false;
@@ -160,7 +212,7 @@ namespace NVSProjectMaker
 
     bool CBuildInfoData::loadLink( const QString & line, int lineNum )
     {
-        auto regExp = QRegularExpression( "C\\:\\/.*\\/link\\s+" );
+        auto regExp = QRegularExpression( "^.*\\/link(.exe)?\\s+" );
         auto item = std::dynamic_pointer_cast<SExecItem>( loadLine( regExp, line, lineNum, std::make_shared< SExecItem >() ) );
         if ( !item )
             return false;
@@ -174,7 +226,7 @@ namespace NVSProjectMaker
 
     bool CBuildInfoData::loadManifest( const QString & line, int lineNum )
     {
-        auto regExp = QRegularExpression( "C\\:\\/.*\\/mt\\s+" );
+        auto regExp = QRegularExpression( "^.*\\/mt(.exe)?\\s+" );
         auto item = std::dynamic_pointer_cast<SManifestItem>( loadLine( regExp, line, lineNum, std::make_shared< SManifestItem >() ) );
         if ( !item )
             return false;
@@ -182,6 +234,27 @@ namespace NVSProjectMaker
         auto dir = item->dirForItem();
         auto outDirItem = addDir( dir );
         outDirItem->fManifests.push_back( item );
+
+        return true;
+    }
+
+    bool CBuildInfoData::loadCygwinCC( const QString & line, int /*lineNum*/ )
+    {
+        auto regExp = QRegularExpression( "^.*\\/perl(.exe)?\\s+.*cygwin_cc.pl\\s+" );
+        QRegularExpressionMatch match;
+        return line.indexOf( regExp, 0, &match ) == 0;
+    }
+
+    bool CBuildInfoData::loadObfuscate( const QString & line, int lineNum )
+    {
+        auto regExp = QRegularExpression( "^.*\\/mtiObfuscate.pl\\s+" );
+        auto item = std::dynamic_pointer_cast<SObfuscatedItem>( loadLine( regExp, line, lineNum, std::make_shared< SObfuscatedItem >() ) );
+        if ( !item )
+            return false;
+
+        auto dir = item->dirForItem();
+        auto outDirItem = addDir( dir );
+        outDirItem->fObfuscatedItems.push_back( item );
 
         return true;
     }
@@ -275,6 +348,41 @@ namespace NVSProjectMaker
         return paths.front();
     }
 
+    SObfuscatedItem::SObfuscatedItem() :
+        SItem( Qt::CaseSensitivity::CaseInsensitive )
+    {
+        initOptions();
+    }
+
+    bool SObfuscatedItem::loadData( const QString & line, int pos )
+    {
+        return loadLine( line, pos,
+                         [this]( const QString & nonOptLine )
+        {
+            if ( fPrevOption.compare( "o", Qt::CaseInsensitive ) == 0 )
+            {
+                auto pos = fOptions.find( "o" );
+                if ( pos != fOptions.end() )
+                {
+                    std::get< 2 >( ( *pos ).second ) = std::make_tuple( false, nonOptLine, QStringList() );
+                }
+                else
+                    std::get< 2 >( fOptions[ "o" ] ) = std::make_tuple( false, nonOptLine, QStringList() );
+            }
+            else
+                fInputFile = nonOptLine;
+        }
+        );
+    }
+
+    void SObfuscatedItem::initOptions()
+    {
+        fOptions =
+        {
+             {"o", std::make_tuple( EOptionType::eString, false, TOptionValue() ) }
+        };
+    }
+
     std::shared_ptr< NVSProjectMaker::SDirItem > CBuildInfoData::addDir( const QString & dir )
     {
         auto pos = fDirectories.find( dir );
@@ -285,22 +393,31 @@ namespace NVSProjectMaker
         return retVal;
     }
 
-    SCompileItem::SCompileItem() :
+    SVSCLCompileItem::SVSCLCompileItem() :
         SItem( Qt::CaseSensitivity::CaseSensitive )
     {
         initOptions();
     }
 
-    bool SCompileItem::loadData( const QString & line, int pos )
+    bool SVSCLCompileItem::loadData( const QString & line, int pos )
     {
         return loadLine( line, pos,
                   [this]( const QString & nonOptLine )
         {
-            fSourceFiles << nonOptLine;
+            if ( fPrevOption == ">" )
+            {
+                auto pos = fOptions.find( "Fo" );
+                if ( pos != fOptions.end() )
+                    std::get< 2 >( ( *pos ).second ) = std::make_tuple( false, nonOptLine, QStringList() );
+                else
+                    std::get< 2 >( fOptions[ "Fo" ] ) = std::make_tuple( false, nonOptLine, QStringList() );
+            }
+            else
+                fSourceFiles << nonOptLine;
         } );
     }
 
-    void SCompileItem::initOptions()
+    void SVSCLCompileItem::initOptions()
     {
         fOptions =
         {
@@ -390,12 +507,6 @@ namespace NVSProjectMaker
             ,{"FR", std::make_tuple( EOptionType::eString, false, TOptionValue() ) } //,[file] name extended .SBR file
             ,{"Fi", std::make_tuple( EOptionType::eString, false, TOptionValue() ) } //,[file] name preprocessed file
             ,{"Fd", std::make_tuple( EOptionType::eString, true, TOptionValue() ) } //,: <file> name .PDB file
-            ,{"Fe", std::make_tuple( EOptionType::eString, true, TOptionValue() ) } //,: <file> name executable file
-            ,{"Fm", std::make_tuple( EOptionType::eString, true, TOptionValue() ) } //,: <file> name map file
-            ,{"Fo", std::make_tuple( EOptionType::eString, true, TOptionValue() ) } //,: <file> name object file
-            ,{"Fp", std::make_tuple( EOptionType::eString, true, TOptionValue() ) } //,: <file> name .PCH file
-            ,{"FR", std::make_tuple( EOptionType::eString, true, TOptionValue() ) } //,: <file> name extended .SBR file
-            ,{"Fi", std::make_tuple( EOptionType::eString, true, TOptionValue() ) } //,: <file> name preprocessed file
             ,{"Ft", std::make_tuple( EOptionType::eStringList, true, TOptionValue() ) } //,<dir> location of the header files generated for #import
             ,{"doc", std::make_tuple( EOptionType::eStringList, true, TOptionValue() ) } //, [file] process XML documentation comments and optionally name the .xdc file
             
@@ -533,7 +644,51 @@ namespace NVSProjectMaker
         };
     }
 
-    QString SCompileItem::firstSrcFile() const
+    QString SVSCLCompileItem::firstSrcFile() const
+    {
+        if ( !fSourceFiles.isEmpty() )
+            return fSourceFiles.front();
+        return QString();
+    }
+
+    SGccCompileItem::SGccCompileItem() :
+        SItem( Qt::CaseSensitivity::CaseSensitive )
+    {
+        initOptions();
+    }
+
+    bool SGccCompileItem::loadData( const QString & line, int pos )
+    {
+        return loadLine( line, pos,
+                         [this]( const QString & nonOptLine )
+        {
+            if ( fPrevOption.compare( "o", Qt::CaseInsensitive ) == 0 )
+            {
+                auto pos = fOptions.find( "o" );
+                if ( pos != fOptions.end() )
+                    std::get< 2 >( ( *pos ).second ) = std::make_tuple( false, nonOptLine, QStringList() );
+                else
+                    std::get< 2 >( fOptions[ "o" ] ) = std::make_tuple( false, nonOptLine, QStringList() );
+            }
+            else
+                fSourceFiles << nonOptLine;
+        } );
+    }
+
+    void SGccCompileItem::initOptions()
+    {
+        fOptions =
+        {
+             {"c", std::make_tuple( EOptionType::eBool, false, TOptionValue() ) }
+            ,{"o", std::make_tuple( EOptionType::eString, false, TOptionValue() ) }
+            ,{"g", std::make_tuple( EOptionType::eBool, false, TOptionValue() ) }
+            ,{"Wall", std::make_tuple( EOptionType::eBool, false, TOptionValue() ) }
+            ,{"f", std::make_tuple( EOptionType::eBool, false, TOptionValue() ) }
+            ,{"msse2", std::make_tuple( EOptionType::eBool, false, TOptionValue() ) }
+        };
+    }
+
+    QString SGccCompileItem::firstSrcFile() const
     {
         if ( !fSourceFiles.isEmpty() )
             return fSourceFiles.front();
@@ -852,6 +1007,10 @@ namespace NVSProjectMaker
                 else
                     fOtherOptions << origOption;
             }
+            else if ( currOption == ">" )
+            {
+                fPrevOption = ">";
+            }
             else
                 noOptFunc( currOption );
 
@@ -928,7 +1087,7 @@ namespace NVSProjectMaker
         auto dir = new QStandardItem( fDir );
         retVal << dir;
 
-        for ( auto && ii : fCompiledFiles )
+        for ( auto && ii : fVSCLCompiledFiles )
         {
             ii->loadIntoTree( dir );
         }
