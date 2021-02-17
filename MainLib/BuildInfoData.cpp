@@ -85,7 +85,10 @@ namespace NVSProjectMaker
                 numLinkLines++;
             else if ( loadManifest( currLine, lineNum ) )
                 numMTLines++;
-            //reportFunc( QString( "LineNum: %1 Line: %2" ).arg( lineNum ).arg( currLine ) );
+            else
+            {
+                reportFunc( QString( "ERROR: LineNum: %1 Could not load line: %2" ).arg( lineNum ).arg( currLine ) );
+            }
         }
 
         if ( progress && progress->wasCanceled() )
@@ -135,10 +138,8 @@ namespace NVSProjectMaker
         if ( !item )
             return false;
 
-        auto outDir = item->outDir();
-        if ( outDir.isEmpty() )
-            int xyz = 0;
-        auto outDirItem = addOutDir( outDir );
+        auto dir = item->dirForItem();
+        auto outDirItem = addDir( dir );
         outDirItem->fCompiledFiles.push_back( item );
         return true;
     }
@@ -150,8 +151,8 @@ namespace NVSProjectMaker
         if ( !item )
             return false;
 
-        auto outDir = item->outDir();
-        auto outDirItem = addOutDir( outDir );
+        auto dir = item->dirForItem();
+        auto outDirItem = addDir( dir );
         outDirItem->fLibraryItems.push_back( item );
 
         return true;
@@ -164,8 +165,8 @@ namespace NVSProjectMaker
         if ( !item )
             return false;
 
-        auto outDir = item->outDir();
-        auto outDirItem = addOutDir( outDir );
+        auto dir = item->dirForItem();
+        auto outDirItem = addDir( dir );
         outDirItem->fExecutables.push_back( item );
 
         return true;
@@ -178,8 +179,8 @@ namespace NVSProjectMaker
         if ( !item )
             return false;
 
-        auto outDir = item->outDir();
-        auto outDirItem = addOutDir( outDir );
+        auto dir = item->dirForItem();
+        auto outDirItem = addDir( dir );
         outDirItem->fManifests.push_back( item );
 
         return true;
@@ -203,7 +204,12 @@ namespace NVSProjectMaker
                 {
                     auto && currValue = std::get< 2 >( (*pos).second );
                     if ( currValue.has_value() )
+                    {
+                        if ( std::get< 2 >( currValue.value() ).length() == 1 && std::get< 2 >( currValue.value() ).front().isEmpty() )
+                            std::get< 2 >( currValue.value() ).clear();
+
                         std::get< 2 >( currValue.value() ) << nonOptLine;
+                    }
                     else
                         currValue = std::make_tuple( false, QString(), QStringList() << nonOptLine );
                 }
@@ -243,7 +249,33 @@ namespace NVSProjectMaker
         };
     }
 
-    std::shared_ptr< NVSProjectMaker::SDirItem > CBuildInfoData::addOutDir( const QString & dir )
+    QString SManifestItem::outFile() const
+    {
+        QStringList paths;
+        if ( !getOptionValue( paths, EOptionType::eStringList, "outputresource" ) )
+            return QString();
+
+        if ( paths.isEmpty() )
+            return QString();
+        auto lRetVal = paths.front();
+        auto pos = lRetVal.lastIndexOf( ";" );
+        if ( pos != -1 )
+            lRetVal = lRetVal.left( pos );
+
+        return lRetVal;
+    }
+    QString SManifestItem::firstSrcFile() const
+    {
+        QStringList paths;
+        if ( !getOptionValue( paths, EOptionType::eStringList, "manifest" ) )
+            return QString();
+
+        if ( paths.isEmpty() )
+            return QString();
+        return paths.front();
+    }
+
+    std::shared_ptr< NVSProjectMaker::SDirItem > CBuildInfoData::addDir( const QString & dir )
     {
         auto pos = fDirectories.find( dir );
         if ( pos != fDirectories.end() )
@@ -501,6 +533,13 @@ namespace NVSProjectMaker
         };
     }
 
+    QString SCompileItem::firstSrcFile() const
+    {
+        if ( !fSourceFiles.isEmpty() )
+            return fSourceFiles.front();
+        return QString();
+    }
+
     SLibraryItem::SLibraryItem() :
         SItem( Qt::CaseSensitivity::CaseInsensitive )
     {
@@ -538,6 +577,13 @@ namespace NVSProjectMaker
            ,{ "VERBOSE", std::make_tuple( EOptionType::eBool, true, TOptionValue() ) }
            ,{ "WX", std::make_tuple( EOptionType::eBool, true, TOptionValue() ) }
         };
+    }
+
+    QString SLibraryItem::firstSrcFile() const
+    {
+        if ( !fInputs.isEmpty() )
+            return fInputs.front();
+        return QString();
     }
 
     SExecItem::SExecItem() :
@@ -666,6 +712,15 @@ namespace NVSProjectMaker
         };
     }
 
+    QString SExecItem::firstSrcFile() const
+    {
+        if ( !fFiles.isEmpty() )
+            return fFiles.front();
+        if ( !fCommandFiles.isEmpty() )
+            return fCommandFiles.front();
+        return QString();
+    }
+
     bool SItem::isTrue( const QString & value )
     {
         if ( value.isEmpty() )
@@ -709,7 +764,7 @@ namespace NVSProjectMaker
                 auto pos = fOptions.find( currOption );
                 if ( pos == fOptions.end() )
                 {
-                    std::list< std::pair< QString, std::tuple< EOptionType, bool, TOptionValue > > > possibleOptions;
+                    std::list< std::pair< QString, TOptionType > > possibleOptions;
 
                     for ( auto && ii = fOptions.begin(); ii != fOptions.end(); ++ii )
                     {
@@ -727,7 +782,7 @@ namespace NVSProjectMaker
                         continue;
                     }
 
-                    std::pair< QString, std::tuple< EOptionType, bool, TOptionValue > > bestOption;
+                    std::pair< QString, TOptionType > bestOption;
                     int max = 0;
                     for ( auto && ii : possibleOptions )
                     {
@@ -832,11 +887,31 @@ namespace NVSProjectMaker
         return dir;
     }
 
+    QString SItem::srcDir() const
+    {
+        auto path = firstSrcFile();
+        if ( path.isEmpty() )
+            return QString();
+
+        auto fi = QFileInfo( path );
+        auto dir = fi.path();
+        return dir;
+    }
+
+    QString SItem::dirForItem() const
+    {
+        if ( !srcDir().isEmpty() )
+            return srcDir();
+        return outDir();
+    }
+
     void SItem::loadIntoTree( QStandardItem * parent )
     {
         QList< QStandardItem * > retVal;
-        retVal << new QStandardItem( QString() );
+        retVal << new QStandardItem( srcDir() );
+        retVal << new QStandardItem( outDir() );
         retVal << new QStandardItem( getItemTypeName() );
+        retVal << new QStandardItem( firstSrcFile() );
         retVal << new QStandardItem( outFile() );
         parent->appendRow( retVal );
     }
@@ -877,7 +952,7 @@ namespace NVSProjectMaker
         if ( !model )
             return;
         model->clear();
-        model->setHorizontalHeaderLabels( QStringList() << "Directory" << "Type" << "Output Name" );
+        model->setHorizontalHeaderLabels( QStringList() << "Source Directory" << "Target Directory" << "Type" << "Primary Input File" << "Output File" );
         if ( !fStatus.first )
             return;
 

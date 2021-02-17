@@ -57,7 +57,8 @@ namespace NVSProjectMaker
         Qt::CaseSensitivity fCaseSensitivity;
     };
 
-    using TOptionTypeMap = std::map< QString, std::tuple< EOptionType, bool, TOptionValue >, QStringCmp >;
+    using TOptionType = std::tuple< EOptionType, bool, TOptionValue >;
+    using TOptionTypeMap = std::map< QString, TOptionType, QStringCmp >;
     struct SItem
     {
         SItem( Qt::CaseSensitivity cs );
@@ -69,6 +70,67 @@ namespace NVSProjectMaker
         virtual QString outFileOption() const = 0;
         virtual QString outFile() const;
         virtual QString outDir() const final;
+        virtual QString firstSrcFile() const=0;
+        virtual QString srcDir() const final;
+        virtual QString dirForItem() const final;
+
+        TOptionValue getOptionValue( const QString & optName ) const
+        {
+            auto pos = fOptions.find( optName );
+            if ( pos == fOptions.end() )
+                return TOptionValue();
+
+            auto foundOptInfo = ( *pos ).second;
+
+            auto optValue = std::get< 2 >( foundOptInfo );
+            return optValue;
+        }
+
+        template< typename T >
+        bool getOptionValue( T & retVal, EOptionType optType, const QString & optName ) const
+        {
+            return false;
+        }
+
+        bool getOptionValue( bool & retVal, EOptionType optType, const QString & optName ) const
+        {
+            if ( optType != EOptionType::eBool )
+                return false;
+
+            auto optValue = getOptionValue( optName );
+            if ( !optValue.has_value() )
+                return false;
+
+            retVal = std::get< 0 >( optValue.value() );
+            return true;
+        }
+
+        bool getOptionValue( QString & retVal, EOptionType optType, const QString & optName ) const
+        {
+            if ( optType != EOptionType::eString )
+                return false;
+
+            auto optValue = getOptionValue( optName );
+            if ( !optValue.has_value() )
+                return false;
+
+            retVal = std::get< 1 >( optValue.value() );
+            return true;
+        }
+
+        bool getOptionValue( QStringList & retVal, EOptionType optType, const QString & optName ) const
+        {
+            if ( optType != EOptionType::eStringList )
+                return false;
+
+            auto optValue = getOptionValue( optName );
+            if ( !optValue.has_value() )
+                return false;
+
+            retVal = std::get< 2 >( optValue.value() );
+            return true;
+        }
+
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const = 0;
 
         virtual QString getItemTypeName() const = 0;
@@ -94,6 +156,7 @@ namespace NVSProjectMaker
 
         virtual void initOptions();
         virtual QString outFileOption() const override { return "Fo"; };
+        virtual QString firstSrcFile() const override;
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseSensitive; }
         virtual QString getItemTypeName() const { return "Compile"; }
 
@@ -107,6 +170,7 @@ namespace NVSProjectMaker
 
         void initOptions();
         virtual QString outFileOption() const override { return "OUT"; };
+        virtual QString firstSrcFile() const override;
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
         virtual QString getItemTypeName() const { return "Library"; }
 
@@ -120,6 +184,7 @@ namespace NVSProjectMaker
 
         void initOptions();
         virtual QString outFileOption() const override { return "OUT"; };
+        virtual QString firstSrcFile() const override;
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
         virtual QString getItemTypeName() const { return "App/DLL"; }
 
@@ -136,6 +201,9 @@ namespace NVSProjectMaker
 
         void initOptions();
         virtual QString outFileOption() const override { return "OUT"; };
+        virtual QString outFile() const override;
+
+        virtual QString firstSrcFile() const override;
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
         virtual QString getItemTypeName() const { return "Manifest"; }
     };
@@ -168,7 +236,7 @@ namespace NVSProjectMaker
         bool loadLink( const QString & line, int lineNum );
         bool loadManifest( const QString & line, int lineNum );
 
-        std::shared_ptr< SDirItem > addOutDir( const QString & dir );
+        std::shared_ptr< SDirItem > addDir( const QString & dir );
         std::function< void( const QString & msg ) > fReportFunc;
         std::map< QString, std::shared_ptr< SDirItem > > fDirectories;
         std::pair< bool, QString > fStatus = std::make_pair( false, QString() );;

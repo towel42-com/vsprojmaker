@@ -86,6 +86,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     connect( fImpl->addDebugTargetBtn, &QToolButton::clicked, this, &CMainWindow::slotAddDebugTarget );
     connect( fImpl->bldOutputFileBtn, &QToolButton::clicked, this, &CMainWindow::slotSetBuildOutputFile );
     connect( fImpl->bldOutputFile, &QLineEdit::textChanged, this, &CMainWindow::slotLoadOutputData );
+    connect( fImpl->runBuildAnalysisBtn, &QToolButton::clicked, this, &CMainWindow::slotLoadOutputData );
     
     connect( fImpl->generateBtn, &QToolButton::clicked, this, &CMainWindow::slotGenerate );
 
@@ -110,7 +111,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     fImpl->debugTargets->setModel( fDebugTargetsModel );
 
     fBuildInfoDataModel = new QStandardItemModel( this );
-    fBuildInfoDataModel->setHorizontalHeaderLabels( QStringList() << "Directory" << "Type" << "Output File" );
+    fBuildInfoDataModel->setHorizontalHeaderLabels( QStringList() << "Source Directory" << "Target Directory" << "Type" << "Primary Input File" << "Output File" );
     fImpl->bldData->setModel( fBuildInfoDataModel );
     QSettings settings;
     setProjects( settings.value( "RecentProjects" ).toStringList() );
@@ -996,6 +997,7 @@ void CMainWindow::slotLoadOutputData()
                                                                      }, progress );
     if ( !fBuildInfoData->status() )
     {
+        progress->close();
         QMessageBox::critical( this, tr( "Could not read Output Data File" ), fBuildInfoData->errorString() );
         fBuildInfoData.reset();
         return;
