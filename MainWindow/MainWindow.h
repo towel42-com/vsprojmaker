@@ -33,6 +33,7 @@
 #include <functional>
 #include <tuple>
 #include <QProcess>
+#include <QStandardItemModel>
 
 class QLineEdit;
 namespace NVSProjectMaker
@@ -40,6 +41,7 @@ namespace NVSProjectMaker
     struct SDirInfo;
     struct SDebugTarget;
     class CSettings;
+    class CBuildInfoData;
     struct SSourceFileResults;
     struct SSourceFileInfo;
 }
@@ -138,6 +140,7 @@ private:
 
     std::optional< QDir > fSourceDir;
     QStandardItemModel * fSourceModel{ nullptr };
+    QStandardItemModel * fBuildInfoDataModel{ nullptr };
     CCheckableStringListModel * fIncDirModel{ nullptr };
     CCheckableStringListModel * fPreProcDefineModel{ nullptr };
     QStandardItemModel * fCustomBuildModel{ nullptr };
@@ -149,6 +152,7 @@ private:
     int fDisconnected{ 0 };
 
     std::unique_ptr< NVSProjectMaker::CSettings > fSettings;
+    std::shared_ptr< NVSProjectMaker::CBuildInfoData > fBuildInfoData;
 };
 
 #endif // _ALCULATOR_H

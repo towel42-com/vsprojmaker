@@ -50,7 +50,7 @@ target_link_libraries( VSProjectMakerCLI
                  SABUtils
           )
 DeployQt( VSProjectMakerCLI .)
-DeploySystem( VSProjectMakerCLI )
+DeploySystem( VSProjectMakerCLI . )
 
 INSTALL( TARGETS ${PROJECT_NAME} RUNTIME DESTINATION . )
 INSTALL( FILES ${CMAKE_CURRENT_BINARY_DIR}/Debug/${PROJECT_NAME}.pdb DESTINATION . CONFIGURATIONS Debug )

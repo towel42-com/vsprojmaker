@@ -109,6 +109,9 @@ CMainWindow::CMainWindow( QWidget * parent )
     fDebugTargetsModel->setHorizontalHeaderLabels( QStringList() << "Source Dir" << "Name" << "Command" << "Args" << "Work Dir" << "EnvVars" );
     fImpl->debugTargets->setModel( fDebugTargetsModel );
 
+    fBuildInfoDataModel = new QStandardItemModel( this );
+    fBuildInfoDataModel->setHorizontalHeaderLabels( QStringList() << "Directory" << "Type" << "Output File" );
+    fImpl->bldData->setModel( fBuildInfoDataModel );
     QSettings settings;
     setProjects( settings.value( "RecentProjects" ).toStringList() );
 
@@ -976,12 +979,29 @@ void CMainWindow::slotSetBuildOutputFile()
 
 void CMainWindow::slotLoadOutputData()
 {
-    auto data = std::make_shared< NVSProjectMaker::CBuildInfoData >( fImpl->bldOutputFile->text() );
-    if ( !data->status() )
+    QProgressDialog * progress = new QProgressDialog( tr( "Reading Build Output..." ), tr( "Cancel" ), 0, 0, this );
+    progress->setLabelText( "Reading Build Output" );
+    progress->setAutoReset( false );
+    progress->setAutoClose( false );
+    progress->setWindowModality( Qt::WindowModal );
+    progress->setMinimumDuration( 1 );
+    progress->setRange( 0, 100 );
+    progress->setValue( 0 );
+
+    fBuildInfoData = std::make_shared< NVSProjectMaker::CBuildInfoData >( fImpl->bldOutputFile->text(),
+                                                                     [ this ]( const QString & msg )
+                                                                     {    
+                                                                          appendToLog( msg );
+                                                                          qApp->processEvents();
+                                                                     }, progress );
+    if ( !fBuildInfoData->status() )
     {
-        QMessageBox::critical( this, tr( "Could not read Output Data File" ), data->errorString() );
+        QMessageBox::critical( this, tr( "Could not read Output Data File" ), fBuildInfoData->errorString() );
+        fBuildInfoData.reset();
         return;
     }
+    fBuildInfoData->loadIntoTree( fBuildInfoDataModel );
+    progress->deleteLater();
 }
 
 

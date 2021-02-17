@@ -12,12 +12,12 @@
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
 //
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOut WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NoT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NoNINFRINGEMENT.IN No EVENT SHALL THE
 // AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// Out OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
 #ifndef __BUILDINFODATA_H
@@ -25,75 +25,151 @@
 #include <QString>
 #include <QStringList>
 #include <map>
+#include <optional>
+#include "SABUtils/StringComparisonClasses.h"
+class QProgressDialog;
+class QStandardItemModel;
+class QStandardItem;
+
 namespace NVSProjectMaker
 {
-    struct SCompileItem
+    enum class EOptionType
     {
-        SCompileItem( const QString & line, int pos );
-
-        QString outDir() const;
-        QString fSourceFile;
-        QString fOutputFile;
-        QStringList fDefines;
-        QStringList fIncludeDirs;
-        QStringList fOtherOptions;
+        eBool,
+        eString,
+        eStringList
     };
 
-    struct SLibraryItem
+    // the value is Type, has Colon in Option, value
+    using TOptionValue = std::optional< std::tuple< bool, QString, QStringList > >;
+    class QStringCmp
     {
-        SLibraryItem( const QString & line, int pos );
-        QString outDir() const;
+    public:
+        explicit QStringCmp( Qt::CaseSensitivity cs ) :
+            fCaseSensitivity( cs )
+        {
+        }
+        bool operator() ( const QString & s1, const QString & s2 ) const
+        {
+            return s1.compare( s2, fCaseSensitivity ) < 0;
+        }
+    private:
+        Qt::CaseSensitivity fCaseSensitivity;
+    };
 
-        QStringList fDefFiles;
-        QStringList fErrorReports;
-        QStringList fExports;
-        QStringList fExtracts;
-        QStringList fIncludes;
-        QStringList fLibPaths;
-        QStringList fLists;
-        bool fLTCG{ false };
-        QString fMachine;
-        QStringList fNameFiles;
-        QStringList fNoDefaultLibs;
-        bool fNoLogo{ false };
-        QString fOutputFile;
-        QStringList fRemoveMembers;
-        QStringList fSubSystems;
-        bool fVerbose{ false };
-        bool fWX{ false };
+    using TOptionTypeMap = std::map< QString, std::tuple< EOptionType, bool, TOptionValue >, QStringCmp >;
+    struct SItem
+    {
+        SItem( Qt::CaseSensitivity cs );
+
+        virtual void initOptions() = 0;
+        virtual bool loadData( const QString & line, int pos ) = 0;
+        bool loadLine( const QString & line, int pos, std::function< void( const QString & nonOptLine ) > noOptFunc );
+
+        virtual QString outFileOption() const = 0;
+        virtual QString outFile() const;
+        virtual QString outDir() const final;
+        virtual Qt::CaseSensitivity caseInsensitiveOptions() const = 0;
+
+        virtual QString getItemTypeName() const = 0;
+
+        virtual void loadIntoTree( QStandardItem * parent );
+
+        bool status() const { return fStatus.first; }
+        QString errorString() const { return fStatus.second; }
+
+        static bool isTrue( const QString & value );
+
+        TOptionTypeMap fOptions;
+        QStringList fOtherOptions;
+        QString fPrevOption;
+
+        std::pair< bool, QString > fStatus = std::make_pair( false, QString() );
+    };
+
+    struct SCompileItem : public SItem
+    {
+        SCompileItem();
+        virtual bool loadData( const QString & line, int pos ) override;
+
+        virtual void initOptions();
+        virtual QString outFileOption() const override { return "Fo"; };
+        virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseSensitive; }
+        virtual QString getItemTypeName() const { return "Compile"; }
+
+        QStringList fSourceFiles;
+    };
+
+    struct SLibraryItem : public SItem
+    {
+        SLibraryItem();
+        virtual bool loadData( const QString & line, int pos ) override;
+
+        void initOptions();
+        virtual QString outFileOption() const override { return "OUT"; };
+        virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
+        virtual QString getItemTypeName() const { return "Library"; }
 
         QStringList fInputs;
     };
 
-    struct SExecItem
+    struct SExecItem : public SItem
     {
-        SExecItem( const QString & line );
+        SExecItem();
+        virtual bool loadData( const QString & line, int pos ) override;
+
+        void initOptions();
+        virtual QString outFileOption() const override { return "OUT"; };
+        virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
+        virtual QString getItemTypeName() const { return "App/DLL"; }
+
+        QStringList fFiles;
+        QStringList fCommandFiles;
+
+        std::list< std::shared_ptr< SExecItem > > fDependencies;
     };
 
+    struct SManifestItem : public SItem
+    {
+        SManifestItem();
+        virtual bool loadData( const QString & line, int pos ) override;
+
+        void initOptions();
+        virtual QString outFileOption() const override { return "OUT"; };
+        virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
+        virtual QString getItemTypeName() const { return "Manifest"; }
+    };
 
     struct SDirItem
     {
         SDirItem( const QString & dirName );
+
+        QList< QStandardItem * > loadIntoTree();
         QString fDir;
         std::list< std::shared_ptr< SCompileItem > > fCompiledFiles;
         std::list< std::shared_ptr< SLibraryItem > > fLibraryItems;
-        std::list< std::shared_ptr< SExecItem > > fExecutables;  // includes MT data as well
+        std::list< std::shared_ptr< SExecItem > > fExecutables;
+        std::list< std::shared_ptr< SManifestItem > > fManifests;
     };
 
     class CBuildInfoData
     {
     public:
-        CBuildInfoData( const QString & fileName );
+        CBuildInfoData( const QString & fileName, std::function< void( const QString & msg ) > reportFunc, QProgressDialog * progress );
         bool status() const { return fStatus.first; }
         QString errorString() const { return fStatus.second; }
+
+        void loadIntoTree( QStandardItemModel * model );
     private:
-        bool loadCompile( const QString & line );
-        bool loadLibrary( const QString & line );
-        bool loadLink( const QString & line );
-        bool loadMT( const QString & line );
+        std::shared_ptr< SItem > loadLine( QRegularExpression & regExp, const QString & line, int lineNum, std::shared_ptr< SItem > item );
+        
+        bool loadCompile( const QString & line, int lineNum );
+        bool loadLibrary( const QString & line, int lineNum );
+        bool loadLink( const QString & line, int lineNum );
+        bool loadManifest( const QString & line, int lineNum );
 
         std::shared_ptr< SDirItem > addOutDir( const QString & dir );
-
+        std::function< void( const QString & msg ) > fReportFunc;
         std::map< QString, std::shared_ptr< SDirItem > > fDirectories;
         std::pair< bool, QString > fStatus = std::make_pair( false, QString() );;
     };
