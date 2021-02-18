@@ -22,11 +22,13 @@
 
 #ifndef __BUILDINFODATA_H
 #define __BUILDINFODATA_H
+#include "SABUtils/StringComparisonClasses.h"
 #include <QString>
 #include <QStringList>
 #include <map>
 #include <optional>
-#include "SABUtils/StringComparisonClasses.h"
+#include <set>
+
 class QProgressDialog;
 class QStandardItemModel;
 class QStandardItem;
@@ -61,18 +63,20 @@ namespace NVSProjectMaker
     using TOptionTypeMap = std::map< QString, TOptionType, QStringCmp >;
     struct SItem
     {
-        SItem( Qt::CaseSensitivity cs );
+        SItem( int lineNum, Qt::CaseSensitivity cs );
 
         virtual void initOptions() = 0;
         virtual bool loadData( const QString & line, int pos ) = 0;
         bool loadLine( const QString & line, int pos, std::function< void( const QString & nonOptLine ) > noOptFunc );
 
-        virtual QString outFileOption() const = 0;
-        virtual QString outFile() const;
-        virtual QString outDir() const final;
-        virtual QString firstSrcFile() const=0;
+        virtual QString targetFileOption() const = 0;
+        virtual QString targetFile() const;
+        virtual QString targetDir() const final;
+        virtual QString firstSrcFile() const final;
+        virtual QStringList allSources() const=0;
         virtual QString srcDir() const final;
         virtual QString dirForItem() const final;
+        virtual bool srcPriorityForDir() const { return true; }
 
         TOptionValue getOptionValue( const QString & optName ) const
         {
@@ -142,95 +146,104 @@ namespace NVSProjectMaker
 
         static bool isTrue( const QString & value );
 
-        TOptionTypeMap fOptions;
+        QString dump() const;
         QStringList fOtherOptions;
         QString fPrevOption;
 
+        int fLineNumber{ -1 };
+        TOptionTypeMap fOptions;
         std::pair< bool, QString > fStatus = std::make_pair( false, QString() );
+        std::list< std::shared_ptr< SItem > > fDependencyItems;
+        std::shared_ptr< SItem > fTargetItem;
     };
 
-    struct SVSCLCompileItem : public SItem
+    struct SCompileItem : public SItem
     {
-        SVSCLCompileItem();
-        virtual bool loadData( const QString & line, int pos ) override;
+        SCompileItem( int lineNum ) :
+            SItem( lineNum, Qt::CaseSensitivity::CaseSensitive )
+        {
+        }
 
-        virtual void initOptions();
-        virtual QString outFileOption() const override { return "Fo"; };
-        virtual QString firstSrcFile() const override;
-        virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseSensitive; }
         virtual QString getItemTypeName() const { return "Compile"; }
+        virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseSensitive; }
+        virtual QStringList allSources() const override;
 
         QStringList fSourceFiles;
     };
 
-    struct SGccCompileItem : public SItem
+    struct SVSCLCompileItem : public SCompileItem
     {
-        SGccCompileItem();
+        SVSCLCompileItem( int lineNum );
         virtual bool loadData( const QString & line, int pos ) override;
 
         virtual void initOptions();
-        virtual QString outFileOption() const override { return "o"; };
-        virtual QString firstSrcFile() const override;
-        virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseSensitive; }
-        virtual QString getItemTypeName() const { return "Compile"; }
+        virtual QString targetFileOption() const override { return "Fo"; };
 
-        QStringList fSourceFiles;
+    };
+
+    struct SGccCompileItem : public SCompileItem
+    {
+        SGccCompileItem( int lineNum );
+        virtual bool loadData( const QString & line, int pos ) override;
+
+        virtual void initOptions();
+        virtual QString targetFileOption() const override { return "o"; };
     };
 
     struct SLibraryItem : public SItem
     {
-        SLibraryItem();
+        SLibraryItem( int lineNum );
         virtual bool loadData( const QString & line, int pos ) override;
 
         void initOptions();
-        virtual QString outFileOption() const override { return "OUT"; };
-        virtual QString firstSrcFile() const override;
+        virtual QString targetFileOption() const override { return "OUT"; };
+        virtual QStringList allSources() const override;
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
         virtual QString getItemTypeName() const { return "Library"; }
+        virtual bool srcPriorityForDir() const { return false; }
 
         QStringList fInputs;
     };
 
     struct SExecItem : public SItem
     {
-        SExecItem();
+        SExecItem( int lineNum );
         virtual bool loadData( const QString & line, int pos ) override;
 
         void initOptions();
-        virtual QString outFileOption() const override { return "OUT"; };
-        virtual QString firstSrcFile() const override;
+        virtual QString targetFileOption() const override { return "OUT"; };
+        virtual QStringList allSources() const override;
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
         virtual QString getItemTypeName() const { return "App/DLL"; }
+        virtual bool srcPriorityForDir() const { return false; }
 
         QStringList fFiles;
         QStringList fCommandFiles;
-
-        std::list< std::shared_ptr< SExecItem > > fDependencies;
     };
 
     struct SManifestItem : public SItem
     {
-        SManifestItem();
+        SManifestItem( int lineNum );
         virtual bool loadData( const QString & line, int pos ) override;
 
         void initOptions();
-        virtual QString outFileOption() const override { return "OUT"; };
-        virtual QString outFile() const override;
+        virtual QString targetFileOption() const override { return "OUT"; };
+        virtual QString targetFile() const override;
 
-        virtual QString firstSrcFile() const override;
+        virtual QStringList allSources() const override;
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
         virtual QString getItemTypeName() const { return "Manifest"; }
     };
 
     struct SObfuscatedItem : public SItem
     {
-        SObfuscatedItem();
+        SObfuscatedItem( int lineNum );
         virtual bool loadData( const QString & line, int pos ) override;
 
         void initOptions();
-        virtual QString outFileOption() const override { return "o"; };
+        virtual QString targetFileOption() const override { return "o"; };
 
-        virtual QString firstSrcFile() const override { return fInputFile; }
+        virtual QStringList allSources() const override { return QStringList() << fInputFile; }
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
         virtual QString getItemTypeName() const { return "Obfuscated"; }
 
@@ -241,7 +254,7 @@ namespace NVSProjectMaker
     {
         SDirItem( const QString & dirName );
 
-        QList< QStandardItem * > loadIntoTree();
+        QList< QStandardItem * > loadIntoTree( std::function< void( const QString & msg ) > reportFunc );
         QString fDir;
         std::list< std::shared_ptr< SVSCLCompileItem > > fVSCLCompiledFiles;
         std::list< std::shared_ptr< SGccCompileItem > > fGccCompiledFiles;
@@ -260,6 +273,8 @@ namespace NVSProjectMaker
 
         void loadIntoTree( QStandardItemModel * model );
     private:
+        bool isSourceFile( const QString & fileName ) const;
+        void determineDependencies();
         std::shared_ptr< SItem > loadLine( QRegularExpression & regExp, const QString & line, int lineNum, std::shared_ptr< SItem > item );
         QString getStatusString( size_t numDirectories, int numClLines, int numGccLines, int numLibLines, int numLinkLines, int numMTLines, int numCygwinCCLines, int numObfuscateLines, int numUnloadedLines, bool forGUI ) const;
 
@@ -271,9 +286,14 @@ namespace NVSProjectMaker
         bool loadCygwinCC( const QString & line, int lineNum );
         bool loadObfuscate( const QString & line, int lineNum );
 
+        void addItem( std::shared_ptr< SItem > item );
         std::shared_ptr< SDirItem > addDir( const QString & dir );
         std::function< void( const QString & msg ) > fReportFunc;
         std::map< QString, std::shared_ptr< SDirItem > > fDirectories;
+
+        std::multimap< QString, std::shared_ptr< SItem > > fTargets;
+        std::multimap< QString, std::shared_ptr< SItem > > fSources;
+
         std::pair< bool, QString > fStatus = std::make_pair( false, QString() );;
     };
 }
