@@ -24,6 +24,7 @@
 #include "DebugTarget.h"
 #include "VSProjectMaker.h"
 #include "Settings.h"
+#include "SABUtils/QtUtils.h"
 
 #include <QStandardItem>
 #include <QDir>

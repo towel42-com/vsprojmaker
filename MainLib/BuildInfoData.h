@@ -28,6 +28,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <functional>
 
 class QProgressDialog;
 class QStandardItemModel;

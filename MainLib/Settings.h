@@ -23,13 +23,14 @@
 #ifndef __SETTINGS_H
 #define __SETTINGS_H
 
+#include "DebugTarget.h"
+#include "SABUtils/QtUtils.h"
+
 #include <utility>
 #include <QVariant>
 #include <QSettings>
 #include <QSet>
 #include <QDir>
-#include <functional>
-#include "DebugTarget.h"
 #include <functional>
 #include <optional>
 class QStandardItem;
