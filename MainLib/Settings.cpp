@@ -773,6 +773,7 @@ namespace NVSProjectMaker
         ADD_SETTING_VALUE( TListOfStringPair, CustomBuilds );
         ADD_SETTING_VALUE( TListOfDebugTargets, DebugCommands );
         ADD_SETTING_VALUE( QString, BuildOutputDataFile );
+        ADD_SETTING_VALUE( QString, BldTxtProdDir );
     }
 
     QStringList CSettings::getQtIncludeDirs( const QString & qtDirStr )

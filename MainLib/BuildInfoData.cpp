@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "BuildInfoData.h"
+#include "Settings.h"
 
 #include <QObject>
 #include <QFileInfo>
@@ -32,8 +33,9 @@
 
 namespace NVSProjectMaker
 {
-    CBuildInfoData::CBuildInfoData( const QString & fileName, std::function< void( const QString & msg ) > reportFunc, QProgressDialog * progress ) :
-        fReportFunc( reportFunc )
+    CBuildInfoData::CBuildInfoData( const QString & fileName, std::function< void( const QString & msg ) > reportFunc, CSettings * settings, QProgressDialog * progress ) :
+        fReportFunc( reportFunc ),
+        fSettings( settings )
     {
         QFileInfo fi( fileName );
         if ( !fi.exists() || !fi.isFile() || !fi.isReadable() )
@@ -58,18 +60,7 @@ namespace NVSProjectMaker
 
         QTextStream ts( &file );
         QString currLine;
-        int numLibLines = 0;
-        int numClLines = 0;
-        int numGccLines = 0;
-        int numLinkLines = 0;
-        int numMTLines = 0;
-        int numCygwinCCLines = 0;
-        int numUnhandledLines = 0;
-        int numObfuscateLines = 0;
-        int numMocLines = 0;
-        int numUicLines = 0;
-        int numRccLines = 0;
-        int lineNum = 0;
+        SStatusInfo statusInfo;
         while ( ts.readLineInto( &currLine ) )
         {
             if ( progress )
@@ -78,52 +69,57 @@ namespace NVSProjectMaker
                 if ( progress->wasCanceled() )
                     break;
 
-                auto labelText = getStatusString( fDirectories.size(), numClLines, numGccLines, numLibLines, numLinkLines, numMTLines, numCygwinCCLines, numObfuscateLines, numMocLines, numUicLines, numRccLines, numUnhandledLines, true );
+                auto labelText = statusInfo.getStatusString( fDirectories.size(), true );
                 progress->setLabelText( labelText );
             }
 
-            lineNum++;
+            statusInfo.fLineNum++;
             currLine = currLine.simplified();
             if ( currLine.isEmpty() )
                 continue;
 
-            if ( loadVSCl( currLine, lineNum ) )
-                numClLines++;
-            else if ( loadGcc( currLine, lineNum ) )
-                numGccLines++;
-            else if ( loadLibrary( currLine, lineNum ) )
-                numLibLines++;
-            else if ( loadLink( currLine, lineNum ) )
-                numLinkLines++;
-            else if ( loadManifest( currLine, lineNum ) )
-                numMTLines++;
-            else if ( loadCygwinCC( currLine, lineNum ) )
-                numCygwinCCLines++;
-            else if ( loadObfuscate( currLine, lineNum ) )
-                numObfuscateLines++;
-            else if ( loadMoc( currLine, lineNum ) )
-                numMocLines++;
-            else if ( loadUic( currLine, lineNum ) )
-                numUicLines++;
-            else if ( loadRcc( currLine, lineNum ) )
-                numRccLines++;
+            if ( loadVSCl( currLine, statusInfo.fLineNum ) )
+                statusInfo.fNumCL++;
+            else if ( loadGcc( currLine, statusInfo.fLineNum ) )
+                statusInfo.fNumGcc++;
+            else if ( loadLibrary( currLine, statusInfo.fLineNum ) )
+                statusInfo.fNumLib++;
+            else if ( loadLink( currLine, statusInfo.fLineNum ) )
+                statusInfo.fNumLink++;
+            else if ( loadManifest( currLine, statusInfo.fLineNum ) )
+                statusInfo.fNumManifest++;
+            else if ( loadCygwinCC( currLine, statusInfo.fLineNum ) )
+                statusInfo.fNumCygwinCC++;
+            else if ( loadObfuscate( currLine, statusInfo.fLineNum ) )
+                statusInfo.fNumObfuscate++;
+            else if ( loadMoc( currLine, statusInfo.fLineNum ) )
+                statusInfo.fNumMoc++;
+            else if ( loadUic( currLine, statusInfo.fLineNum ) )
+                statusInfo.fNumUIC++;
+            else if ( loadRcc( currLine, statusInfo.fLineNum ) )
+                statusInfo.fNumRcc++;
             else
             {
-                numUnhandledLines++;
-                reportFunc( QString( "ERROR: LineNum: %1 Could not load line: %2" ).arg( lineNum ).arg( currLine ) );
+                statusInfo.fNumUnloaded++;
+                reportFunc( QString( "ERROR: LineNum: %1 Could not load line: %2" ).arg( statusInfo.fLineNum ).arg( currLine ) );
             }
         }
         
         if ( progress && progress->wasCanceled() )
         {
-            reportFunc( QString( "Process Cancelled" ) );
-            fStatus = std::make_pair( false, QString( "Process Cancelled" ) );
+            reportFunc( QString( "Process Canceled" ) );
+            fStatus = std::make_pair( false, QString( "Process Canceled" ) );
             return;
         }
 
         determineDependencies();
-
-        reportFunc( getStatusString( fDirectories.size(), numClLines, numGccLines, numLibLines, numLinkLines, numMTLines, numCygwinCCLines, numObfuscateLines, numMocLines, numUicLines, numRccLines, numUnhandledLines, false ) );
+        reportFunc( "Product Dir Usages:" );
+        for ( auto && ii : fProdDirUsages )
+        {
+            reportFunc( ii );
+        }
+        reportFunc( "================" );
+        reportFunc( statusInfo.getStatusString( fDirectories.size(), false ) );
         fStatus = std::make_pair( true, QString() );
     }
 
@@ -137,7 +133,7 @@ namespace NVSProjectMaker
             return ( *pos ).second;
 
         bool retVal = false;
-        if ( suffix == "c" )
+        if ( ( suffix == "c" ) || ( suffix == "obf.c" ) || ( suffix == "sdf.c" ) )
             retVal = true;
         else if ( suffix == "cpp" )
             retVal = true;
@@ -153,6 +149,15 @@ namespace NVSProjectMaker
         for ( auto && ii : suffixes )
             qDebug() << ii.first << " = " << ii.second;
         return retVal;
+    }
+
+    void CBuildInfoData::cleanupProdDirUsages( QStringList & data )
+    {
+        for ( auto && ii : data )
+        {
+            QFileInfo fi( ii );
+            ii = fi.path();
+        }
     }
 
     void CBuildInfoData::determineDependencies()
@@ -204,21 +209,21 @@ namespace NVSProjectMaker
         }
     }
 
-    QString CBuildInfoData::getStatusString( size_t numDirectories, int numClLines, int numGccLines, int numLibLines, int numLinkLines, int numMTLines, int numCygwinCCLines, int numObfuscateLines, int numMocLines, int numUicLines, int numRccLines, int numUnhandledLines, bool forGUI ) const
+    QString CBuildInfoData::SStatusInfo::getStatusString( size_t numDirectories, bool forGUI ) const
     {
         QStringList data = QStringList()
             << QString( "Directories: %1" ).arg( numDirectories )
-            << QString( "CL: %1" ).arg( numClLines )
-            << QString( "GCC: %1" ).arg( numGccLines )
-            << QString( "Libs: %1" ).arg( numLibLines )
-            << QString( "Link: %1" ).arg( numLinkLines )
-            << QString( "Manifests: %1" ).arg( numMTLines )
-            << QString( "CygwinCC.pl: %1" ).arg( numCygwinCCLines )
-            << QString( "Obfuscated: %1" ).arg( numObfuscateLines )
-            << QString( "Moc: %1" ).arg(numMocLines)
-            << QString( "Uic: %1" ).arg(numUicLines)
-            << QString( "Rcc: %1" ).arg(numRccLines)
-            << QString( "Unhandled: %1" ).arg( numUnhandledLines )
+            << QString( "CL: %1" ).arg( fNumCL )
+            << QString( "GCC: %1" ).arg( fNumGcc )
+            << QString( "Libs: %1" ).arg( fNumLib )
+            << QString( "Link: %1" ).arg( fNumLink )
+            << QString( "Manifests: %1" ).arg( fNumManifest )
+            << QString( "CygwinCC.pl: %1" ).arg( fNumCygwinCC )
+            << QString( "Obfuscated: %1" ).arg( fNumObfuscate )
+            << QString( "Moc: %1" ).arg( fNumMoc )
+            << QString( "Uic: %1" ).arg( fNumUIC )
+            << QString( "Rcc: %1" ).arg( fNumRcc )
+            << QString( "Unhandled: %1" ).arg( fNumUnloaded )
             ;
         QString prefix;
         QString suffix;
@@ -241,33 +246,22 @@ namespace NVSProjectMaker
     {
         QRegularExpressionMatch match;
         if ( line.indexOf( regExp, 0, &match ) != 0 )
-            return false;
+            return nullptr;
 
         if ( !item )
-            return false;
+            return nullptr;
 
         item->loadData( line, match.capturedLength() );
         if ( !item->status() )
         {
             fStatus = item->fStatus;
             fReportFunc( QString( "Error LineNum: %1 - %2\n" ).arg( lineNum ).arg( item->errorString() ) );
-            return false;
-        }
-        for ( auto && ii : item->fOtherOptions )
-        {
-            fReportFunc( QString( "Warning LineNum: %1 - Unknown Options: %2\n" ).arg( lineNum ).arg( item->fOtherOptions.join( " " ) ) );
+            return nullptr;
         }
 
-        if ( item->firstSrcFile().isEmpty() )
-        {
-            fReportFunc( QString( "Warning LineNum: %1 - Could not determine Primary Source File\n" ).arg( lineNum ) );
-        }
-
-        if ( item->targetFile().isEmpty() )
-        {
-            fReportFunc( QString( "Warning LineNum: %1 - Could not determine Output File\n" ).arg( lineNum ) );
-        }
-
+        auto tmp = item->postLoadData( lineNum, fSettings->getBldTxtProdDir(), fReportFunc );
+        cleanupProdDirUsages( tmp );
+        fProdDirUsages.insert( tmp.begin(), tmp.end() );
         return item;
     }
 
@@ -506,6 +500,21 @@ namespace NVSProjectMaker
         return paths;
     }
 
+    QStringList SManifestItem::xformProdDirInSourceAndTarget( const QString & origProdDir )
+    {
+        QStringList retVal;
+        QStringList paths;
+        if ( getOptionValue( paths, EOptionType::eStringList, "outputresource" ) )
+        {
+            retVal << transformProdDir( paths, origProdDir );
+        }
+        if ( getOptionValue( paths, EOptionType::eStringList, "manifest" ) )
+        {
+            retVal << transformProdDir( paths, origProdDir );
+        }
+        return retVal;
+    }
+
     SObfuscatedItem::SObfuscatedItem( int lineNum ) :
         SItem( lineNum, Qt::CaseSensitivity::CaseInsensitive )
     {
@@ -540,6 +549,17 @@ namespace NVSProjectMaker
         {
              {"o", std::make_tuple( EOptionType::eString, false, TOptionValue() ) }
         };
+    }
+
+    QStringList SObfuscatedItem::allSources() const
+    {
+        return QStringList() << fInputFile;
+    }
+
+    QStringList SObfuscatedItem::xformProdDirInSourceAndTarget( const QString & origProdDir )
+    {
+        auto retVal = QStringList() << transformProdDir( fInputFile, origProdDir );
+        return retVal;
     }
 
     std::shared_ptr< NVSProjectMaker::SDirItem > CBuildInfoData::addDir( const QString & dir )
@@ -809,6 +829,11 @@ namespace NVSProjectMaker
         return fSourceFiles;
     }
 
+    QStringList SCompileItem::xformProdDirInSourceAndTarget( const QString & origProdDir )
+    {
+        return transformProdDir( fSourceFiles, origProdDir );
+    }
+
     SGccCompileItem::SGccCompileItem( int lineNum ) :
         SCompileItem( lineNum )
     {
@@ -896,6 +921,11 @@ namespace NVSProjectMaker
 
         retVal << defFile;
         return retVal;
+    }
+
+    QStringList SLibraryItem::xformProdDirInSourceAndTarget( const QString & origProdDir )
+    {
+        return transformProdDir( fInputs, origProdDir );
     }
 
     SExecItem::SExecItem( int lineNum ) :
@@ -1030,6 +1060,12 @@ namespace NVSProjectMaker
         return retVal;
     }
 
+    QStringList SExecItem::xformProdDirInSourceAndTarget( const QString & origProdDir )
+    {
+        auto retVal = QStringList() << transformProdDir( fFiles, origProdDir ) << transformProdDir( fCommandFiles, origProdDir );
+        return retVal;
+    }
+
     bool SItem::isTrue( const QString & value )
     {
         if ( value.isEmpty() )
@@ -1043,6 +1079,83 @@ namespace NVSProjectMaker
         if ( value.compare( "-", Qt::CaseInsensitive ) == 0 )
             return false;
         return true;
+    }
+
+    QStringList SItem::transformProdDir( QString & curr, const QString & origProdDir ) const
+    {
+        auto tmp = origProdDir;
+        tmp = tmp.replace( "\\", "\\\\" );
+        tmp = tmp.replace( "/", "\\/" );
+        tmp = tmp.replace( "~", "\\~" );
+        tmp = tmp.replace( ":", "\\:" );
+        tmp += "[\\/\\\\]?";
+        QRegularExpression regEx( tmp, QRegularExpression::CaseInsensitiveOption );
+        if ( curr.contains( origProdDir ) )
+        {
+            curr = curr.replace( regEx, "<PRODDIR>/" );
+            return QStringList() << curr;;
+        }
+        return {};
+    }
+
+    QStringList SItem::transformProdDir( QStringList & curr, const QString & origProdDir ) const
+    {
+        QStringList retVal;
+
+        for ( auto && ii : curr )
+        {
+            retVal << transformProdDir( ii, origProdDir );
+        }
+        return retVal;
+    }
+
+    QStringList SItem::transformProdDir( TOptionTypeMap & currValues, const QString & origProdDir ) const
+    {
+        QStringList retVal;
+        for ( auto && ii : currValues )
+        {
+            auto && currType = ii.second;
+            switch ( std::get< 0 >( currType ) )
+            {
+                case EOptionType::eBool:
+                continue;
+                break;
+                case EOptionType::eString:
+                if ( std::get< 2 >( currType ).has_value() )
+                    retVal << transformProdDir( std::get< 1 >( std::get< 2 >( currType ).value() ), origProdDir );
+                break;
+                case EOptionType::eStringList:
+                if ( std::get< 2 >( currType ).has_value() )
+                    retVal << transformProdDir( std::get< 2 >( std::get< 2 >( currType ).value() ), origProdDir );
+                break;
+            }
+        }
+        return retVal;
+    }
+
+    QStringList SItem::postLoadData( int lineNum, const QString & origProdDir, std::function< void( const QString & msg ) > reportFunc )
+    {
+        QStringList retVal = 
+            transformProdDir( fOtherOptions, origProdDir ) 
+            << xformProdDirInSourceAndTarget( origProdDir )
+            << transformProdDir( fOptions, origProdDir )
+        ;
+
+        for ( auto && ii : fOtherOptions )
+        {
+            reportFunc( QString( "Warning LineNum: %1 - Unknown Options: %2\n" ).arg( lineNum ).arg( fOtherOptions.join( " " ) ) );
+        }
+
+        if ( firstSrcFile().isEmpty() )
+        {
+            reportFunc( QString( "Warning LineNum: %1 - Could not determine Primary Source File\n" ).arg( lineNum ) );
+        }
+
+        if ( targetFile().isEmpty() )
+        {
+            reportFunc( QString( "Warning LineNum: %1 - Could not determine Output File\n" ).arg( lineNum ) );
+        }
+        return retVal;
     }
 
     QString SItem::dump() const

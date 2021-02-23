@@ -74,6 +74,8 @@ public Q_SLOTS:
     void slotVSChanged();
 
     void slotLoadSource();
+    void slotLoadOutputData();
+    void slotLoadSourceAndOutputData();
 
     bool expandDirectories( QStandardItem * rootNode );
 
@@ -93,7 +95,6 @@ public Q_SLOTS:
     void slotAddDebugTarget();
     void slotCurrentProjectChanged( const QString & projFile );
     void slotSetBuildOutputFile();
-    void slotLoadOutputData();
 
     void addDebugTarget( const QString & sourceDir, const QString & name, const QString & cmd, const QString & args, const QString & workDir, const QString & envVars );
     void addDebugTarget( const NVSProjectMaker::SDebugTarget & dbgCmd );
@@ -139,6 +140,7 @@ private:
     QHash< QString, QList< QPair< QString, bool > > > fExecutables;
 
     std::optional< QDir > fSourceDir;
+    std::optional< QString > fBuildTextFile;
     QStandardItemModel * fSourceModel{ nullptr };
     QStandardItemModel * fBuildInfoDataModel{ nullptr };
     CCheckableStringListModel * fIncDirModel{ nullptr };
@@ -150,9 +152,11 @@ private:
     QProcess * fProcess{ nullptr };
 
     int fDisconnected{ 0 };
+    bool fLoadSourceAfterLoadData{ false };
 
     std::unique_ptr< NVSProjectMaker::CSettings > fSettings;
     std::shared_ptr< NVSProjectMaker::CBuildInfoData > fBuildInfoData;
+    QStringList fProdDirUsages;
 };
 
 #endif // _ALCULATOR_H

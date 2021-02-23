@@ -21,10 +21,48 @@
 // SOFTWARE.
 
 #include "MainWindow/MainWindow.h"
-
+#include <iostream>
 #include <QApplication>
 #include <QLabel>
 #include <QVariant>
+
+static uint typeOfVariant( const QVariant & value )
+{
+    //return 0 for integer, 1 for floating point and 2 for other
+    switch ( value.userType() )
+    {
+        case QVariant::Bool:
+        case QVariant::Int:
+        case QVariant::UInt:
+        case QVariant::LongLong:
+        case QVariant::ULongLong:
+        case QVariant::Char:
+        case QMetaType::Short:
+        case QMetaType::UShort:
+        case QMetaType::UChar:
+        case QMetaType::ULong:
+        case QMetaType::Long:
+        return 0;
+        case QVariant::Double:
+        case QMetaType::Float:
+        return 1;
+        default:
+        return 2;
+    }
+}
+
+bool variantLessThan( const QVariant & v1, const QVariant & v2 )
+{
+    switch ( qMax( typeOfVariant( v1 ), typeOfVariant( v2 ) ) )
+    {
+        case 0: //integer type
+        return v1.toLongLong() < v2.toLongLong();
+        case 1: //floating point
+        return v1.toReal() < v2.toReal();
+        default:
+        return v1.toString().localeAwareCompare( v2.toString() ) < 0;
+    }
+}
 
 int main( int argc, char ** argv )
 {

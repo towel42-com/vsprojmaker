@@ -85,7 +85,6 @@ CMainWindow::CMainWindow( QWidget * parent )
     connect( fImpl->addCustomBuildBtn, &QToolButton::clicked, this, &CMainWindow::slotAddCustomBuild );
     connect( fImpl->addDebugTargetBtn, &QToolButton::clicked, this, &CMainWindow::slotAddDebugTarget );
     connect( fImpl->bldOutputFileBtn, &QToolButton::clicked, this, &CMainWindow::slotSetBuildOutputFile );
-    connect( fImpl->bldOutputFile, &QLineEdit::textChanged, this, &CMainWindow::slotLoadOutputData );
     connect( fImpl->runBuildAnalysisBtn, &QToolButton::clicked, this, &CMainWindow::slotLoadOutputData );
     
     connect( fImpl->generateBtn, &QToolButton::clicked, this, &CMainWindow::slotGenerate );
@@ -117,6 +116,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     setProjects( settings.value( "RecentProjects" ).toStringList() );
 
     fImpl->projectFile->setFocus();
+    fImpl->tabWidget->setCurrentIndex( 0 );
 }
 
 void CMainWindow::popDisconnected( bool force )
@@ -132,6 +132,7 @@ void CMainWindow::popDisconnected( bool force )
         connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
         connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
         connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
+        connect( fImpl->bldOutputFile, &QLineEdit::textChanged, this, &CMainWindow::slotLoadOutputData );
     }
 }
 
@@ -146,6 +147,7 @@ void CMainWindow::pushDisconnected()
         disconnect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
         disconnect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
         disconnect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
+        disconnect( fImpl->bldOutputFile, &QLineEdit::textChanged, this, &CMainWindow::slotLoadOutputData );
     }
     fDisconnected++;
 }
@@ -357,6 +359,8 @@ void CMainWindow::saveSettings()
     fSettings->setProdDir( fImpl->prodDir->text() );
     fSettings->setMSys64Dir( fImpl->msys64Dir->text() );
     fSettings->setSelectedQtDirs( fQtLibsModel->getCheckedStrings() );
+    fSettings->setBuildOutputDataFile( fImpl->bldOutputFile->text() );
+    fSettings->setBldTxtProdDir( fImpl->origBldTxtProdDir->text() );
 
     auto attribs = findDirAttributes( nullptr );
     auto customBuilds = getCustomBuilds( false );
@@ -369,6 +373,7 @@ void CMainWindow::saveSettings()
     fSettings->setExecNames( std::get< 1 >( attribs ) );
     fSettings->setCustomBuilds( customBuilds );
     fSettings->setDebugCommands( dbgCommands );
+
 }
 
 
@@ -383,6 +388,8 @@ void CMainWindow::loadSettings()
     fImpl->qtDir->setText( fSettings->getQtDir() );
     fImpl->prodDir->setText( fSettings->getProdDir() );
     fImpl->msys64Dir->setText( fSettings->getMSys64Dir() );
+    fImpl->origBldTxtProdDir->setText( fSettings->getBldTxtProdDir() );
+    fImpl->bldOutputFile->setText( fSettings->getBuildOutputDataFile() );
 
     fQtLibsModel->setStringList( fSettings->getQtDirs() );
     fQtLibsModel->setChecked( fSettings->getSelectedQtDirs(), true, true );
@@ -428,7 +435,7 @@ void CMainWindow::slotChanged()
     doChanged( true );
 }
 
-void CMainWindow::doChanged( bool loadSource )
+void CMainWindow::doChanged( bool andLoad )
 {
     bool generatorOK = !fImpl->generator->currentText().isEmpty();
 
@@ -463,15 +470,36 @@ void CMainWindow::doChanged( bool loadSource )
         fSourceModel->clear();
     }
 
+    bool loadSource = false;
+    bool loadOutputData = false;
     if ( sourceDirOK && ( !fSourceDir.has_value() || ( fSourceDir.has_value() && ( fSourceDir != sourceDir ) ) ) )
     {
         fSourceDir = sourceDir;
-        if ( loadSource )
-            QTimer::singleShot( 0, this, &CMainWindow::slotLoadSource );
+        loadSource = true;
     }
 
     if ( !sourceDirOK )
         fSourceDir = QDir();
+
+    auto buildTxtFile = fSettings->getBuildOutputDataFile();
+    if ( !buildTxtFile.isEmpty() && QFileInfo( buildTxtFile ).exists() && QFileInfo( buildTxtFile ).isReadable() )
+    {
+        if ( !fBuildTextFile.has_value() || ( fBuildTextFile.has_value() && ( fBuildTextFile.value() != buildTxtFile ) ) )
+        {
+            fBuildTextFile = buildTxtFile;
+            loadOutputData = true;
+        }
+    }
+
+    if ( andLoad )
+    {
+        if ( loadSource && loadOutputData )
+            QTimer::singleShot( 0, this, &CMainWindow::slotLoadSourceAndOutputData );
+        else if ( loadSource )
+            QTimer::singleShot( 0, this, &CMainWindow::slotLoadSource );
+        else if ( loadOutputData )
+            QTimer::singleShot( 0, this, &CMainWindow::slotLoadOutputData );
+    }
 
     auto bldDir = getBuildDir();
     fi = clientDirOK && bldDir.has_value() ? QFileInfo( bldDir.value() ) : QFileInfo();
@@ -978,38 +1006,6 @@ void CMainWindow::slotSetBuildOutputFile()
     fImpl->bldOutputFile->setText( newPath );
 }
 
-void CMainWindow::slotLoadOutputData()
-{
-    fBuildInfoDataModel->clear();
-    fImpl->log->clear();
-
-    QProgressDialog * progress = new QProgressDialog( tr( "Reading Build Output..." ), tr( "Cancel" ), 0, 0, this );
-    progress->setLabelText( "Reading Build Output" );
-    progress->setAutoReset( false );
-    progress->setAutoClose( false );
-    progress->setWindowModality( Qt::WindowModal );
-    progress->setMinimumDuration( 1 );
-    progress->setRange( 0, 100 );
-    progress->setValue( 0 );
-
-    fBuildInfoData = std::make_shared< NVSProjectMaker::CBuildInfoData >( fImpl->bldOutputFile->text(),
-                                                                     [ this ]( const QString & msg )
-                                                                     {    
-                                                                          appendToLog( msg );
-                                                                          qApp->processEvents();
-                                                                     }, progress );
-    if ( !fBuildInfoData->status() )
-    {
-        progress->close();
-        QMessageBox::critical( this, tr( "Could not read Output Data File" ), fBuildInfoData->errorString() );
-        fBuildInfoData.reset();
-        return;
-    }
-    fBuildInfoData->loadIntoTree( fBuildInfoDataModel );
-    progress->deleteLater();
-}
-
-
 void CMainWindow::appendToLog( const QString & txt )
 {
     fImpl->log->appendPlainText( txt.trimmed() );
@@ -1043,53 +1039,6 @@ QStandardItem * CMainWindow::loadSourceFileModel()
         ii->createItem( rootNode );
     }
     return rootNode;
-}
-
-void CMainWindow::slotLoadSource()
-{
-    fImpl->log->clear();
-
-    auto text = fSourceDir.value().dirName();
-
-    fSettings->getResults()->clear();
-    fSettings->getResults()->fRootDir->fName = text;
-    fSettings->getResults()->fRootDir->fIsDir = true;
-
-    appendToLog( tr( "============================================" ) );
-    appendToLog( tr( "Finding Source Files..." ) );
-    QProgressDialog * progress = new QProgressDialog( tr( "Finding Source Files..." ), tr( "Cancel" ), 0, 0, this );
-    auto label = new QLabel;
-    label->setAlignment( Qt::AlignLeft );
-    progress->setLabel( label );
-    progress->setAutoReset( false );
-    progress->setAutoClose( false );
-    progress->setWindowModality( Qt::WindowModal );
-    progress->setMinimumDuration( 1 );
-    progress->setRange( 0, 100 );
-    progress->setValue( 0 );
-    bool wasCancelled = fSettings->loadSourceFiles( fSourceDir.value(), getSourceDir().value(), progress, [this]( const QString & msg ) { appendToLog( msg ); } );
-    auto rootNode = loadSourceFileModel();
-
-    addInclDirs( fSettings->getResults()->fInclDirs );
-    appendToLog( tr( "============================================" ) );
-
-    if ( wasCancelled )
-    {
-        fSourceModel->clear();
-        appendToLog( tr( "Finding Source Files Canceled" ) );
-        QMessageBox::warning( this, tr( "canceled" ), tr( "Finding Source files Canceled" ) );
-    }
-    else
-    {
-        delete progress;
-        qApp->processEvents();
-        expandDirectories( rootNode );
-
-        appendToLog( tr( "Finished Finding Source Files" ) );
-        appendToLog( tr( "Results:" ) );
-        appendToLog( fSettings->getResults()->getText( true ) );
-    }
-    fImpl->tabWidget->setCurrentIndex( 0 );
 }
 
 bool CMainWindow::expandDirectories( QStandardItem * node )
@@ -1167,4 +1116,96 @@ void CMainWindow::slotGenerate()
     },
         fProcess
         , { false, [this, progress]() { QApplication::restoreOverrideCursor(); progress->deleteLater(); } } );
+}
+
+void CMainWindow::slotLoadSourceAndOutputData()
+{
+    fLoadSourceAfterLoadData = true;
+    QTimer::singleShot( 0, this, &CMainWindow::slotLoadOutputData );
+}
+
+void CMainWindow::slotLoadSource()
+{
+    fImpl->tabWidget->setCurrentIndex( 0 );
+    fImpl->log->clear();
+
+    auto text = fSourceDir.value().dirName();
+
+    fSettings->getResults()->clear();
+    fSettings->getResults()->fRootDir->fName = text;
+    fSettings->getResults()->fRootDir->fIsDir = true;
+
+    appendToLog( tr( "============================================" ) );
+    appendToLog( tr( "Finding Source Files..." ) );
+    QProgressDialog * progress = new QProgressDialog( tr( "Finding Source Files..." ), tr( "Cancel" ), 0, 0, this );
+    auto label = new QLabel;
+    label->setAlignment( Qt::AlignLeft );
+    progress->setLabel( label );
+    progress->setAutoReset( false );
+    progress->setAutoClose( false );
+    progress->setWindowModality( Qt::WindowModal );
+    progress->setMinimumDuration( 1 );
+    progress->setRange( 0, 100 );
+    progress->setValue( 0 );
+    bool wasCanceled = fSettings->loadSourceFiles( fSourceDir.value(), getSourceDir().value(), progress, [this]( const QString & msg ) { appendToLog( msg ); } );
+    auto rootNode = loadSourceFileModel();
+
+    addInclDirs( fSettings->getResults()->fInclDirs );
+    appendToLog( tr( "============================================" ) );
+
+    if ( wasCanceled )
+    {
+        fSourceModel->clear();
+        appendToLog( tr( "Finding Source Files Canceled" ) );
+        QMessageBox::warning( this, tr( "canceled" ), tr( "Finding Source files Canceled" ) );
+    }
+    else
+    {
+        delete progress;
+        qApp->processEvents();
+        expandDirectories( rootNode );
+
+        appendToLog( tr( "Finished Finding Source Files" ) );
+        appendToLog( tr( "Results:" ) );
+        appendToLog( fSettings->getResults()->getText( true ) );
+    }
+    fImpl->tabWidget->setCurrentIndex( 0 );
+}
+
+void CMainWindow::slotLoadOutputData()
+{
+    fImpl->tabWidget->setCurrentIndex( 1 );
+
+    fBuildInfoDataModel->clear();
+    fImpl->log->clear();
+
+    QProgressDialog * progress = new QProgressDialog( tr( "Reading Build Output..." ), tr( "Cancel" ), 0, 0, this );
+    progress->setLabelText( "Reading Build Output" );
+    progress->setAutoReset( false );
+    progress->setAutoClose( false );
+    progress->setWindowModality( Qt::WindowModal );
+    progress->setMinimumDuration( 1 );
+    progress->setRange( 0, 100 );
+    progress->setValue( 0 );
+
+    fBuildInfoData = std::make_shared< NVSProjectMaker::CBuildInfoData >( fImpl->bldOutputFile->text(),
+                                                                          [this]( const QString & msg )
+    {
+        appendToLog( msg );
+        qApp->processEvents();
+    }, fSettings.get(), progress );
+    if ( !fBuildInfoData->status() )
+    {
+        progress->close();
+        QMessageBox::critical( this, tr( "Could not read Output Data File" ), fBuildInfoData->errorString() );
+        fBuildInfoData.reset();
+        return;
+    }
+    fBuildInfoData->loadIntoTree( fBuildInfoDataModel );
+    progress->deleteLater();
+    if ( !progress->wasCanceled() && fLoadSourceAfterLoadData )
+    {
+        QTimer::singleShot( 0, this, &CMainWindow::slotLoadSource );
+        fLoadSourceAfterLoadData = false;
+    }
 }

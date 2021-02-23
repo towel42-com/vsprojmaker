@@ -33,6 +33,7 @@
 #include <QDir>
 #include <functional>
 #include <optional>
+#include "SABUtils/QtUtils.h"
 class QStandardItem;
 class QProgressDialog;
 class QProcess;
@@ -188,6 +189,7 @@ namespace NVSProjectMaker
         ADD_SETTING( TListOfStringPair, CustomBuilds );
         ADD_SETTING( TListOfDebugTargets, DebugCommands );
         ADD_SETTING( QString, BuildOutputDataFile );
+        ADD_SETTING( QString, BldTxtProdDir );
 
     private:
         QMap< QString, QString > getVarMap() const;

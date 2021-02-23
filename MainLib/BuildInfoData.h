@@ -22,7 +22,9 @@
 
 #ifndef __BUILDINFODATA_H
 #define __BUILDINFODATA_H
+
 #include "SABUtils/StringComparisonClasses.h"
+
 #include <QString>
 #include <QStringList>
 #include <map>
@@ -36,6 +38,7 @@ class QStandardItem;
 
 namespace NVSProjectMaker
 {
+    class CSettings;
     enum class EOptionType
     {
         eBool,
@@ -147,6 +150,12 @@ namespace NVSProjectMaker
 
         static bool isTrue( const QString & value );
 
+        virtual QStringList postLoadData( int lineNum, const QString & origProdDir, std::function< void( const QString & msg ) > reportFunc );
+        QStringList transformProdDir( QString & curr, const QString & origProdDir ) const;
+        QStringList transformProdDir( QStringList & currValues, const QString & origProdDir ) const;
+        QStringList transformProdDir( TOptionTypeMap & currValues, const QString & origProdDir ) const;
+        virtual QStringList xformProdDirInSourceAndTarget( const QString & origProdDir )=0;
+
         QString dump() const;
         QStringList fOtherOptions;
         QString fPrevOption;
@@ -167,6 +176,8 @@ namespace NVSProjectMaker
 
         virtual QString getItemTypeName() const { return "Compile"; }
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseSensitive; }
+        virtual QStringList xformProdDirInSourceAndTarget( const QString & origProdDir );
+
         virtual QStringList allSources() const override;
 
         QStringList fSourceFiles;
@@ -200,6 +211,7 @@ namespace NVSProjectMaker
         virtual QString targetFileOption() const override { return "OUT"; };
         virtual QStringList allSources() const override;
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
+        virtual QStringList xformProdDirInSourceAndTarget( const QString & origProdDir );
         virtual QString getItemTypeName() const { return "Library"; }
         virtual bool srcPriorityForDir() const { return false; }
 
@@ -215,6 +227,7 @@ namespace NVSProjectMaker
         virtual QString targetFileOption() const override { return "OUT"; };
         virtual QStringList allSources() const override;
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
+        virtual QStringList xformProdDirInSourceAndTarget( const QString & origProdDir );
         virtual QString getItemTypeName() const { return "App/DLL"; }
         virtual bool srcPriorityForDir() const { return false; }
 
@@ -233,6 +246,7 @@ namespace NVSProjectMaker
 
         virtual QStringList allSources() const override;
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
+        virtual QStringList xformProdDirInSourceAndTarget( const QString & origProdDir );
         virtual QString getItemTypeName() const { return "Manifest"; }
     };
 
@@ -244,8 +258,9 @@ namespace NVSProjectMaker
         void initOptions();
         virtual QString targetFileOption() const override { return "o"; };
 
-        virtual QStringList allSources() const override { return QStringList() << fInputFile; }
+        virtual QStringList allSources() const override;
         virtual Qt::CaseSensitivity caseInsensitiveOptions() const override { return Qt::CaseInsensitive; }
+        virtual QStringList xformProdDirInSourceAndTarget( const QString & origProdDir );
         virtual QString getItemTypeName() const { return "Obfuscated"; }
 
         QString fInputFile;
@@ -268,7 +283,7 @@ namespace NVSProjectMaker
     class CBuildInfoData
     {
     public:
-        CBuildInfoData( const QString & fileName, std::function< void( const QString & msg ) > reportFunc, QProgressDialog * progress );
+        CBuildInfoData( const QString & fileName, std::function< void( const QString & msg ) > reportFunc, CSettings * settings, QProgressDialog * progress );
         bool status() const { return fStatus.first; }
         QString errorString() const { return fStatus.second; }
 
@@ -276,8 +291,26 @@ namespace NVSProjectMaker
     private:
         bool isSourceFile( const QString & fileName ) const;
         void determineDependencies();
+        void cleanupProdDirUsages( QStringList & currData );
         std::shared_ptr< SItem > loadLine( QRegularExpression & regExp, const QString & line, int lineNum, std::shared_ptr< SItem > item );
-        QString getStatusString( size_t numDirectories, int numClLines, int numGccLines, int numLibLines, int numLinkLines, int numMTLines, int numCygwinCCLines, int numObfuscateLines, int numMocLines, int numUicLines, int numRccLines, int numUnloadedLines, bool forGUI ) const;
+
+        struct SStatusInfo
+        {
+            int fLineNum;
+            int fNumCL{ 0 };
+            int fNumGcc{ 0 };
+            int fNumCygwinCC{ 0 };
+            int fNumLib{ 0 };
+            int fNumLink{ 0 };
+            int fNumManifest{ 0 };
+            int fNumObfuscate{ 0 };
+            int fNumMoc{ 0 };
+            int fNumUIC{ 0 };
+            int fNumRcc{ 0 };
+            int fNumUnloaded{ 0 };
+
+            QString getStatusString( size_t numDirectories, bool forGUI ) const;
+        };
 
         bool loadVSCl( const QString & line, int lineNum );
         bool loadGcc( const QString & line, int lineNum );
@@ -292,13 +325,15 @@ namespace NVSProjectMaker
 
         void addItem( std::shared_ptr< SItem > item );
         std::shared_ptr< SDirItem > addDir( const QString & dir );
+        CSettings * fSettings{ nullptr }; // not owned`
         std::function< void( const QString & msg ) > fReportFunc;
         std::map< QString, std::shared_ptr< SDirItem > > fDirectories;
 
         std::multimap< QString, std::shared_ptr< SItem > > fTargets;
         std::multimap< QString, std::shared_ptr< SItem > > fSources;
 
-        std::pair< bool, QString > fStatus = std::make_pair( false, QString() );;
+        std::pair< bool, QString > fStatus = std::make_pair( false, QString() );
+        std::set< QString > fProdDirUsages;
     };
 }
 
