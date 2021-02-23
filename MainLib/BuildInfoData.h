@@ -277,7 +277,7 @@ namespace NVSProjectMaker
         bool isSourceFile( const QString & fileName ) const;
         void determineDependencies();
         std::shared_ptr< SItem > loadLine( QRegularExpression & regExp, const QString & line, int lineNum, std::shared_ptr< SItem > item );
-        QString getStatusString( size_t numDirectories, int numClLines, int numGccLines, int numLibLines, int numLinkLines, int numMTLines, int numCygwinCCLines, int numObfuscateLines, int numUnloadedLines, bool forGUI ) const;
+        QString getStatusString( size_t numDirectories, int numClLines, int numGccLines, int numLibLines, int numLinkLines, int numMTLines, int numCygwinCCLines, int numObfuscateLines, int numMocLines, int numUicLines, int numRccLines, int numUnloadedLines, bool forGUI ) const;
 
         bool loadVSCl( const QString & line, int lineNum );
         bool loadGcc( const QString & line, int lineNum );
@@ -286,6 +286,9 @@ namespace NVSProjectMaker
         bool loadManifest( const QString & line, int lineNum );
         bool loadCygwinCC( const QString & line, int lineNum );
         bool loadObfuscate( const QString & line, int lineNum );
+        bool loadMoc( const QString & line, int lineNum );
+        bool loadUic( const QString & line, int lineNum );
+        bool loadRcc(const QString & line, int lineNum);
 
         void addItem( std::shared_ptr< SItem > item );
         std::shared_ptr< SDirItem > addDir( const QString & dir );

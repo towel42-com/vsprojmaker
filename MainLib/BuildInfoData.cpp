@@ -66,6 +66,9 @@ namespace NVSProjectMaker
         int numCygwinCCLines = 0;
         int numUnhandledLines = 0;
         int numObfuscateLines = 0;
+        int numMocLines = 0;
+        int numUicLines = 0;
+        int numRccLines = 0;
         int lineNum = 0;
         while ( ts.readLineInto( &currLine ) )
         {
@@ -75,7 +78,7 @@ namespace NVSProjectMaker
                 if ( progress->wasCanceled() )
                     break;
 
-                auto labelText = getStatusString( fDirectories.size(), numClLines, numGccLines, numLibLines, numLinkLines, numMTLines, numCygwinCCLines, numObfuscateLines, numUnhandledLines, true );
+                auto labelText = getStatusString( fDirectories.size(), numClLines, numGccLines, numLibLines, numLinkLines, numMTLines, numCygwinCCLines, numObfuscateLines, numMocLines, numUicLines, numRccLines, numUnhandledLines, true );
                 progress->setLabelText( labelText );
             }
 
@@ -98,6 +101,12 @@ namespace NVSProjectMaker
                 numCygwinCCLines++;
             else if ( loadObfuscate( currLine, lineNum ) )
                 numObfuscateLines++;
+            else if ( loadMoc( currLine, lineNum ) )
+                numMocLines++;
+            else if ( loadUic( currLine, lineNum ) )
+                numUicLines++;
+            else if ( loadRcc( currLine, lineNum ) )
+                numRccLines++;
             else
             {
                 numUnhandledLines++;
@@ -114,7 +123,7 @@ namespace NVSProjectMaker
 
         determineDependencies();
 
-        reportFunc( getStatusString( fDirectories.size(), numClLines, numGccLines, numLibLines, numLinkLines, numMTLines, numCygwinCCLines, numObfuscateLines, numUnhandledLines, false ) );
+        reportFunc( getStatusString( fDirectories.size(), numClLines, numGccLines, numLibLines, numLinkLines, numMTLines, numCygwinCCLines, numObfuscateLines, numMocLines, numUicLines, numRccLines, numUnhandledLines, false ) );
         fStatus = std::make_pair( true, QString() );
     }
 
@@ -195,7 +204,7 @@ namespace NVSProjectMaker
         }
     }
 
-    QString CBuildInfoData::getStatusString( size_t numDirectories, int numClLines, int numGccLines, int numLibLines, int numLinkLines, int numMTLines, int numCygwinCCLines, int numObfuscateLines, int numUnhandledLines, bool forGUI ) const
+    QString CBuildInfoData::getStatusString( size_t numDirectories, int numClLines, int numGccLines, int numLibLines, int numLinkLines, int numMTLines, int numCygwinCCLines, int numObfuscateLines, int numMocLines, int numUicLines, int numRccLines, int numUnhandledLines, bool forGUI ) const
     {
         QStringList data = QStringList()
             << QString( "Directories: %1" ).arg( numDirectories )
@@ -206,6 +215,9 @@ namespace NVSProjectMaker
             << QString( "Manifests: %1" ).arg( numMTLines )
             << QString( "CygwinCC.pl: %1" ).arg( numCygwinCCLines )
             << QString( "Obfuscated: %1" ).arg( numObfuscateLines )
+            << QString( "Moc: %1" ).arg(numMocLines)
+            << QString( "Uic: %1" ).arg(numUicLines)
+            << QString( "Rcc: %1" ).arg(numRccLines)
             << QString( "Unhandled: %1" ).arg( numUnhandledLines )
             ;
         QString prefix;
@@ -351,6 +363,24 @@ namespace NVSProjectMaker
         addItem( item );
 
         return true;
+    }
+
+    bool CBuildInfoData::loadMoc( const QString & line, int /*lineNum*/ )
+    {
+        auto regExp = QRegularExpression( "^.*\\/moc(.exe)?\\s+" );
+        return line.indexOf(regExp, 0) == 0;
+    }
+
+    bool CBuildInfoData::loadUic(const QString & line, int /*lineNum*/)
+    {
+        auto regExp = QRegularExpression( "^.*\\/uic(.exe)?\\s+" );
+        return line.indexOf(regExp, 0) == 0;
+    }
+
+    bool CBuildInfoData::loadRcc(const QString & line, int /*lineNum*/)
+    {
+        auto regExp = QRegularExpression("^.*\\/rcc(.exe)?\\s+");
+        return line.indexOf(regExp, 0) == 0;
     }
 
     void CBuildInfoData::addItem( std::shared_ptr< SItem > item )
