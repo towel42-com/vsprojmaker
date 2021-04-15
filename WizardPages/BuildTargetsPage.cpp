@@ -38,7 +38,7 @@ CBuildTargetsPage::CBuildTargetsPage( QWidget * parent )
     connect( fBuildTargets, &CCheckableStringListModel::dataChanged, this, &CBuildTargetsPage::slotBuildsChanged );
 
     fImpl->primaryTarget->addItems( buildTargets );
-    fImpl->primaryTarget->setCurrentText( "qworld" );
+    fImpl->primaryTarget->setCurrentText( "qoffice" );
     registerField( "primaryTarget", fImpl->primaryTarget );
     slotBuildsChanged();
 }
