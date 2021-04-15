@@ -49,7 +49,7 @@ set(otherFILES
 
 include( ${CMAKE_BINARY_DIR}/Project.cmake )
 
-add_custom_target( <PROJECT_NAME> ALL
+add_custom_target( <PROJECT_NAME> <ALL_SETTING>
                  COMMAND echo "Header Directory"
                  SOURCES ${project_SRCS}
                  ${project_H}

@@ -29,7 +29,7 @@ project( <PROJECT_NAME> )
 
 include( ${CMAKE_BINARY_DIR}/Project.cmake )
 
-add_custom_target( <PROJECT_NAME> ALL
+add_custom_target( <PROJECT_NAME> <ALL_SETTING>
                  COMMAND <MSYS64DIR_WIN>/usr/bin/bash.exe -login -c "<BUILDITSHELL>"
                  SOURCES ${project_SRCS}
                  ${project_H}

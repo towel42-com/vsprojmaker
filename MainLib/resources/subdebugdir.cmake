@@ -29,7 +29,7 @@ project( <PROJECT_NAME> )
 
 #include( ${CMAKE_BINARY_DIR}/Project.cmake )
 
-add_custom_target( <PROJECT_NAME> ALL
+add_custom_target( <PROJECT_NAME> <ALL_SETTING>
                  COMMAND echo "Debug Only"
                  OUTPUT "<DEBUG_COMMAND>"
                  SOURCES ${project_SRCS}
