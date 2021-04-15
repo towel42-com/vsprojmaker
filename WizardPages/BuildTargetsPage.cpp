@@ -30,7 +30,7 @@ CBuildTargetsPage::CBuildTargetsPage( QWidget * parent )
 {
     fImpl->setupUi( this );
     fBuildTargets = new CCheckableStringListModel( this );
-    auto buildTargets = QStringList() << "qworld" << "qoffice" << "world";
+    auto buildTargets = QStringList() << "qworld" << "qoffice";
     fBuildTargets->setStringList( buildTargets );
     fBuildTargets->setChecked( buildTargets, true, true );
     fImpl->buildTargets->setModel( fBuildTargets );
