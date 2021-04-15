@@ -38,7 +38,9 @@ public:
     void setDefaults();
 
     QStringList enabledBuildTargets() const;
+    QString primaryTarget() const;
 public Q_SLOTS:
+    void slotBuildsChanged();
 private:
     std::unique_ptr< Ui::CBuildTargetsPage > fImpl;
     CCheckableStringListModel * fBuildTargets{ nullptr };

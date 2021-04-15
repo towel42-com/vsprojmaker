@@ -153,6 +153,7 @@ namespace NVSProjectMaker
         std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > getDirInfo( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;
         bool getParentOfPairDirectoriesMap( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;
 
+        QString getPrimaryTargetSetting( const QString & projectName ) const;
         [[nodiscard]] QString getEnvVarsForShell() const;
 
         [[nodiscard]] std::shared_ptr< NVSProjectMaker::SSourceFileResults > getResults() const { return fResults; }
@@ -189,6 +190,7 @@ namespace NVSProjectMaker
         ADD_SETTING( QStringList, SelectedPreProcDefines );
         ADD_SETTING( TExecNameType, ExecNames );
         ADD_SETTING( TListOfStringPair, CustomBuilds );
+        ADD_SETTING( QString, PrimaryTarget );
         ADD_SETTING( TListOfDebugTargets, DebugCommands );
         ADD_SETTING( QString, BuildOutputDataFile );
         ADD_SETTING( QString, BldTxtProdDir );

@@ -100,8 +100,9 @@ public Q_SLOTS:
     void addDebugTarget( const NVSProjectMaker::SDebugTarget & dbgCmd );
 
     void slotGenerate();
+    void slotBuildsChanged();
 private:
-    void loadBuildTargets( const QStringList & target );
+    void loadBuildTargets( const QStringList & target, const QString & primaryTarget );
     void loadDebugTargets( const QStringList & targets );
     void loadIncludeDirs( const QStringList & includeDirs );
     void loadPreProcessorDefines( const QStringList & preProcDefines );

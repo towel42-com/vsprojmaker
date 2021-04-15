@@ -143,7 +143,7 @@ namespace NVSProjectMaker
                 }
 
                 resourceText.replace( "<PROJECT_NAME>", ii.getProjectName() );
-                resourceText.replace( "<ALL_SETTING>", QString() );
+                resourceText.replace( "<ALL_SETTING>", settings->getPrimaryTargetSetting( ii.getProjectName() ) );
                 auto outDir = QDir( settings->getBuildDir().value() );
                 auto outPath = outDir.absoluteFilePath( fRelToDir );
                 resourceText.replace( "<BUILD_DIR>", outPath );
@@ -284,7 +284,7 @@ namespace NVSProjectMaker
                                               [this, settings, buildItFileName, outPath, vsProjDir, parent ]( QString & resourceText )
         {
             resourceText.replace( "<PROJECT_NAME>", fProjectName );
-            resourceText.replace( "<ALL_SETTING>", QString() );
+            resourceText.replace( "<ALL_SETTING>", settings->getPrimaryTargetSetting( fProjectName ) );
             resourceText.replace( "<BUILD_DIR>", outPath );
             resourceText.replace( "<VSPROJDIR>", vsProjDir.absolutePath() );
             resourceText.replace( "<MSYS64DIR_MSYS>", settings->getMSys64Dir( true ) );

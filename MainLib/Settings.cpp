@@ -335,9 +335,9 @@ namespace NVSProjectMaker
     {
         QString retVal;
         QTextStream ts( &retVal );
-        ts << "echo cd " << buildDir << "\n"
+        ts 
+            << "echo \"Building '" << descriptiveName << "' in directory '" << buildDir << " using cmd '" << QString( cmd ).replace( '"', "\\\"" ) << "'\"\n"
             << "cd \"" << buildDir << "\" \n"
-            << "echo \"" << cmd << "\"\n"
             << getEnvVarsForShell()
             << cmd << "\n"
             << "status=$?\n"
@@ -421,7 +421,7 @@ namespace NVSProjectMaker
                                                                                [ii, cmakeFileName, buildItFileName, this, parent]( QString & resourceText )
                 {
                     resourceText.replace( "<PROJECT_NAME>", ii );
-                    resourceText.replace( "<ALL_SETTING>", "ALL" );
+                    resourceText.replace( "<ALL_SETTING>", getPrimaryTargetSetting( ii ) );
 
                     resourceText.replace( "<BUILD_DIR>", getBuildDir().value() );
                     resourceText.replace( "<MSYS64DIR_MSYS>", getMSys64Dir( true ) );
@@ -527,6 +527,11 @@ namespace NVSProjectMaker
         if ( progress && progress->wasCanceled() )
             return false;
         return true;
+    }
+
+    QString CSettings::getPrimaryTargetSetting( const QString & projectName ) const
+    {
+        return ( projectName == getPrimaryTarget() ) ? "ALL" : QString();
     }
 
     std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > CSettings::getDirInfo( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const
@@ -785,6 +790,7 @@ namespace NVSProjectMaker
         ADD_SETTING_VALUE( QStringList, SelectedPreProcDefines );
         ADD_SETTING_VALUE( TExecNameType, ExecNames );
         ADD_SETTING_VALUE( TListOfStringPair, CustomBuilds );
+        ADD_SETTING_VALUE( QString, PrimaryTarget );
         ADD_SETTING_VALUE( TListOfDebugTargets, DebugCommands );
         ADD_SETTING_VALUE( QString, BuildOutputDataFile );
         ADD_SETTING_VALUE( QString, BldTxtProdDir );

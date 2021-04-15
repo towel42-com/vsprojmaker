@@ -105,6 +105,8 @@ CMainWindow::CMainWindow( QWidget * parent )
     fCustomBuildModel->setHorizontalHeaderLabels( QStringList() << "Directory" << "Target Name" );
     fImpl->customBuilds->setModel( fCustomBuildModel );
 
+    connect( fCustomBuildModel, &CCheckableStringListModel::dataChanged, this, &CMainWindow::slotBuildsChanged );
+
     fDebugTargetsModel = new QStandardItemModel( this );
     fDebugTargetsModel->setHorizontalHeaderLabels( QStringList() << "Source Dir" << "Name" << "Command" << "Args" << "Work Dir" << "EnvVars" );
     fImpl->debugTargets->setModel( fDebugTargetsModel );
@@ -133,6 +135,7 @@ void CMainWindow::popDisconnected( bool force )
         connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
         connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
         connect( fImpl->bldOutputFile, &QLineEdit::textChanged, this, &CMainWindow::slotLoadOutputData );
+        connect( fCustomBuildModel, &CCheckableStringListModel::dataChanged, this, &CMainWindow::slotBuildsChanged );
     }
 }
 
@@ -148,6 +151,7 @@ void CMainWindow::pushDisconnected()
         disconnect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
         disconnect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
         disconnect( fImpl->bldOutputFile, &QLineEdit::textChanged, this, &CMainWindow::slotLoadOutputData );
+        disconnect( fCustomBuildModel, &CCheckableStringListModel::dataChanged, this, &CMainWindow::slotBuildsChanged );
     }
     fDisconnected++;
 }
@@ -372,8 +376,8 @@ void CMainWindow::saveSettings()
     fSettings->setSelectedPreProcDefines( fPreProcDefineModel->getCheckedStrings() );
     fSettings->setExecNames( std::get< 1 >( attribs ) );
     fSettings->setCustomBuilds( customBuilds );
+    fSettings->setPrimaryTarget( fImpl->primaryBuildTarget->currentText() );
     fSettings->setDebugCommands( dbgCommands );
-
 }
 
 
@@ -421,6 +425,9 @@ void CMainWindow::loadSettings()
     for ( auto && ii : customBuilds )
         addCustomBuild( ii );
 
+    slotBuildsChanged();
+    fImpl->primaryBuildTarget->setCurrentText( fSettings->getPrimaryTarget() );
+
     fImpl->sourceRelDir->setText( fSettings->getSourceRelDir() );
 
     auto dbgCmds = fSettings->getDebugCommands();
@@ -459,6 +466,8 @@ void CMainWindow::doChanged( bool andLoad )
     {
         slotVSChanged();
     }
+
+    slotBuildsChanged();
 
     auto sourceDirPath = getSourceDir();
     auto fi = clientDirOK && sourceDirPath.has_value() ? QFileInfo( sourceDirPath.value() ) : QFileInfo();
@@ -560,7 +569,7 @@ void CMainWindow::slotRunWizard()
         fQtLibsModel->setStringList( qtDirs.first );
         fQtLibsModel->setChecked( qtDirs.second, true, true );
 
-        loadBuildTargets( buildTargetsPage->enabledBuildTargets() );
+        loadBuildTargets( buildTargetsPage->enabledBuildTargets(), buildTargetsPage->primaryTarget() );
         loadDebugTargets( debugTargetsPage->enabledDebugTargets() );
 
         popDisconnected();
@@ -575,12 +584,15 @@ void CMainWindow::slotRunWizard()
     }
 }
 
-void CMainWindow::loadBuildTargets( const QStringList & targets )
+void CMainWindow::loadBuildTargets( const QStringList & targets, const QString & primaryTarget )
 {
     for ( auto && ii : targets )
     {
         addCustomBuild( qMakePair( fImpl->buildRelDir->text(), ii ) );
     }
+    fImpl->primaryBuildTarget->clear();
+    fImpl->primaryBuildTarget->addItems( targets );
+    fImpl->primaryBuildTarget->setCurrentText( primaryTarget );
 }
 
 void CMainWindow::loadDebugTargets( const QStringList & targets )
@@ -1209,3 +1221,20 @@ void CMainWindow::slotLoadOutputData()
         fLoadSourceAfterLoadData = false;
     }
 }
+
+void CMainWindow::slotBuildsChanged()
+{
+    auto builds = getCustomBuilds( false );
+    auto list = QStringList() << QString();
+    for ( auto && ii : builds )
+    {
+        list << ii.second;
+    }
+    auto curr = fImpl->primaryBuildTarget->currentText();
+    fImpl->primaryBuildTarget->clear();
+    fImpl->primaryBuildTarget->addItems( list );
+    fImpl->primaryBuildTarget->setCurrentText( curr );
+}
+
+
+

@@ -20,8 +20,11 @@
    <string>These targets are targets that require a specific make target at a specific directory</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="2" column="1">
-    <spacer name="verticalSpacer">
+   <item row="2" column="0" rowspan="2" colspan="4">
+    <widget class="QListView" name="buildTargets"/>
+   </item>
+   <item row="3" column="4">
+    <spacer name="verticalSpacer_2">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
      </property>
@@ -33,15 +36,46 @@
      </property>
     </spacer>
    </item>
-   <item row="1" column="1" colspan="2">
-    <widget class="QListView" name="buildTargets"/>
+   <item row="0" column="0">
+    <widget class="QLabel" name="label_2">
+     <property name="text">
+      <string>Primary Build Target:</string>
+     </property>
+    </widget>
    </item>
-   <item row="0" column="1" colspan="2">
+   <item row="1" column="0">
     <widget class="QLabel" name="label">
      <property name="text">
       <string>Enabled Custom Build Targets:</string>
      </property>
     </widget>
+   </item>
+   <item row="2" column="4">
+    <widget class="QToolButton" name="addBuildTargetBtn">
+     <property name="text">
+      <string>...</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../MainWindow/MainWindow.qrc">
+       <normaloff>:/resources/plus.png</normaloff>:/resources/plus.png</iconset>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QComboBox" name="primaryTarget"/>
+   </item>
+   <item row="0" column="2" colspan="3">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
    </item>
   </layout>
  </widget>
