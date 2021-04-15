@@ -569,7 +569,7 @@ void CMainWindow::slotRunWizard()
         slotLoadSource();
         loadIncludeDirs( includesPage->enabledIncludeDirs() );
         loadPreProcessorDefines( preProcDefinesPage->enabledPreProcDefines() );
-        QString projFile = QDir( wizard.field( "clientDir" ).toString() ).absoluteFilePath( wizard.field( "clientName" ).toString() ) + ".ini";
+        QString projFile = QDir( wizard.field( "clientDir" ).toString() ).absoluteFilePath( wizard.field( "clientName" ).toString() ) + ".vsprjmkr.ini";
         setProjectFile( projFile, false );
         doChanged( false );
     }
