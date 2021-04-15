@@ -328,8 +328,23 @@ namespace NVSProjectMaker
     {
         auto retVal = QStringList() << "export VC_VERSION=15.0";
 
-
         return retVal.join( "\n" ) + "\n";
+    }
+
+    QString CSettings::getBuildItScript( const QString & buildDir, const QString & cmd, const QString & descriptiveName ) const
+    {
+        QString retVal;
+        QTextStream ts( &retVal );
+        ts << "echo cd " << buildDir << "\n"
+            << "cd \"" << buildDir << "\" \n"
+            << "echo \"" << cmd << "\"\n"
+            << getEnvVarsForShell()
+            << cmd << "\n"
+            << "status=$?\n"
+            << "echo \"Finished building " << descriptiveName << " - status = $status\"\n"
+            << "exit $status\n"
+            ;
+        return retVal;
     }
 
     std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > CSettings::generateTopLevelFiles( QProgressDialog * progress, const std::function< void( const QString & msg ) > & logit, QWidget * parent ) const
@@ -397,11 +412,8 @@ namespace NVSProjectMaker
 
                 QTextStream qts( &fo );
                 QString cmd = QString( "mtimake -w -j24 --directory=\"%1\" %2" ).arg( getBuildDir().value() ).arg( ii );
-                qts << "echo " << cmd << "\n"
-                    << getEnvVarsForShell()
-                    << "export VC_VERSION=15.0\n"
-                    << "cd \"" << getBuildDir().value() << "\" \n"
-                    << cmd << "\n";
+                qts << getBuildItScript( getBuildDir().value(), cmd, ii );
+
                 fo.close();
 
                 QString cmakeFileName = QString( "CustomBuild/%1/CMakeLists.txt" ).arg( ii );
@@ -409,6 +421,8 @@ namespace NVSProjectMaker
                                                                                [ii, cmakeFileName, buildItFileName, this, parent]( QString & resourceText )
                 {
                     resourceText.replace( "<PROJECT_NAME>", ii );
+                    resourceText.replace( "<ALL_SETTING>", "ALL" );
+
                     resourceText.replace( "<BUILD_DIR>", getBuildDir().value() );
                     resourceText.replace( "<MSYS64DIR_MSYS>", getMSys64Dir( true ) );
                     resourceText.replace( "<MSYS64DIR_WIN>", getMSys64Dir( false ) );
