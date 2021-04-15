@@ -43,9 +43,10 @@ CQtPage::CQtPage( QWidget * parent )
     registerField( "qtDir*", fImpl->qtDir );
 }
 
+static QString sDefaultQtVersion = "/qt/qt5129_20210303/win64VC15";
 void CQtPage::setDefaults()
 {
-    auto currPath = field( "prodDir" ).toString() + "/qt/qt5/qt5129_20201014/release/win64VC15";
+    auto currPath = field( "prodDir" ).toString() + sDefaultQtVersion;
     fImpl->qtDir->setText( currPath );
 }
 
@@ -94,7 +95,7 @@ void CQtPage::slotSelectQtDir()
 {
     auto currPath = fImpl->qtDir->text();
     if ( currPath.isEmpty() )
-        currPath = field( "prodDir" ).toString() + "/qt/qt5/qt5129_20201014/release/win64VC15";
+        currPath = field( "prodDir" ).toString() + sDefaultQtVersion;
     auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Qt Directory" ), currPath );
     if ( dir.isEmpty() )
         return;
