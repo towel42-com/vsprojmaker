@@ -143,6 +143,7 @@ namespace NVSProjectMaker
                 }
 
                 resourceText.replace( "<PROJECT_NAME>", ii.getProjectName() );
+                resourceText.replace( "<ALL_SETTING>", QString() );
                 auto outDir = QDir( settings->getBuildDir().value() );
                 auto outPath = outDir.absoluteFilePath( fRelToDir );
                 resourceText.replace( "<BUILD_DIR>", outPath );
@@ -275,11 +276,7 @@ namespace NVSProjectMaker
 
             QTextStream qts( &fo );
             QString cmd = QString( "%1/usr/bin/make -w -j24" ).arg( settings->getMSys64Dir( true ) );
-            qts << "echo cd " << outPath << "\n"
-                << "cd \"" << outPath << "\"\n"
-                << "echo " << cmd << "\n"
-                << settings->getEnvVarsForShell()
-                << cmd << "\n";
+            qts << settings->getBuildItScript( outPath, cmd, fProjectName );
             fo.close();
         }
         QString resourceFile = isSubHeader ? "subheaderdir.cmake" : "subbuilddir.cmake";
@@ -287,6 +284,7 @@ namespace NVSProjectMaker
                                               [this, settings, buildItFileName, outPath, vsProjDir, parent ]( QString & resourceText )
         {
             resourceText.replace( "<PROJECT_NAME>", fProjectName );
+            resourceText.replace( "<ALL_SETTING>", QString() );
             resourceText.replace( "<BUILD_DIR>", outPath );
             resourceText.replace( "<VSPROJDIR>", vsProjDir.absolutePath() );
             resourceText.replace( "<MSYS64DIR_MSYS>", settings->getMSys64Dir( true ) );
