@@ -30,7 +30,7 @@ CBuildTargetsPage::CBuildTargetsPage( QWidget * parent )
 {
     fImpl->setupUi( this );
     fBuildTargets = new CCheckableStringListModel( this );
-    auto buildTargets = QStringList() << "qworld" << "qoffice" << "world";
+    auto buildTargets = QStringList() << "qworld" << "qworld -k" << "qoffice" << "qoffice -k" << "world" << "world -k";
     fBuildTargets->setStringList( buildTargets );
     fBuildTargets->setChecked( buildTargets, true, true );
     fImpl->buildTargets->setModel( fBuildTargets );
@@ -38,7 +38,7 @@ CBuildTargetsPage::CBuildTargetsPage( QWidget * parent )
     connect( fBuildTargets, &CCheckableStringListModel::dataChanged, this, &CBuildTargetsPage::slotBuildsChanged );
 
     fImpl->primaryTarget->addItems( buildTargets );
-    fImpl->primaryTarget->setCurrentText( "qoffice" );
+    fImpl->primaryTarget->setCurrentText( "qworld" );
     registerField( "primaryTarget", fImpl->primaryTarget );
     slotBuildsChanged();
 }
