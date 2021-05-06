@@ -617,9 +617,15 @@ void CMainWindow::loadDebugTargets( const QStringList & targets )
 
         QString envVars;
         if ( ii == "HDL Client+vxcSampleWithProject" )
+        {
             envVars = QString( "{SKIP_LIMITED_FEATURES_KEY=1}{ENABLE_VFPRJ=1}" );
+            args += " +vfprj_mode";
+        }
         else if ( ii == "HDL Client+vxcSampleWithFlowNav" )
+        {
             envVars = QString( "{SKIP_LIMITED_FEATURES_KEY=1}{ENABLE_FLOWNAV=1}" );
+            args += " +vfprj_mode";
+        }
 
         addDebugTarget( path, name, executable, args, workDir, envVars );
     }
@@ -687,7 +693,7 @@ void CMainWindow::setProjectFile( const QString & projFile, bool load )
         }
     }
     else
-        fSettings->setFileName( projFile );
+        fSettings->setFileName( projFile, true );
     setWindowTitle( tr( "Visual Studio Project Generator - %1" ).arg( projFile ) );
     if ( load )
         loadSettings();
