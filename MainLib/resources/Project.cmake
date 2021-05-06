@@ -41,5 +41,6 @@ source_group("Other Files" FILES ${otherFILES} )
 source_group("Designer Files" FILES ${qtproject_UIS} )
 source_group("Header Files" FILES ${qtproject_H} ${project_H} )
 source_group("Source Files" FILES ${qtproject_CPPMOC_SRCS} )
+source_group("Build Files" FILES ${project_BUILD_FILES} )
 
 

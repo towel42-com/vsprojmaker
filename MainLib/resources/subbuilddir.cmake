@@ -47,6 +47,14 @@ set(otherFILES
 <OTHER_FILES>
 )
 
+set(project_BUILD_FILES
+<BUILD_FILES>
+)
+
+set(project_YAML_FILES
+<BUILD_FILES>
+)
+
 include( ${CMAKE_BINARY_DIR}/Project.cmake )
 
 add_custom_target( <PROJECT_NAME> <ALL_SETTING>
@@ -55,6 +63,8 @@ add_custom_target( <PROJECT_NAME> <ALL_SETTING>
                  ${project_H}
                  ${qtproject_UIS}
                  ${qtproject_QRC}
+                 ${project_BUILD_FILES}
+                 ${project_YAML_FILES}
                  ${otherFILES}
                  COMMENT Building via External Makefile
            )
