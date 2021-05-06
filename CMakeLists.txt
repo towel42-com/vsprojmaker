@@ -37,7 +37,7 @@ find_package(Deploy REQUIRED)
 find_package(AddUnitTest REQUIRED)
 set_property( GLOBAL PROPERTY USE_FOLDERS ON )
 
-SET( CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/Install )
+SET( CMAKE_INSTALL_PREFIX C:/Users/sbloom/bin/VSProjMaker )
 
 add_custom_target( SABTests_SABUtils )
 add_subdirectory( SABUtils )
