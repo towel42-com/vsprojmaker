@@ -294,7 +294,9 @@ namespace NVSProjectMaker
             replaceFiles( resourceText, "<HEADER_FILES>", QStringList() << fHeaderFiles );
             replaceFiles( resourceText, "<UI_FILES>", QStringList() << fUIFiles );
             replaceFiles( resourceText, "<QRC_FILES>", QStringList() << fQRCFiles );
+            replaceFiles( resourceText, "<BUILD_FILES>", QStringList() << fBuildFiles );
             replaceFiles( resourceText, "<OTHER_FILES>", QStringList() << fOtherFiles );
+            replaceFiles( resourceText, "<YAML_FILES>", QStringList() << fYAMLFiles );
             resourceText.replace( "<PROPSFILENAME>", "PropertySheetIncludes.props" );
         }
         );
@@ -359,6 +361,18 @@ namespace NVSProjectMaker
             fIsPairedDir = true;
     }
 
+    bool SDirInfo::isBuildFile( const QString & path ) const
+    {
+        QFileInfo fi( path );
+        auto fn = fi.fileName().toLower();
+        auto suffix = fi.suffix().toLower();
+        if ( suffix == "mk" )
+            return true;
+        if ( fn == "makefile" || fn == "makefile.inc" )
+            return true;
+        return false;
+    }
+
     void SDirInfo::addFile( const QString & path )
     {
         static std::unordered_set< QString > headerSuffixes =
@@ -375,10 +389,14 @@ namespace NVSProjectMaker
             fUIFiles << path;
         else if ( suffix == "qrc" )
             fQRCFiles << path;
+        else if ( suffix == "yaml" )
+            fYAMLFiles << path;
         else if ( headerSuffixes.find( suffix ) != headerSuffixes.end() )
             fHeaderFiles << path;
         else if ( sourceSuffixes.find( suffix ) != sourceSuffixes.end() )
             fSourceFiles << path;
+        else if ( isBuildFile( path ) )
+            fBuildFiles << path;
         else
             fOtherFiles << path;
     }

@@ -55,6 +55,7 @@ namespace NVSProjectMaker
         void replaceFiles( QString & text, const QString & variable, const QStringList & files ) const;
         void addDependencies( QTextStream & qts ) const;
         void computeRelToDir( const std::shared_ptr< SSourceFileInfo > & fileInfo );
+        bool isBuildFile( const QString & path ) const;
 
         QString getSrcRelPath() const;
         QString getInclRelPath() const;
@@ -68,8 +69,10 @@ namespace NVSProjectMaker
 
         QStringList fSourceFiles;
         QStringList fHeaderFiles;
+        QStringList fYAMLFiles;
         QStringList fUIFiles;
         QStringList fQRCFiles;
+        QStringList fBuildFiles;
         QStringList fOtherFiles;
 
         QStringList fExtraTargets;

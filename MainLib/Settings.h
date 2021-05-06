@@ -33,6 +33,7 @@
 #include <QDir>
 #include <functional>
 #include <optional>
+#include <tuple>
 #include "SABUtils/QtUtils.h"
 class QStandardItem;
 class QProgressDialog;
@@ -125,7 +126,6 @@ namespace NVSProjectMaker
     {
     public:
         CSettings();
-        CSettings( const QString & fileName );
 
         ~CSettings();
 
@@ -140,7 +140,7 @@ namespace NVSProjectMaker
         bool saveSettings(); // only valid if filename has been set;
         void loadSettings(); // loads from the registry
         bool loadSettings( const QString & fileName ); // sets the filename and loads from it
-        void setFileName( const QString & fileName, bool andSave=true );
+        bool setFileName( const QString & fileName, bool andSave );
 
         bool isBuildDir( const QDir & relToDir, const QDir & dir ) const;
         bool isInclDir( const QDir & relToDir, const QDir & dir ) const;
@@ -219,6 +219,19 @@ namespace NVSProjectMaker
         void incProgress( QProgressDialog * progress ) const;
         void registerSettings();
         void loadQtSettings();
+
+        struct SCustomBuildDirInfo
+        {
+            SCustomBuildDirInfo( const QString & dirName );
+
+            QString getDirName() const;
+            QString getExtraArgs() const;
+
+            QString fMakeProjectName;  // name to use for mtimake at the top level
+            QString fCMakeProjectName; // used inside cmake
+            QString fDirName;          // the subdir
+            QStringList fExtraOptions; // the options
+        };
 
         std::unique_ptr< QSettings > fSettingsFile;
         std::shared_ptr< NVSProjectMaker::SSourceFileResults > fResults;

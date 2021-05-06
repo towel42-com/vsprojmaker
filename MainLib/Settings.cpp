@@ -53,14 +53,14 @@ namespace NVSProjectMaker
         loadSettings();
     }
 
-    CSettings::CSettings( const QString & fileName ) :
-        fResults( std::make_shared< SSourceFileResults >() )
-    {
-        NVSProjectMaker::registerTypes();
+    //CSettings::CSettings( const QString & fileName ) :
+    //    fResults( std::make_shared< SSourceFileResults >() )
+    //{
+    //    NVSProjectMaker::registerTypes();
 
-        registerSettings();
-        loadSettings( fileName );
-    }
+    //    registerSettings();
+    //    loadSettings( fileName );
+    //}
 
     CSettings::~CSettings()
     {
@@ -101,14 +101,20 @@ namespace NVSProjectMaker
         loadSettings( QString() );
     }
 
-    void CSettings::setFileName( const QString & fileName, bool andSave )
+    bool CSettings::setFileName( const QString & fileName, bool andSave )
     {
         if ( fileName.isEmpty() )
             fSettingsFile = std::make_unique< QSettings >();
         else
+        {
+            auto fi = QFileInfo( fileName );
+            if ( !fi.exists() || !fi.isReadable() )
+                return false;
             fSettingsFile = std::make_unique< QSettings >( fileName, QSettings::IniFormat );
+        }
         if ( andSave )
             saveSettings();
+        return true;
     }
 
     void CSettings::incProgress( QProgressDialog * progress ) const
@@ -237,10 +243,10 @@ namespace NVSProjectMaker
             progress->setLabelText( QObject::tr( "Generating CMake Files" ) );
             progress->adjustSize();
             qApp->processEvents();
-        }
 
-        progress->setRange( 0, static_cast<int>( dirs.size() ) );
-        progress->setValue( 0 );
+            progress->setRange( 0, static_cast<int>( dirs.size() ) );
+            progress->setValue( 0 );
+        }
 
         for ( auto && ii : dirs )
         {
@@ -347,6 +353,36 @@ namespace NVSProjectMaker
         return retVal;
     }
 
+    CSettings::SCustomBuildDirInfo::SCustomBuildDirInfo( const QString & dirInfoName ) :
+        fMakeProjectName( dirInfoName ),
+        fCMakeProjectName( dirInfoName ),
+        fDirName( dirInfoName ),
+        fExtraOptions()
+    {
+        static std::map< QString, QString > map = { {"-k", "_ignoreerror"} };
+        for ( auto && ii : map )
+        {
+            auto pos = fMakeProjectName.indexOf( " " + ii.first );
+            if ( pos != -1 )
+            {
+                fMakeProjectName.replace( " " + ii.first, "" );         // mtimake <projectname>
+                fCMakeProjectName.replace( " " + ii.first, ii.second ); // cmake target name
+                fDirName.replace( " " + ii.first, ii.second );
+                fExtraOptions << ii.first;
+            }
+        }
+    }
+
+    QString CSettings::SCustomBuildDirInfo::getDirName() const
+    {
+        return QString( "CustomBuild/%1" ).arg( fDirName );
+    }
+
+    QString CSettings::SCustomBuildDirInfo::getExtraArgs() const
+    {
+        return fExtraOptions.join( " " );
+    }
+
     std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > CSettings::generateTopLevelFiles( QProgressDialog * progress, const std::function< void( const QString & msg ) > & logit, QWidget * parent ) const
     {
         NVSProjectMaker::readResourceFile( parent, QString( ":/resources/Project.cmake" ),
@@ -391,16 +427,17 @@ namespace NVSProjectMaker
         {
             for ( auto && ii : customTopBuilds )
             {
-                qts << QString( "add_subdirectory( CustomBuild/%1 )\n" ).arg( ii );
+                auto buildDirInfo = SCustomBuildDirInfo( ii );
+                qts << QString( "add_subdirectory( %1 )\n" ).arg( buildDirInfo.getDirName() );
 
-                if ( !QDir( getBuildDir().value() ).mkpath( QString( "CustomBuild/%1" ).arg( ii ) ) )
+                if ( !QDir( getBuildDir().value() ).mkpath( buildDirInfo.getDirName() ) )
                 {
                     QApplication::restoreOverrideCursor();
-                    QMessageBox::critical( parent, QObject::tr( "Error:" ), QObject::tr( "Error creating directory '%1" ).arg( QString( "CustomBuild/%1" ).arg( ii ) ) );
+                    QMessageBox::critical( parent, QObject::tr( "Error:" ), QObject::tr( "Error creating directory '%1" ).arg( buildDirInfo.getDirName() ) );
                     return {};
                 }
 
-                auto buildItFileName = QDir( getBuildDir().value() ).absoluteFilePath( QString( "CustomBuild/%1/buildit.sh" ).arg( ii ) );
+                auto buildItFileName = QDir( getBuildDir().value() ).absoluteFilePath( QString( "%1/buildit.sh" ).arg( buildDirInfo.getDirName() ) );
 
                 QFile fo( buildItFileName );
                 if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
@@ -411,17 +448,17 @@ namespace NVSProjectMaker
                 }
 
                 QTextStream qts( &fo );
-                QString cmd = QString( "mtimake -w -j24 --directory=\"%1\" %2" ).arg( getBuildDir().value() ).arg( ii );
-                qts << getBuildItScript( getBuildDir().value(), cmd, ii );
+                QString cmd = QString( "mtimake -w -j24 --directory=\"%1\" %2 %3" ).arg( getBuildDir().value() ).arg( buildDirInfo.fMakeProjectName ).arg( buildDirInfo.getExtraArgs() ).trimmed();
+                qts << getBuildItScript( getBuildDir().value(), cmd, buildDirInfo.fMakeProjectName );
 
                 fo.close();
 
-                QString cmakeFileName = QString( "CustomBuild/%1/CMakeLists.txt" ).arg( ii );
+                QString cmakeFileName = QString( "%1/CMakeLists.txt" ).arg( buildDirInfo.getDirName() );
                 NVSProjectMaker::readResourceFile( parent, QString( ":/resources/custombuilddir.cmake" ),
-                                                                               [ii, cmakeFileName, buildItFileName, this, parent]( QString & resourceText )
+                                                                               [buildDirInfo, cmakeFileName, buildItFileName, this, parent]( QString & resourceText )
                 {
-                    resourceText.replace( "<PROJECT_NAME>", ii );
-                    resourceText.replace( "<ALL_SETTING>", getPrimaryTargetSetting( ii ) );
+                    resourceText.replace( "<PROJECT_NAME>", buildDirInfo.fCMakeProjectName );
+                    resourceText.replace( "<ALL_SETTING>", getPrimaryTargetSetting( buildDirInfo.fCMakeProjectName ) );
 
                     resourceText.replace( "<BUILD_DIR>", getBuildDir().value() );
                     resourceText.replace( "<MSYS64DIR_MSYS>", getMSys64Dir( true ) );
@@ -431,6 +468,8 @@ namespace NVSProjectMaker
                     resourceText.replace( "<HEADER_FILES>", QString() );
                     resourceText.replace( "<UI_FILES>", QString() );
                     resourceText.replace( "<QRC_FILES>", QString() );
+                    resourceText.replace( "<BUILD_FILES>", QString() );
+                    resourceText.replace( "<YAML_FILES>", QString() );
                     resourceText.replace( "<OTHER_FILES>", QString() );
 
                     QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( cmakeFileName );
@@ -443,7 +482,7 @@ namespace NVSProjectMaker
                     }
                     QTextStream qts( &fo );
                     qts << resourceText;
-                    qts << "\n\nset_target_properties( " << ii << " PROPERTIES FOLDER " << "\"Global Build Targets\"" << " )\n";
+                    qts << "\n\nset_target_properties( " << buildDirInfo.fCMakeProjectName << " PROPERTIES FOLDER " << "\"Global Build Targets\"" << " )\n";
                     fo.close();
                 }
                 );
@@ -768,7 +807,8 @@ namespace NVSProjectMaker
     bool CSettings::loadSettings( const QString & fileName )
     {
         saveSettings();
-        setFileName( fileName, false );
+        if ( !setFileName( fileName, false ) )
+            return false;
         return loadData();
     }
 
