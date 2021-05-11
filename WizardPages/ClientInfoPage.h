@@ -43,6 +43,8 @@ public Q_SLOTS:
     void slotSelectBuildDir();
 private:
     std::unique_ptr< Ui::CClientInfoPage > fImpl;
+    bool fSourceDirManuallySet{ false };
+    bool fBuildDirManuallySet{ false };
 };
 
 #endif // _ALCULATOR_H

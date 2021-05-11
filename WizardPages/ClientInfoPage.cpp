@@ -35,6 +35,8 @@ CClientInfoPage::CClientInfoPage( QWidget * parent )
     fImpl->setupUi( this );
 
     connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
     connect( fImpl->clientDirBtn, &QToolButton::clicked, this, &CClientInfoPage::slotSelectClientDir );
     connect( fImpl->sourceDirBtn, &QToolButton::clicked, this, &CClientInfoPage::slotSelectSourceDir );
     connect( fImpl->buildDirBtn, &QToolButton::clicked, this, &CClientInfoPage::slotSelectBuildDir );
@@ -43,6 +45,8 @@ CClientInfoPage::CClientInfoPage( QWidget * parent )
     registerField( "clientName", fImpl->clientName );
     registerField( "sourceRelDir*", fImpl->sourceRelDir );
     registerField( "buildRelDir*", fImpl->buildRelDir );
+
+    slotChanged();
 }
 
 void CClientInfoPage::setDefaults()
@@ -78,12 +82,34 @@ bool CClientInfoPage::isComplete() const
 void CClientInfoPage::slotChanged()
 {
     QString clientName;
+    QDir dir;
     if ( !fImpl->clientDir->text().isEmpty() )
     {
-        QDir dir( fImpl->clientDir->text() );
+        dir = QDir( fImpl->clientDir->text() );
         clientName = dir.dirName();
     }
     fImpl->clientName->setText( clientName );
+
+    fImpl->sourceRelDir->setEnabled( fSourceDirManuallySet );
+    fImpl->buildRelDir->setEnabled( fBuildDirManuallySet );
+
+    if ( fSourceDirManuallySet && fImpl->sourceRelDir->text().isEmpty() )
+        fSourceDirManuallySet = false;
+
+    if ( fBuildDirManuallySet && fImpl->buildRelDir->text().isEmpty() )
+        fBuildDirManuallySet = false;
+
+    if ( !fSourceDirManuallySet )
+    {
+        if ( QFileInfo( dir.absoluteFilePath( "src" ) ).exists() )
+            fImpl->sourceRelDir->setText( "src" );
+    }
+
+    if ( !fBuildDirManuallySet )
+    {
+        if ( QFileInfo( dir.absoluteFilePath( "build/win64" ) ).exists() )
+            fImpl->buildRelDir->setText( "build/win64" );
+    }
 }
 
 void CClientInfoPage::slotSelectClientDir()
@@ -101,12 +127,6 @@ void CClientInfoPage::slotSelectClientDir()
     }
 
     fImpl->clientDir->setText( dir );
-
-    if ( QFileInfo( QDir( dir ).absoluteFilePath( "src" ) ).exists() )
-        fImpl->sourceRelDir->setText( "src" );
-
-    if ( QFileInfo( QDir( dir ).absoluteFilePath( "build/win64" ) ).exists() )
-        fImpl->buildRelDir->setText( "build/win64" );
 }
 
 void CClientInfoPage::slotSelectSourceDir()
@@ -129,6 +149,8 @@ void CClientInfoPage::slotSelectSourceDir()
     }
 
     fImpl->sourceRelDir->setText( QDir( clientDir ).relativeFilePath( dir ) );
+    fSourceDirManuallySet = true;
+    slotChanged();
 }
 
 void CClientInfoPage::slotSelectBuildDir()
@@ -152,4 +174,6 @@ void CClientInfoPage::slotSelectBuildDir()
     }
 
     fImpl->buildRelDir->setText( QDir( clientDir ).relativeFilePath( dir ) );
+    fBuildDirManuallySet = true;
+    slotChanged();
 }
