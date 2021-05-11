@@ -138,6 +138,8 @@ namespace NVSProjectMaker
         QStringList getCmakeArgs() const;
 
         bool saveSettings(); // only valid if filename has been set;
+        void sync(); // flushes it to the harddrive
+
         void loadSettings(); // loads from the registry
         bool loadSettings( const QString & fileName ); // sets the filename and loads from it
         bool setFileName( const QString & fileName, bool andSave );

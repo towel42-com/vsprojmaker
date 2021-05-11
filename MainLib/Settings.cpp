@@ -93,6 +93,7 @@ namespace NVSProjectMaker
         for ( auto && ii : fSettings )
             fSettingsFile->setValue( ii.first, *(ii.second) );
 
+        sync();
         return true;
     }
 
@@ -108,13 +109,19 @@ namespace NVSProjectMaker
         else
         {
             auto fi = QFileInfo( fileName );
-            if ( !fi.exists() || !fi.isReadable() )
+            if ( !andSave && ( !fi.exists() || !fi.isReadable() ) )
                 return false;
             fSettingsFile = std::make_unique< QSettings >( fileName, QSettings::IniFormat );
         }
         if ( andSave )
             saveSettings();
         return true;
+    }
+
+    void CSettings::sync()
+    {
+        if ( fSettingsFile )
+            return fSettingsFile->sync();
     }
 
     void CSettings::incProgress( QProgressDialog * progress ) const
