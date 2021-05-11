@@ -81,6 +81,9 @@ public Q_SLOTS:
 
     void slotOpenProjectFile();
     void slotSaveProjectFile();
+
+    void saveProjectFile( const QString & currPath );
+
     void slotRunWizard();
     void slotSelectVS();
     void slotSelectSourceDir();
@@ -112,10 +115,11 @@ private:
     void pushDisconnected();
     void popDisconnected( bool force=false );
 
+    void saveRecentProjects();
     QStringList getProjects() const;
     void setProjects( QStringList projects );
 
-    void setProjectFile( const QString & projFile, bool load );
+    void setProjectFile( const QString & projFile, bool forLoad );
 
     void setCurrentProject( const QString & projFile );
 

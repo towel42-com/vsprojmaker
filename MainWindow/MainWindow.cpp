@@ -160,6 +160,11 @@ CMainWindow::~CMainWindow()
 {
     saveSettings();
     
+    saveRecentProjects();
+}
+
+void CMainWindow::saveRecentProjects()
+{
     QSettings settings;
     settings.setValue( "RecentProjects", getProjects() );
 }
@@ -218,6 +223,7 @@ void CMainWindow::setProjects( QStringList projects )
     fImpl->projectFile->clear();
     fImpl->projectFile->addItems( QStringList() << QString() << projects );
     popDisconnected();
+    saveRecentProjects();
 }
 
 std::tuple< QSet< QString >, QHash< QString, QList< QPair< QString, bool > > > > CMainWindow::findDirAttributes( QStandardItem * parent ) const
@@ -378,6 +384,7 @@ void CMainWindow::saveSettings()
     fSettings->setCustomBuilds( customBuilds );
     fSettings->setPrimaryTarget( fImpl->primaryBuildTarget->currentText() );
     fSettings->setDebugCommands( dbgCommands );
+    fSettings->saveSettings();
 }
 
 
@@ -525,17 +532,18 @@ void CMainWindow::slotRunWizard()
 {
     reset();
     QWizard wizard;
-    CSystemInfoPage * sysInfoPage = new CSystemInfoPage;
+
+    auto clientInfoPage = new CClientInfoPage;
+    wizard.addPage( clientInfoPage );
+    clientInfoPage->setDefaults();
+
+    auto sysInfoPage = new CSystemInfoPage;
     wizard.addPage( sysInfoPage );
     sysInfoPage->setDefaults();
     
     auto qtPage = new CQtPage;
     wizard.addPage( qtPage );
     qtPage->setDefaults();
-
-    auto clientInfoPage = new CClientInfoPage;
-    wizard.addPage( clientInfoPage );
-    clientInfoPage->setDefaults();
 
     auto buildTargetsPage = new CBuildTargetsPage;
     wizard.addPage( buildTargetsPage );
@@ -575,11 +583,13 @@ void CMainWindow::slotRunWizard()
         popDisconnected();
 
         doChanged( false );
-        slotLoadSource();
         loadIncludeDirs( includesPage->enabledIncludeDirs() );
         loadPreProcessorDefines( preProcDefinesPage->enabledPreProcDefines() );
+
         QString projFile = QDir( wizard.field( "clientDir" ).toString() ).absoluteFilePath( wizard.field( "clientName" ).toString() ) + ".vsprjmkr.ini";
-        setProjectFile( projFile, false );
+        saveProjectFile( projFile );
+
+        slotLoadSource();
         doChanged( false );
     }
 }
@@ -659,6 +669,8 @@ void CMainWindow::slotOpenProjectFile()
     if ( currPath.isEmpty() )
         currPath = QString();
     auto projFile = QFileDialog::getOpenFileName( this, tr( "Select Project File to open" ), currPath, "Project Files *.ini;;All Files *.*" );
+    if ( projFile.isEmpty() )
+        return;
     setProjectFile( projFile, true );
 }
 
@@ -669,8 +681,15 @@ void CMainWindow::slotSaveProjectFile()
         currPath = fSettings->fileName();
     if ( currPath.isEmpty() )
         currPath = QString();
+
+    saveProjectFile( currPath );
+}
+
+void CMainWindow::saveProjectFile( const QString & currPath )
+{
     auto projFile = QFileDialog::getSaveFileName( this, tr( "Select Project File to save" ), currPath, "Project Files *.ini;;All Files *.*" );
-    setProjectFile( projFile, false );
+    if ( !projFile.isEmpty() )
+        setProjectFile( projFile, false );
 }
 
 void CMainWindow::slotCurrentProjectChanged( const QString & projFile )
@@ -678,13 +697,18 @@ void CMainWindow::slotCurrentProjectChanged( const QString & projFile )
     setProjectFile( projFile, true );
 }
 
-void CMainWindow::setProjectFile( const QString & projFile, bool load )
+void CMainWindow::setProjectFile( const QString & projFile, bool forLoad )
 {
     if ( projFile.isEmpty() )
         return;
+    if ( !forLoad && !QFileInfo::exists( projFile ) )
+    {
+        QFile fi( projFile );
+        fi.open( QFile::WriteOnly ); // force it to exist 
+    }
     setCurrentProject( projFile );
 
-    if ( load )
+    if ( forLoad )
     {
         if ( !fSettings->loadSettings( projFile ) )
         {
@@ -695,13 +719,10 @@ void CMainWindow::setProjectFile( const QString & projFile, bool load )
     else
         fSettings->setFileName( projFile, true );
     setWindowTitle( tr( "Visual Studio Project Generator - %1" ).arg( projFile ) );
-    if ( load )
+    if ( forLoad )
         loadSettings();
     else
-    {
         saveSettings();
-        fSettings->saveSettings();
-    }
 }
 
 void CMainWindow::slotSelectVS()
