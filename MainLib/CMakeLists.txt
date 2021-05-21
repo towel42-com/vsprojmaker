@@ -43,3 +43,4 @@ add_library(MainLib STATIC
     ${_CMAKE_FILES}
 )
 set_target_properties( MainLib PROPERTIES FOLDER Libs )
+set_target_properties( MainLib PROPERTIES OUTPUT_NAME foobar )

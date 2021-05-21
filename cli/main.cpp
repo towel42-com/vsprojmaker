@@ -30,6 +30,30 @@
 #include <QProcess>
 #include <QEventLoop>
 #include <iostream>
+#include <cstring>
+
+void dupeArgv( int * argc, char *** argv )
+{
+    int origArgc = *argc;
+    char ** origArgv = *argv;
+
+    int newArgc = origArgc + 2;
+    char ** newArgv = new char * [ newArgc ]{ nullptr };
+    int ii = 0;
+    for ( ii = 0; ii < origArgc; ++ii )
+    {
+        newArgv[ ii ] = new char[ strlen( origArgv[ ii ] ) + 1 ];
+        std::strcpy( newArgv[ ii ], origArgv[ ii ] );
+    }
+    newArgv[ ii ] = new char[ strlen( "Hello" ) + 1 ];
+    strcpy( newArgv[ ii++ ], "Hello" );
+
+    newArgv[ ii ] = new char[ strlen( "There" ) + 1 ];
+    strcpy( newArgv[ ii ], "There" );
+
+    *argc = newArgc;
+    *argv = newArgv;
+}
 
 int main( int argc, char ** argv )
 {
@@ -40,6 +64,8 @@ int main( int argc, char ** argv )
     appl.setOrganizationDomain( "www.towel42.com" );
 
     Q_INIT_RESOURCE( MainLib );
+
+    dupeArgv( &argc, &argv );
 
     NVSProjectMaker::registerTypes();
 

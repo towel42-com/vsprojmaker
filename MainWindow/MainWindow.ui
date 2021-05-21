@@ -20,20 +20,21 @@
    <string>Visual Studio Project Generator</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_7">
+   <item row="0" column="2">
+    <widget class="QPushButton" name="openProjectFileBtn">
+     <property name="text">
+      <string>Load</string>
+     </property>
+     <property name="icon">
+      <iconset resource="MainWindow.qrc">
+       <normaloff>:/resources/open.png</normaloff>:/resources/open.png</iconset>
+     </property>
+    </widget>
+   </item>
    <item row="0" column="0">
     <widget class="QLabel" name="label_11">
      <property name="text">
       <string>Project File:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="1">
-    <widget class="QComboBox" name="projectFile">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
      </property>
     </widget>
    </item>
@@ -166,7 +167,7 @@
        <item row="4" column="0" colspan="3">
         <widget class="QTabWidget" name="tabWidget">
          <property name="currentIndex">
-          <number>2</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="tab">
           <attribute name="title">
@@ -551,6 +552,38 @@
      </widget>
     </widget>
    </item>
+   <item row="0" column="4">
+    <widget class="QPushButton" name="runWizardBtn">
+     <property name="text">
+      <string>Run Setup Wizard</string>
+     </property>
+     <property name="icon">
+      <iconset resource="MainWindow.qrc">
+       <normaloff>:/resources/wizard.png</normaloff>:/resources/wizard.png</iconset>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="3">
+    <widget class="QPushButton" name="saveProjectFileBtn">
+     <property name="text">
+      <string>Save</string>
+     </property>
+     <property name="icon">
+      <iconset resource="MainWindow.qrc">
+       <normaloff>:/resources/download.png</normaloff>:/resources/download.png</iconset>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QComboBox" name="projectFile">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
    <item row="0" column="5">
     <spacer name="horizontalSpacer_6">
      <property name="orientation">
@@ -564,36 +597,10 @@
      </property>
     </spacer>
    </item>
-   <item row="0" column="4">
-    <widget class="QPushButton" name="runWizardBtn">
+   <item row="2" column="0" colspan="6">
+    <widget class="QCheckBox" name="verbose">
      <property name="text">
-      <string>Run Setup Wizard</string>
-     </property>
-     <property name="icon">
-      <iconset resource="MainWindow.qrc">
-       <normaloff>:/resources/wizard.png</normaloff>:/resources/wizard.png</iconset>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="2">
-    <widget class="QPushButton" name="openProjectFileBtn">
-     <property name="text">
-      <string>Load</string>
-     </property>
-     <property name="icon">
-      <iconset resource="MainWindow.qrc">
-       <normaloff>:/resources/open.png</normaloff>:/resources/open.png</iconset>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="3">
-    <widget class="QPushButton" name="saveProjectFileBtn">
-     <property name="text">
-      <string>Save</string>
-     </property>
-     <property name="icon">
-      <iconset resource="MainWindow.qrc">
-       <normaloff>:/resources/download.png</normaloff>:/resources/download.png</iconset>
+      <string>Verbose Logging?</string>
      </property>
     </widget>
    </item>
@@ -629,6 +636,8 @@
   <tabstop>runBuildAnalysisBtn</tabstop>
   <tabstop>origBldTxtProdDir</tabstop>
   <tabstop>bldData</tabstop>
+  <tabstop>primaryBuildTarget</tabstop>
+  <tabstop>addCustomBuildBtn</tabstop>
   <tabstop>customBuilds</tabstop>
   <tabstop>addDebugTargetBtn</tabstop>
   <tabstop>debugTargets</tabstop>
@@ -639,6 +648,7 @@
   <tabstop>preProcDefines</tabstop>
   <tabstop>generateBtn</tabstop>
   <tabstop>log</tabstop>
+  <tabstop>verbose</tabstop>
  </tabstops>
  <resources>
   <include location="MainWindow.qrc"/>

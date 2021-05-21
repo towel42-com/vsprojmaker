@@ -197,6 +197,8 @@ namespace NVSProjectMaker
         ADD_SETTING( QString, BuildOutputDataFile );
         ADD_SETTING( QString, BldTxtProdDir );
 
+        ADD_SETTING( bool, Verbose );
+
     private:
         QMap< QString, QString > getVarMap() const;
 

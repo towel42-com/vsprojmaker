@@ -717,10 +717,11 @@ namespace NVSProjectMaker
             return false;
 
         auto relDirPath = sourceDir.relativeFilePath( dir );
-        logit( relDirPath );
+        if ( getVerbose() )
+            logit( relDirPath );
         if ( progress )
         {
-            progress->setLabelText( QObject::tr( "Finding Source Files...\n%1" ).arg( relDirPath ) );
+            progress->setLabelText( QObject::tr( "Finding Source Files...\nIn directory '%1'" ).arg( relDirPath ) );
             progress->adjustSize();
             progress->setRange( 0, baseDir.count() );
             incProgress( progress );
@@ -841,6 +842,7 @@ namespace NVSProjectMaker
         ADD_SETTING_VALUE( TListOfDebugTargets, DebugCommands );
         ADD_SETTING_VALUE( QString, BuildOutputDataFile );
         ADD_SETTING_VALUE( QString, BldTxtProdDir );
+        ADD_SETTING_VALUE( bool, Verbose );
     }
 
     QStringList CSettings::getQtIncludeDirs( const QString & qtDirStr )

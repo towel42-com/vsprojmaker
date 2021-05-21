@@ -119,6 +119,7 @@ CMainWindow::CMainWindow( QWidget * parent )
 
     fImpl->projectFile->setFocus();
     fImpl->tabWidget->setCurrentIndex( 0 );
+    fImpl->verbose->setChecked( true );
 }
 
 void CMainWindow::popDisconnected( bool force )
@@ -371,6 +372,7 @@ void CMainWindow::saveSettings()
     fSettings->setSelectedQtDirs( fQtLibsModel->getCheckedStrings() );
     fSettings->setBuildOutputDataFile( fImpl->bldOutputFile->text() );
     fSettings->setBldTxtProdDir( fImpl->origBldTxtProdDir->text() );
+    fSettings->setVerbose( fImpl->verbose->isChecked() );
 
     auto attribs = findDirAttributes( nullptr );
     auto customBuilds = getCustomBuilds( false );
@@ -401,6 +403,7 @@ void CMainWindow::loadSettings()
     fImpl->msys64Dir->setText( fSettings->getMSys64Dir() );
     fImpl->origBldTxtProdDir->setText( fSettings->getBldTxtProdDir() );
     fImpl->bldOutputFile->setText( fSettings->getBuildOutputDataFile() );
+    fImpl->verbose->setChecked( fSettings->getVerbose() );
 
     fQtLibsModel->setStringList( fSettings->getQtDirs() );
     fQtLibsModel->setChecked( fSettings->getSelectedQtDirs(), true, true );
