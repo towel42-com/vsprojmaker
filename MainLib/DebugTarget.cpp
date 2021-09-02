@@ -80,28 +80,15 @@ namespace NVSProjectMaker
     QString SDebugTarget::getEnvVars() const
     {
         QStringList tmp;
-        bool inParen = false;
-        QString curr;
-        for ( int ii = 0; ii < fEnvVars.length(); ++ii )
+        for (auto&& ii : fEnvVars)
         {
-            auto currChar = fEnvVars[ ii ];
-            if ( inParen )
-            {
-                if ( currChar == '}' )
-                {
-                    inParen = false;
-                    curr = curr.trimmed();
-                    tmp << curr;
-                    curr.clear();
-                }
-                else
-                    curr += currChar;
-            }
-            else
-                inParen = currChar == '{';
-        }
-        if ( !curr.isEmpty() )
+            auto curr = ii.trimmed();
+            if (!curr.startsWith("{"))
+                curr = "{" + curr;
+            if (!curr.endsWith("}"))
+                curr += "}";
             tmp << curr;
+        }
         auto retVal = tmp.join( '\n' );
         return retVal;
     }

@@ -62,7 +62,7 @@
 CMainWindow::CMainWindow( QWidget * parent )
     : QDialog( parent ),
     fImpl( new Ui::CMainWindow ),
-    fProcess( new QProcess( this ) ),
+    fProcess( nullptr ),
     fSettings( new NVSProjectMaker::CSettings )
 {
     NVSProjectMaker::registerTypes();
@@ -74,6 +74,7 @@ CMainWindow::CMainWindow( QWidget * parent )
     connect( fImpl->saveProjectFileBtn, &QToolButton::clicked, this, &CMainWindow::slotSaveProjectFile );
     connect( fImpl->runWizardBtn, &QToolButton::clicked, this, &CMainWindow::slotRunWizard );
     connect( fImpl->vsPathBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectVS );
+    connect(fImpl->cmakeExecBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectCMake);
     connect( fImpl->clientDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectClientDir );
     connect( fImpl->sourceDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectSourceDir );
     connect( fImpl->buildDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectBuildDir );
@@ -130,6 +131,8 @@ void CMainWindow::popDisconnected( bool force )
     {
         connect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
         connect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
+        connect(fImpl->cmakeExec, &QLineEdit::textChanged, this, &CMainWindow::slotChanged);
+        connect(fImpl->useCustomCMake, &QGroupBox::clicked, this, &CMainWindow::slotChanged);
         connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
         connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
         connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
@@ -146,6 +149,8 @@ void CMainWindow::pushDisconnected()
     {
         disconnect( fImpl->projectFile, &QComboBox::currentTextChanged, this, &CMainWindow::slotCurrentProjectChanged );
         disconnect( fImpl->vsPath, &QLineEdit::textChanged, this, &CMainWindow::slotVSChanged );
+        disconnect(fImpl->cmakeExec, &QLineEdit::textChanged, this, &CMainWindow::slotChanged);
+        disconnect(fImpl->useCustomCMake, &QGroupBox::clicked, this, &CMainWindow::slotChanged);
         disconnect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
         disconnect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
         disconnect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
@@ -309,6 +314,34 @@ std::optional< QString > CMainWindow::getBuildDir( bool relPath ) const
     return fSettings->getBuildDir( relPath );
 }
 
+QStringList argsFromString(const QString& argList)
+{
+    return argList.split(" ", QString::SkipEmptyParts);
+}
+
+QStringList envVarsFromString(const QString& envVarList)
+{
+    return envVarList.split(" ", QString::SkipEmptyParts);
+}
+
+QString stringFromEnvVars(const QStringList& envVars)
+{
+    QString retVal;
+    for (auto&& ii : envVars)
+    {
+        auto curr = "{" + ii + "}";
+        if (!retVal.isEmpty())
+            retVal += " ";
+        retVal += curr;
+    }
+    return retVal;
+}
+
+QString stringFromArgs(const QStringList& envVars)
+{
+    return envVars.join(" ");
+}
+
 QList < NVSProjectMaker::SDebugTarget > CMainWindow::getDebugCommands( bool absDir ) const
 {
     QList < NVSProjectMaker::SDebugTarget > retVal;
@@ -327,9 +360,9 @@ QList < NVSProjectMaker::SDebugTarget > CMainWindow::getDebugCommands( bool absD
             curr.fSourceDir = sourceDir.absoluteFilePath( curr.fSourceDir );
         curr.fName = fDebugTargetsModel->item( ii, 1 )->text();
         curr.fCmd = fDebugTargetsModel->item( ii, 2 )->text();
-        curr.fArgs = fDebugTargetsModel->item( ii, 3 )->text();
+        curr.fArgs = argsFromString( fDebugTargetsModel->item( ii, 3 )->text() );
         curr.fWorkDir = fDebugTargetsModel->item( ii, 4 )->text();
-        curr.fEnvVars = fDebugTargetsModel->item( ii, 5 )->text();
+        curr.fEnvVars = envVarsFromString(fDebugTargetsModel->item(ii, 5)->text());
         retVal << curr;
     }
     return retVal;
@@ -359,33 +392,35 @@ QList< QPair< QString, QString > > CMainWindow::getCustomBuilds( bool absDir ) c
 
 void CMainWindow::saveSettings()
 {
-    fSettings->setVSPath( fImpl->vsPath->text() );
-    fSettings->setGenerator( fImpl->generator->currentText() );
-    fSettings->setClientDir( fImpl->clientDir->text() );
-    auto srcDir = getSourceDir( true );
-    fSettings->setSourceRelDir( srcDir.has_value() ? srcDir.value() : QString() );
-    auto bldDir = getBuildDir( true );
-    fSettings->setBuildRelDir( bldDir.has_value() ? bldDir.value() : QString() );
-    fSettings->setQtDir( fImpl->qtDir->text() );
-    fSettings->setProdDir( fImpl->prodDir->text() );
-    fSettings->setMSys64Dir( fImpl->msys64Dir->text() );
-    fSettings->setSelectedQtDirs( fQtLibsModel->getCheckedStrings() );
-    fSettings->setBuildOutputDataFile( fImpl->bldOutputFile->text() );
-    fSettings->setBldTxtProdDir( fImpl->origBldTxtProdDir->text() );
-    fSettings->setVerbose( fImpl->verbose->isChecked() );
+    fSettings->setVSPath(fImpl->vsPath->text());
+    fSettings->setUseCustomCMake(fImpl->useCustomCMake->isChecked());
+    fSettings->setCustomCMakeExec(fImpl->cmakeExec->text());
+    fSettings->setGenerator(fImpl->generator->currentText());
+    fSettings->setClientDir(fImpl->clientDir->text());
+    auto srcDir = getSourceDir(true);
+    fSettings->setSourceRelDir(srcDir.has_value() ? srcDir.value() : QString());
+    auto bldDir = getBuildDir(true);
+    fSettings->setBuildRelDir(bldDir.has_value() ? bldDir.value() : QString());
+    fSettings->setQtDir(fImpl->qtDir->text());
+    fSettings->setProdDir(fImpl->prodDir->text());
+    fSettings->setMSys64Dir(fImpl->msys64Dir->text());
+    fSettings->setSelectedQtDirs(fQtLibsModel->getCheckedStrings());
+    fSettings->setBuildOutputDataFile(fImpl->bldOutputFile->text());
+    fSettings->setBldTxtProdDir(fImpl->origBldTxtProdDir->text());
+    fSettings->setVerbose(fImpl->verbose->isChecked());
 
-    auto attribs = findDirAttributes( nullptr );
-    auto customBuilds = getCustomBuilds( false );
-    auto dbgCommands = getDebugCommands( false );
-    fSettings->setBuildDirs( std::get< 0 >( attribs ) );
-    fSettings->setInclDirs( fIncDirModel->stringList() );
-    fSettings->setSelectedInclDirs( fIncDirModel->getCheckedStrings() );
-    fSettings->setPreProcDefines( fPreProcDefineModel->stringList() );
-    fSettings->setSelectedPreProcDefines( fPreProcDefineModel->getCheckedStrings() );
-    fSettings->setExecNames( std::get< 1 >( attribs ) );
-    fSettings->setCustomBuilds( customBuilds );
-    fSettings->setPrimaryTarget( fImpl->primaryBuildTarget->currentText() );
-    fSettings->setDebugCommands( dbgCommands );
+    auto attribs = findDirAttributes(nullptr);
+    auto customBuilds = getCustomBuilds(false);
+    auto dbgCommands = getDebugCommands(false);
+    fSettings->setBuildDirs(std::get< 0 >(attribs));
+    fSettings->setInclDirs(fIncDirModel->stringList());
+    fSettings->setSelectedInclDirs(fIncDirModel->getCheckedStrings());
+    fSettings->setPreProcDefines(fPreProcDefineModel->stringList());
+    fSettings->setSelectedPreProcDefines(fPreProcDefineModel->getCheckedStrings());
+    fSettings->setExecNames(std::get< 1 >(attribs));
+    fSettings->setCustomBuilds(customBuilds);
+    fSettings->setPrimaryTarget(fImpl->primaryBuildTarget->currentText());
+    fSettings->setDebugCommands(dbgCommands);
     fSettings->saveSettings();
 }
 
@@ -394,68 +429,75 @@ void CMainWindow::loadSettings()
 {
     pushDisconnected();
 
-    fImpl->vsPath->setText( fSettings->getVSPath() );
-    fImpl->generator->setCurrentText( fSettings->getGenerator() );
-    fImpl->clientDir->setText( fSettings->getClientDir() );
-    fImpl->buildRelDir->setText( fSettings->getBuildRelDir() );
-    fImpl->qtDir->setText( fSettings->getQtDir() );
-    fImpl->prodDir->setText( fSettings->getProdDir() );
-    fImpl->msys64Dir->setText( fSettings->getMSys64Dir() );
-    fImpl->origBldTxtProdDir->setText( fSettings->getBldTxtProdDir() );
-    fImpl->bldOutputFile->setText( fSettings->getBuildOutputDataFile() );
-    fImpl->verbose->setChecked( fSettings->getVerbose() );
+    fImpl->vsPath->setText(fSettings->getVSPath());
+    fImpl->useCustomCMake->setChecked(fSettings->getUseCustomCMake());
+    fImpl->cmakeExec->setText(fSettings->getCustomCMakeExec());
+    fImpl->generator->setCurrentText(fSettings->getGenerator());
+    fImpl->clientDir->setText(fSettings->getClientDir());
+    fImpl->buildRelDir->setText(fSettings->getBuildRelDir());
+    fImpl->qtDir->setText(fSettings->getQtDir());
+    fImpl->prodDir->setText(fSettings->getProdDir());
+    fImpl->msys64Dir->setText(fSettings->getMSys64Dir());
+    fImpl->origBldTxtProdDir->setText(fSettings->getBldTxtProdDir());
+    fImpl->bldOutputFile->setText(fSettings->getBuildOutputDataFile());
+    fImpl->verbose->setChecked(fSettings->getVerbose());
 
-    fQtLibsModel->setStringList( fSettings->getQtDirs() );
-    fQtLibsModel->setChecked( fSettings->getSelectedQtDirs(), true, true );
+    fQtLibsModel->setStringList(fSettings->getQtDirs());
+    fQtLibsModel->setChecked(fSettings->getSelectedQtDirs(), true, true);
 
-    popDisconnected();
-
-    fIncDirModel->setStringList( fSettings->getInclDirs() );
+    fIncDirModel->setStringList(fSettings->getInclDirs());
     auto selectedIncDirs = fSettings->getSelectedInclDirs();
-    if ( selectedIncDirs.isEmpty() )
-        fIncDirModel->checkAll( true );
+    if (selectedIncDirs.isEmpty())
+        fIncDirModel->checkAll(true);
     else
-        fIncDirModel->setChecked( selectedIncDirs, true, true );
+        fIncDirModel->setChecked(selectedIncDirs, true, true);
 
-    fPreProcDefineModel->setStringList( fSettings->getPreProcDefines() );
+    fPreProcDefineModel->setStringList(fSettings->getPreProcDefines());
     auto selectedPreProcDefines = fSettings->getSelectedPreProcDefines();
-    if ( selectedPreProcDefines.isEmpty() )
-        fPreProcDefineModel->checkAll( true );
+    if (selectedPreProcDefines.isEmpty())
+        fPreProcDefineModel->checkAll(true);
     else
-        fPreProcDefineModel->setChecked( selectedPreProcDefines, true, true );
+        fPreProcDefineModel->setChecked(selectedPreProcDefines, true, true);
 
     fCustomBuildModel->clear();
-    fCustomBuildModel->setHorizontalHeaderLabels( QStringList() << "Directory" << "Target Name" );
+    fCustomBuildModel->setHorizontalHeaderLabels(QStringList() << "Directory" << "Target Name");
 
     fDebugTargetsModel->clear();
-    fDebugTargetsModel->setHorizontalHeaderLabels( QStringList() << "Source Dir" << "Name" << "Command" << "Args" << "Work Dir" << "EnvVars" );
+    fDebugTargetsModel->setHorizontalHeaderLabels(QStringList() << "Source Dir" << "Name" << "Command" << "Args" << "Work Dir" << "EnvVars");
 
     fExecutables = fSettings->getExecNames();
     auto customBuilds = fSettings->getCustomBuilds();
-    for ( auto && ii : customBuilds )
-        addCustomBuild( ii );
+    for (auto && ii : customBuilds)
+        addCustomBuild(ii);
 
     slotBuildsChanged();
-    fImpl->primaryBuildTarget->setCurrentText( fSettings->getPrimaryTarget() );
+    fImpl->primaryBuildTarget->setCurrentText(fSettings->getPrimaryTarget());
 
-    fImpl->sourceRelDir->setText( fSettings->getSourceRelDir() );
+    fImpl->sourceRelDir->setText(fSettings->getSourceRelDir());
 
     auto dbgCmds = fSettings->getDebugCommands();
-    for ( auto && ii : dbgCmds )
-        addDebugTarget( ii );
+    for (auto && ii : dbgCmds)
+        addDebugTarget(ii);
 
+    popDisconnected();
     slotChanged();
 }
 
 void CMainWindow::slotChanged()
 {
-    doChanged( true );
+    doChanged(true);
+}
+
+QString CMainWindow::getCMakeExec() const
+{
+    if (fImpl->useCustomCMake->isChecked())
+        return fImpl->cmakeExec->text();
+    else
+        return fSettings->getCMakeExecViaVSPath(fImpl->vsPath->text());
 }
 
 void CMainWindow::doChanged( bool andLoad )
 {
-    bool generatorOK = !fImpl->generator->currentText().isEmpty();
-
     auto clientDir = getClientDir();
     auto clientDirOK = clientDir.has_value();
     if ( clientDirOK )
@@ -464,14 +506,8 @@ void CMainWindow::doChanged( bool andLoad )
     }
 
     auto vsDir = QDir( fImpl->vsPath->text() );
-    auto vsPath = QFileInfo( NVSProjectMaker::CSettings::getCMakeExec( fImpl->vsPath->text() ) );
-    bool cmakePathOK = false;
-    if ( vsDir.exists() && vsPath.exists() && vsPath.isExecutable() )
-    {
-        fImpl->cmakeExec->setText( vsPath.absoluteFilePath() );
-        QFileInfo fi( fImpl->cmakeExec->text() );
-        cmakePathOK = !fImpl->cmakeExec->text().isEmpty() && fi.exists() && fi.isExecutable();
-    }
+    auto cmakeExecPath = QFileInfo(getCMakeExec());
+    bool cmakePathOK = vsDir.exists() && cmakeExecPath.exists() && cmakeExecPath.isExecutable();
     if ( cmakePathOK )
     {
         slotVSChanged();
@@ -523,6 +559,8 @@ void CMainWindow::doChanged( bool andLoad )
     auto bldDir = getBuildDir();
     fi = clientDirOK && bldDir.has_value() ? QFileInfo( bldDir.value() ) : QFileInfo();
     bool bldDirOK = clientDirOK && bldDir.has_value() && fi.exists() && fi.isDir() && fi.isWritable();
+
+    bool generatorOK = !fImpl->generator->currentText().isEmpty();
 
     fImpl->sourceDirBtn->setEnabled( clientDirOK );
     fImpl->buildDirBtn->setEnabled( clientDirOK );
@@ -610,37 +648,44 @@ void CMainWindow::loadBuildTargets( const QStringList & targets, const QString &
 
 void CMainWindow::loadDebugTargets( const QStringList & targets )
 {
-    for ( auto && ii : targets )
+    for (auto&& ii : targets)
     {
-        auto path = QString( "src/hdloffice/hdlstudio/cxx/main/src" );
-        auto name = ii;
-        QString args;
-        if ( ii.startsWith( "HDL Client+" ) )
+        auto path = QString("src/hdloffice/hdlstudio/cxx/main/src");
+        QStringList args;
+
+        QString executable;
+        QString exampleName = ii;
+        QStringList envVars;
+
+        auto pos = exampleName.indexOf(" + ");
+        if (pos != -1)
         {
-            auto nm = ii.mid( 11 );
-            args = QString( "+external_client+<CLIENTDIR>/devapps/visualizer/win64/%1.dll" ).arg( nm );
+            auto remaining = exampleName.mid(pos + 1).trimmed();
+            auto addOns = remaining.split("+", QString::SkipEmptyParts);
+            for( auto && ii : addOns )
+                args << QString("+external_client+<CLIENTDIR>/devapps/visualizer/win64/%1.dll").arg(ii.trimmed());
         }
 
-        auto executable = QString( "<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlclient.exe" );
-        if ( ii == "HDL Studio" )
+        executable = QString("<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlclient.exe");
+        if (exampleName == "HDL Studio")
         {
-            executable = QString( "<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlstudio.exe" );
-        }
-        auto workDir = QString( "<CLIENTDIR>" );
-
-        QString envVars;
-        if ( ii == "HDL Client+vxcSampleWithProject" )
-        {
-            envVars = QString( "{SKIP_LIMITED_FEATURES_KEY=1}{ENABLE_VFPRJ=1}" );
-            args += " +vfprj_mode";
-        }
-        else if ( ii == "HDL Client+vxcSampleWithFlowNav" )
-        {
-            envVars = QString( "{SKIP_LIMITED_FEATURES_KEY=1}{ENABLE_FLOWNAV=1}" );
-            args += " +vfprj_mode";
+            executable = QString("<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlstudio.exe");
         }
 
-        addDebugTarget( path, name, executable, args, workDir, envVars );
+        if (exampleName.contains("ProjectSample"))
+        {
+            envVars << "SKIP_LIMITED_FEATURES_KEY=1" << "ENABLE_VFPRJ=1";
+            args << "+vfprj_mode";
+        }
+        else if (exampleName.contains("FlowNavSample"))
+        {
+            envVars << "SKIP_LIMITED_FEATURES_KEY=1" << "ENABLE_VFPRJ=1";
+            args << "+vfprj_mode";
+        }
+        if (executable.isEmpty())
+            continue;
+        auto workDir = QString("<CLIENTDIR>");
+        addDebugTarget(path, exampleName, executable, args, workDir, envVars);
     }
 }
 
@@ -744,7 +789,7 @@ void CMainWindow::slotSelectVS()
         return;
     }
 
-    fi = QFileInfo( NVSProjectMaker::CSettings::getCMakeExec( dir ) );
+    fi = QFileInfo( NVSProjectMaker::CSettings::getCMakeExecViaVSPath( dir ) );
     if ( !fi.exists() || !fi.isExecutable() )
     {
         QMessageBox::critical( this, tr( "Error Valid Directory not Selected" ), QString( "Error: '%1' is not an executable" ).arg( fi.absoluteFilePath() ) );
@@ -753,8 +798,26 @@ void CMainWindow::slotSelectVS()
     fImpl->vsPath->setText( dir );
 }
 
+QProcess * CMainWindow::getProcess()
+{
+    if (!fProcess)
+        fProcess = new QProcess(this);
+    return fProcess;
+}
+
+void CMainWindow::clearProcess()
+{
+    delete fProcess;
+    fProcess = nullptr;
+}
+
 void CMainWindow::slotVSChanged()
 {
+    if (getProcess() && (getProcess()->state() != QProcess::ProcessState::NotRunning))
+    {
+        QTimer::singleShot(500, this, &CMainWindow::slotVSChanged);
+        return;
+    }
     auto currPath = fImpl->vsPath->text();
     if ( currPath.isEmpty() )
         return;
@@ -762,25 +825,28 @@ void CMainWindow::slotVSChanged()
     if ( !fi.exists() || !fi.isDir() )
         return;
 
-    auto cmakePath = NVSProjectMaker::CSettings::getCMakeExec( currPath );
-    if ( currPath.isEmpty() )
+    auto cmakePath = getCMakeExec();
+    if (cmakePath.isEmpty() )
         return;
 
     pushDisconnected();
     auto currText = fImpl->generator->currentText();
+    if (currText.isEmpty())
+        currText = fSettings->getGenerator();
     fImpl->generator->clear();
 
     QApplication::setOverrideCursor( Qt::WaitCursor );
 
     //process.setProcessChannelMode(QProcess::MergedChannels);
-    fProcess->start( cmakePath, QStringList() << "-help" );
-    if ( !fProcess->waitForFinished( -1 ) || ( fProcess->exitStatus() != QProcess::NormalExit ) || ( fProcess->exitCode() != 0 ) )
+    getProcess()->start( cmakePath, QStringList() << "-help" );
+    if ( !getProcess()->waitForFinished( -1 ) || ( getProcess()->exitStatus() != QProcess::NormalExit ) || ( getProcess()->exitCode() != 0 ) )
     {
-        QMessageBox::critical( this, tr( "Error Running CMake" ), QString( "Error: '%1' Could not run cmake and determine Generators" ).arg( QString( fProcess->readAllStandardError() ) ) );
+        QMessageBox::critical( this, tr( "Error Running CMake" ), QString( "Error: '%1' Could not run cmake and determine Generators" ).arg( QString( getProcess()->readAllStandardError() ) ) );
         return;
     }
-    auto data = QString( fProcess->readAll() );
-    auto lines = data.split( '\n' );
+    auto data = QString( getProcess()->readAll() );
+    clearProcess();
+    auto lines = data.split( '\n', QString::SkipEmptyParts);
     QStringList generators;
     bool inGenerators = false;
     bool usePrev = false;
@@ -825,11 +891,25 @@ void CMainWindow::slotVSChanged()
     fImpl->generator->addItems( generators );
 
     QApplication::restoreOverrideCursor();
-    popDisconnected();
+
+    if (currText.isEmpty())
+    {
+        auto vsPath = fSettings->getVSPath();
+        auto whichVS = QDir(vsPath).dirName();
+        for (auto && ii : generators)
+        {
+            if (ii.contains(whichVS))
+            {
+                currText = ii;
+                break;
+            }
+        }
+    }
 
     auto idx = fImpl->generator->findText( currText );
     if ( idx != -1 )
         fImpl->generator->setCurrentIndex( idx );
+    popDisconnected();
 }
 
 void CMainWindow::slotSelectSourceDir()
@@ -901,16 +981,16 @@ void CMainWindow::slotAddDebugTarget()
     CSetupDebug dlg( getSourceDir().value(), getBuildDir().value(), this );
     if ( dlg.exec() == QDialog::Accepted && !dlg.command().isEmpty() && !dlg.sourceDir().isEmpty() )
     {
-        addDebugTarget( dlg.sourceDir(), dlg.name(), dlg.command(), dlg.args(), dlg.workDir(), dlg.envVars() );
+        addDebugTarget(dlg.sourceDir(), dlg.name(), dlg.command(), dlg.args(), dlg.workDir(), dlg.envVars() );
     }
 }
 
 void CMainWindow::addDebugTarget( const NVSProjectMaker::SDebugTarget & cmd )
 {
-    addDebugTarget( cmd.fSourceDir, cmd.fName, cmd.fCmd, cmd.fArgs, cmd.fWorkDir, cmd.fEnvVars );
+    addDebugTarget(cmd.fSourceDir, cmd.fName, cmd.fCmd, cmd.fArgs, cmd.fWorkDir, cmd.fEnvVars );
 }
 
-void CMainWindow::addDebugTarget( const QString & sourcePath, const QString & name, const QString & cmd, const QString & args, const QString & workDir, const QString & envVars )
+void CMainWindow::addDebugTarget( const QString & sourcePath, const QString & name, const QString & cmd, const QStringList & args, const QString & workDir, const QStringList & envVars )
 {
     if ( !getSourceDir().has_value() )
         return;
@@ -920,9 +1000,9 @@ void CMainWindow::addDebugTarget( const QString & sourcePath, const QString & na
     auto sourceDirItem = new QStandardItem( sourceDir.relativeFilePath( sourcePath ) );
     auto nameItem = new QStandardItem( name );
     auto cmdItem = new QStandardItem( cmd );
-    auto argsItem = new QStandardItem( args );
+    auto argsItem = new QStandardItem( stringFromArgs( args ) );
     auto workDirItem = new QStandardItem( workDir );
-    auto envVarsItem = new QStandardItem( envVars );
+    auto envVarsItem = new QStandardItem(stringFromEnvVars( envVars ) );
     fDebugTargetsModel->appendRow( QList< QStandardItem * >() << sourceDirItem << nameItem << cmdItem << argsItem << workDirItem << envVarsItem );
 }
 
@@ -1028,6 +1108,25 @@ void CMainWindow::slotSelectMSys64Dir()
     fImpl->msys64Dir->setText( dir );
 }
 
+void CMainWindow::slotSelectCMake()
+{
+    auto currPath = fImpl->cmakeExec->text();
+    if (currPath.isEmpty())
+        currPath = fSettings->getCMakeExec();
+
+    auto newPath = QFileDialog::getOpenFileName(this, tr("Select CMake Executable"), currPath, tr("Executables *.exe"));
+    if (newPath.isEmpty())
+        return;
+
+    QFileInfo fi(newPath);
+    if ( !fi.exists() || !fi.isFile() || !fi.isExecutable() )
+    {
+        QMessageBox::critical(this, tr("Error Executable File not Selected"), QString("Error: '%1' is not an executable file").arg(newPath));
+        return;
+    }
+    fImpl->cmakeExec->setText(newPath);
+}
+
 void CMainWindow::slotSetBuildOutputFile()
 {
     auto currPath = fImpl->bldOutputFile->text();
@@ -1127,25 +1226,25 @@ void CMainWindow::slotGenerate()
 {
     QApplication::setOverrideCursor( Qt::WaitCursor );
 
-    auto progress = new QProgressDialog( tr( "Generating CMake Files..." ), tr( "Cancel" ), 0, 0, this );
+    fProgress = new QProgressDialog( tr( "Generating CMake Files..." ), tr( "Cancel" ), 0, 0, this );
     QPushButton * pb = new QPushButton( tr( "Cancel" ) );
-    progress->setCancelButton( pb );
-    progress->setWindowFlags( progress->windowFlags() & ~Qt::WindowCloseButtonHint );
-    progress->setAutoReset( false );
-    progress->setAutoClose( false );
-    progress->setWindowModality( Qt::WindowModal );
-    progress->setMinimumDuration( 1 );
-    progress->setRange( 0, 100 );
-    progress->setValue( 0 );
+    fProgress->setCancelButton( pb );
+    fProgress->setWindowFlags( fProgress->windowFlags() & ~Qt::WindowCloseButtonHint );
+    fProgress->setAutoReset( false );
+    fProgress->setAutoClose( false );
+    fProgress->setWindowModality( Qt::WindowModal );
+    fProgress->setMinimumDuration( 1 );
+    fProgress->setRange( 0, 100 );
+    fProgress->setValue( 0 );
     qApp->processEvents();
 
     saveSettings();
-    if ( !fSettings->generate( progress, this, [this]( const QString & msg ) { appendToLog( msg ); } ) )
+    if ( !fSettings->generate( fProgress, this, [this]( const QString & msg ) { appendToLog( msg ); } ) )
         return;
 
-    progress->setLabelText( tr( "Running CMake" ) );
+    fProgress->setLabelText( tr( "Running CMake" ) );
     pb->setEnabled( false );
-    progress->setRange( 0, 0 );
+    fProgress->setRange( 0, 0 );
 
     fSettings->runCMake(
         [this]( const QString & outMsg )
@@ -1156,8 +1255,8 @@ void CMainWindow::slotGenerate()
     {
         appendToLog( "ERROR: " + errMsg );
     },
-        fProcess
-        , { false, [this, progress]() { QApplication::restoreOverrideCursor(); progress->deleteLater(); } } );
+        getProcess()
+        , { false, [this]() { QApplication::restoreOverrideCursor(); fProgress->deleteLater();  } });
 }
 
 void CMainWindow::slotLoadSourceAndOutputData()
@@ -1179,7 +1278,7 @@ void CMainWindow::slotLoadSource()
 
     appendToLog( tr( "============================================" ) );
     appendToLog( tr( "Finding Source Files..." ) );
-    QProgressDialog * progress = new QProgressDialog( tr( "Finding Source Files..." ), tr( "Cancel" ), 0, 0, this );
+    auto progress = std::make_unique< QProgressDialog >( tr( "Finding Source Files..." ), tr( "Cancel" ), 0, 0, this );
     auto label = new QLabel;
     label->setAlignment( Qt::AlignLeft );
     progress->setLabel( label );
@@ -1189,7 +1288,7 @@ void CMainWindow::slotLoadSource()
     progress->setMinimumDuration( 1 );
     progress->setRange( 0, 100 );
     progress->setValue( 0 );
-    bool wasCanceled = fSettings->loadSourceFiles( fSourceDir.value(), getSourceDir().value(), progress, [this]( const QString & msg ) { appendToLog( msg ); } );
+    bool wasCanceled = fSettings->loadSourceFiles( fSourceDir.value(), getSourceDir().value(), progress.get(), [this]( const QString & msg ) { appendToLog( msg ); } );
     auto rootNode = loadSourceFileModel();
 
     addInclDirs( fSettings->getResults()->fInclDirs );
@@ -1203,7 +1302,6 @@ void CMainWindow::slotLoadSource()
     }
     else
     {
-        delete progress;
         qApp->processEvents();
         expandDirectories( rootNode );
 
@@ -1221,7 +1319,7 @@ void CMainWindow::slotLoadOutputData()
     fBuildInfoDataModel->clear();
     fImpl->log->clear();
 
-    QProgressDialog * progress = new QProgressDialog( tr( "Reading Build Output..." ), tr( "Cancel" ), 0, 0, this );
+    auto progress = std::make_unique< QProgressDialog >( tr( "Reading Build Output..." ), tr( "Cancel" ), 0, 0, this );
     progress->setLabelText( "Reading Build Output" );
     progress->setAutoReset( false );
     progress->setAutoClose( false );
@@ -1235,7 +1333,7 @@ void CMainWindow::slotLoadOutputData()
     {
         appendToLog( msg );
         qApp->processEvents();
-    }, fSettings.get(), progress );
+    }, fSettings.get(), progress.get() );
     if ( !fBuildInfoData->status() )
     {
         progress->close();
@@ -1244,7 +1342,6 @@ void CMainWindow::slotLoadOutputData()
         return;
     }
     fBuildInfoData->loadIntoTree( fBuildInfoDataModel );
-    progress->deleteLater();
     if ( !progress->wasCanceled() && fLoadSourceAfterLoadData )
     {
         QTimer::singleShot( 0, this, &CMainWindow::slotLoadSource );

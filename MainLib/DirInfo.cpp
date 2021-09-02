@@ -114,7 +114,7 @@ namespace NVSProjectMaker
 
                 resourceText.replace( "<PROJECT_NAME>", ii.getProjectName() );
                 resourceText.replace( "<DEBUG_COMMAND>", ii.getCmd() );
-                resourceText.replace( "<DEBUG_ARGS>", ii.fArgs );
+                resourceText.replace( "<DEBUG_ARGS>", ii.fArgs.join( " " ) );
                 resourceText.replace( "<DEBUG_WORKDIR>", ii.fWorkDir );
                 resourceText.replace( "<DEBUG_ENVVARS>", ii.getEnvVars() );
 

@@ -647,7 +647,15 @@ namespace NVSProjectMaker
         return dir.dirName();
     }
 
-    QString CSettings::getCMakeExec( const QString & dir )
+    QString CSettings::getCMakeExec() const
+    {
+        if (getUseCustomCMake())
+            return getCustomCMakeExec();
+        else
+            return getCMakeExecViaVSPath();
+    }
+
+    QString CSettings::getCMakeExecViaVSPath( const QString & dir )
     {
         if ( dir.isEmpty() )
             return QString();
@@ -661,9 +669,9 @@ namespace NVSProjectMaker
         return cmake.absoluteFilePath();
     }
 
-    QString CSettings::getCMakeExec() const
+    QString CSettings::getCMakeExecViaVSPath() const
     {
-        return getCMakeExec( getVSPath() );
+        return getCMakeExecViaVSPath( getVSPath() );
     }
 
     QString CSettings::getMSys64Dir( bool msys ) const
@@ -706,6 +714,16 @@ namespace NVSProjectMaker
             auto key = "<" + ii.key() + ">";
             auto value = ii.value();
             retVal = retVal.replace( key, value );
+        }
+        return retVal;
+    }
+
+    QStringList CSettings::cleanUp(const QStringList& stringlist) const
+    {
+        QStringList retVal = stringlist;
+        for (auto&& ii : retVal)
+        {
+            ii = cleanUp(ii);
         }
         return retVal;
     }
@@ -823,6 +841,8 @@ namespace NVSProjectMaker
     void CSettings::registerSettings()
     {
         ADD_SETTING_VALUE( QString, VSPath );
+        ADD_SETTING_VALUE(bool, UseCustomCMake);
+        ADD_SETTING_VALUE(QString, CustomCMakeExec);
         ADD_SETTING_VALUE( QString, Generator );
         ADD_SETTING_VALUE( QString, ClientDir );
         ADD_SETTING_VALUE( QString, SourceRelDir );
@@ -935,7 +955,7 @@ namespace NVSProjectMaker
                 errFunc( msg );
             else
                 outFunc( msg );
-            if ( *localCallback )
+            if ( localCallback )
                 ( *localCallback )( );
         } );
         process->setWorkingDirectory( buildDir );

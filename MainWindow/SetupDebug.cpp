@@ -54,9 +54,9 @@ QString CSetupDebug::command() const
     return fImpl->cmd->text();
 }
 
-QString CSetupDebug::args() const
+QStringList CSetupDebug::args() const
 {
-    return fImpl->cmdArgs->text();
+    return fImpl->cmdArgs->text().split( " ", QString::SkipEmptyParts);
 }
 
 QString CSetupDebug::workDir() const
@@ -69,9 +69,9 @@ QString CSetupDebug::sourceDir() const
     return fImpl->sourceDir->text();
 }
 
-QString CSetupDebug::envVars() const
+QStringList CSetupDebug::envVars() const
 {
-    return fImpl->envVars->text();
+    return fImpl->envVars->text().split(" ", QString::SkipEmptyParts);
 }
 
 void CSetupDebug::slotSelectCommand()

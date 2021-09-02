@@ -37,9 +37,9 @@ public:
     QString name() const;
     QString sourceDir() const;
     QString command() const;
-    QString args() const;
+    QStringList args() const;
     QString workDir() const;
-    QString envVars() const;
+    QStringList envVars() const;
 public Q_SLOTS:
     void slotSelectCommand();
     void slotSelectWorkingDir();

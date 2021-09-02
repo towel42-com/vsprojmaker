@@ -161,7 +161,9 @@ namespace NVSProjectMaker
         [[nodiscard]] std::shared_ptr< NVSProjectMaker::SSourceFileResults > getResults() const { return fResults; }
         [[nodiscard]] QString getClientName() const;
 
-        [[nodiscard]] static QString getCMakeExec( const QString & dir );
+        [[nodiscard]] static QString getCMakeExecViaVSPath( const QString & dir );
+        [[nodiscard]] QString getCMakeExecViaVSPath() const;
+
         [[nodiscard]] QString getCMakeExec() const;
 
         [[nodiscard]] QString getMSys64Dir( bool msys ) const;
@@ -169,6 +171,7 @@ namespace NVSProjectMaker
 
         [[nodiscard]] QString cleanUp( const QDir & relToDir, const QString & str ) const;
         [[nodiscard]] QString cleanUp( const QString & str ) const;
+        [[nodiscard]] QStringList cleanUp(const QStringList& stringlist) const;
 
         [[nodiscard]] QString getBuildItScript( const QString & buildDir, const QString & cmd, const QString & descriptiveName ) const;
 
@@ -176,6 +179,8 @@ namespace NVSProjectMaker
         int runCMake( const std::function< void( const QString & ) > & outFunc, const std::function< void( const QString & ) > & errFunc, QProcess * process, const std::pair< bool, std::function< void() > > & finishedInfo ) const;
 
         ADD_SETTING( QString, VSPath );
+        ADD_SETTING( bool, UseCustomCMake);
+        ADD_SETTING( QString, CustomCMakeExec );
         ADD_SETTING( QString, Generator );
         ADD_SETTING( QString, ClientDir );
         ADD_SETTING( QString, SourceRelDir );

@@ -24,8 +24,12 @@
 #define __DEBUGTARGETSPAGE_H
 
 #include <QWizardPage>
+#include <QStringList>
+#include <list>
 #include <memory>
+
 class CCheckableStringListModel;
+class QDir;
 namespace Ui {class CDebugTargetsPage;};
 
 class CDebugTargetsPage : public QWizardPage
@@ -38,8 +42,12 @@ public:
     void setDefaults();
 
     QStringList enabledDebugTargets() const;
+    virtual void initializePage() override;
 public Q_SLOTS:
 private:
+    std::list< std::list< QString > > getDebugTargets() const;
+    std::list< std::list< QString > > getSampleDirs(const QDir & dir) const;
+    std::list< std::list< QString > > fAllTargets;
     std::unique_ptr< Ui::CDebugTargetsPage > fImpl;
     CCheckableStringListModel * fDebugTargets{ nullptr };
 

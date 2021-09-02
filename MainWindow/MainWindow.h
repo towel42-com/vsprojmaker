@@ -24,6 +24,7 @@
 #define _MAINWINDOW_H
 
 #include <QDialog>
+#include <QPointer>
 #include <QDir>
 #include <memory>
 #include <optional>
@@ -84,6 +85,7 @@ public Q_SLOTS:
 
     void saveProjectFile( const QString & currPath );
 
+    void slotSelectCMake();
     void slotRunWizard();
     void slotSelectVS();
     void slotSelectSourceDir();
@@ -99,13 +101,17 @@ public Q_SLOTS:
     void slotCurrentProjectChanged( const QString & projFile );
     void slotSetBuildOutputFile();
 
-    void addDebugTarget( const QString & sourceDir, const QString & name, const QString & cmd, const QString & args, const QString & workDir, const QString & envVars );
+    void addDebugTarget( const QString & sourceDir, const QString & name, const QString & cmd, const QStringList & args, const QString & workDir, const QStringList & envVars );
     void addDebugTarget( const NVSProjectMaker::SDebugTarget & dbgCmd );
 
     void slotGenerate();
     void slotBuildsChanged();
 private:
-    void loadBuildTargets( const QStringList & target, const QString & primaryTarget );
+    QString CMainWindow::getCMakeExec() const;
+    
+    QProcess * getProcess();
+    void clearProcess();
+    void loadBuildTargets(const QStringList & target, const QString & primaryTarget);
     void loadDebugTargets( const QStringList & targets );
     void loadIncludeDirs( const QStringList & includeDirs );
     void loadPreProcessorDefines( const QStringList & preProcDefines );
@@ -162,6 +168,7 @@ private:
     std::unique_ptr< NVSProjectMaker::CSettings > fSettings;
     std::shared_ptr< NVSProjectMaker::CBuildInfoData > fBuildInfoData;
     QStringList fProdDirUsages;
+    QPointer< QProgressDialog > fProgress;
 };
 
 #endif // _ALCULATOR_H

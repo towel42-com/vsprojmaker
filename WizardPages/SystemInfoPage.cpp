@@ -82,7 +82,7 @@ bool CSystemInfoPage::isComplete() const
 
 void CSystemInfoPage::slotChanged()
 {
-    QString cmakeExec = NVSProjectMaker::CSettings::getCMakeExec( fImpl->vsPath->text() );
+    QString cmakeExec = NVSProjectMaker::CSettings::getCMakeExecViaVSPath( fImpl->vsPath->text() );
     fImpl->cmakeExec->setText( cmakeExec );
 }
 
@@ -102,7 +102,7 @@ void CSystemInfoPage::slotSelectVS()
         return;
     }
 
-    fi = QFileInfo( NVSProjectMaker::CSettings::getCMakeExec( dir ) );
+    fi = QFileInfo( NVSProjectMaker::CSettings::getCMakeExecViaVSPath( dir ) );
     if ( !fi.exists() || !fi.isExecutable() )
     {
         QMessageBox::critical( this, tr( "Error Valid Directory not Selected" ), QString( "Error: '%1' is not an executable" ).arg( fi.absoluteFilePath() ) );

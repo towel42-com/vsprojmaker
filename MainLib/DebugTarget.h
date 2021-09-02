@@ -35,9 +35,9 @@ namespace NVSProjectMaker
         QString fSourceDir;
         QString fName;
         QString fCmd;
-        QString fArgs;
+        QStringList fArgs;
         QString fWorkDir;
-        QString fEnvVars;
+        QStringList fEnvVars;
 
         QString getEnvVars() const;
         QString getProjectName() const;
