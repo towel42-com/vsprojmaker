@@ -618,14 +618,14 @@ void CMainWindow::slotRunWizard()
         fQtLibsModel->setStringList( qtDirs.first );
         fQtLibsModel->setChecked( qtDirs.second, true, true );
 
-        loadBuildTargets( buildTargetsPage->enabledBuildTargets(), buildTargetsPage->primaryTarget() );
-        loadDebugTargets( debugTargetsPage->enabledDebugTargets() );
+        loadBuildTargetsFromWizard( buildTargetsPage->enabledBuildTargets(), buildTargetsPage->primaryTarget() );
+        loadDebugTargetsFromWizard( debugTargetsPage->enabledDebugTargets( fSettings.get() ) );
 
         popDisconnected();
 
         doChanged( false );
-        loadIncludeDirs( includesPage->enabledIncludeDirs() );
-        loadPreProcessorDefines( preProcDefinesPage->enabledPreProcDefines() );
+        loadIncludeDirsFromWizard( includesPage->enabledIncludeDirs() );
+        loadPreProcessorDefinesFromWizard( preProcDefinesPage->enabledPreProcDefines() );
 
         QString projFile = QDir( wizard.field( "clientDir" ).toString() ).absoluteFilePath( wizard.field( "clientName" ).toString() ) + ".vsprjmkr.ini";
         saveProjectFile( projFile );
@@ -635,7 +635,7 @@ void CMainWindow::slotRunWizard()
     }
 }
 
-void CMainWindow::loadBuildTargets( const QStringList & targets, const QString & primaryTarget )
+void CMainWindow::loadBuildTargetsFromWizard( const QStringList & targets, const QString & primaryTarget )
 {
     for ( auto && ii : targets )
     {
@@ -646,50 +646,15 @@ void CMainWindow::loadBuildTargets( const QStringList & targets, const QString &
     fImpl->primaryBuildTarget->setCurrentText( primaryTarget );
 }
 
-void CMainWindow::loadDebugTargets( const QStringList & targets )
+void CMainWindow::loadDebugTargetsFromWizard( const std::list< std::shared_ptr< SDebugTargetInfo > > & targets )
 {
     for (auto&& ii : targets)
     {
-        auto path = QString("src/hdloffice/hdlstudio/cxx/main/src");
-        QStringList args;
-
-        QString executable;
-        QString exampleName = ii;
-        QStringList envVars;
-
-        auto pos = exampleName.indexOf(" + ");
-        if (pos != -1)
-        {
-            auto remaining = exampleName.mid(pos + 1).trimmed();
-            auto addOns = remaining.split("+", QString::SkipEmptyParts);
-            for( auto && ii : addOns )
-                args << QString("+external_client+<CLIENTDIR>/devapps/visualizer/win64/%1.dll").arg(ii.trimmed());
-        }
-
-        executable = QString("<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlclient.exe");
-        if (exampleName == "HDL Studio")
-        {
-            executable = QString("<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlstudio.exe");
-        }
-
-        if (exampleName.contains("ProjectSample"))
-        {
-            envVars << "SKIP_LIMITED_FEATURES_KEY=1" << "ENABLE_VFPRJ=1";
-            args << "+vfprj_mode";
-        }
-        else if (exampleName.contains("FlowNavSample"))
-        {
-            envVars << "SKIP_LIMITED_FEATURES_KEY=1" << "ENABLE_VFPRJ=1";
-            args << "+vfprj_mode";
-        }
-        if (executable.isEmpty())
-            continue;
-        auto workDir = QString("<CLIENTDIR>");
-        addDebugTarget(path, exampleName, executable, args, workDir, envVars);
+        addDebugTarget( ii->fSourceDirPath, ii->fTargetName, ii->fExecutable, ii->fArgs, ii->fWorkingDir, ii->fEnvVars );
     }
 }
 
-void CMainWindow::loadIncludeDirs( const QStringList & includeDirs )
+void CMainWindow::loadIncludeDirsFromWizard( const QStringList & includeDirs )
 {
     auto currDirs = QStringList() << includeDirs << fIncDirModel->stringList();
 
@@ -702,7 +667,7 @@ void CMainWindow::loadIncludeDirs( const QStringList & includeDirs )
     fIncDirModel->setStringList( newIncludes );
 }
 
-void CMainWindow::loadPreProcessorDefines( const QStringList & preProcDefines )
+void CMainWindow::loadPreProcessorDefinesFromWizard( const QStringList & preProcDefines )
 {
     auto curr = QStringList() << preProcDefines << fPreProcDefineModel->stringList();
 

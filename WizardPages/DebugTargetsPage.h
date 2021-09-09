@@ -27,10 +27,22 @@
 #include <QStringList>
 #include <list>
 #include <memory>
-
+namespace NVSProjectMaker { class CSettings; }
 class CCheckableStringListModel;
 class QDir;
 namespace Ui {class CDebugTargetsPage;};
+
+struct SDebugTargetInfo
+{
+    SDebugTargetInfo(const QString & initTargetName, NVSProjectMaker::CSettings * settings);
+    bool isAOK() const { return !fExecutable.isEmpty(); }
+    QString fSourceDirPath;
+    QString fTargetName;
+    QString fExecutable;
+    QStringList fArgs;
+    QString fWorkingDir;
+    QStringList fEnvVars;
+};
 
 class CDebugTargetsPage : public QWizardPage
 {
@@ -41,7 +53,7 @@ public:
 
     void setDefaults();
 
-    QStringList enabledDebugTargets() const;
+    std::list< std::shared_ptr< SDebugTargetInfo > > enabledDebugTargets(NVSProjectMaker::CSettings * settings ) const;
     virtual void initializePage() override;
 public Q_SLOTS:
 private:

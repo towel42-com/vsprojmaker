@@ -36,6 +36,7 @@
 #include <QProcess>
 #include <QStandardItemModel>
 
+struct SDebugTargetInfo;
 class QLineEdit;
 namespace NVSProjectMaker
 {
@@ -111,10 +112,10 @@ private:
     
     QProcess * getProcess();
     void clearProcess();
-    void loadBuildTargets(const QStringList & target, const QString & primaryTarget);
-    void loadDebugTargets( const QStringList & targets );
-    void loadIncludeDirs( const QStringList & includeDirs );
-    void loadPreProcessorDefines( const QStringList & preProcDefines );
+    void loadBuildTargetsFromWizard(const QStringList & target, const QString & primaryTarget);
+    void loadDebugTargetsFromWizard( const std::list< std::shared_ptr< SDebugTargetInfo > > & targets );
+    void loadIncludeDirsFromWizard(const QStringList & includeDirs);
+    void loadPreProcessorDefinesFromWizard( const QStringList & preProcDefines );
 
     void reset();
     QStandardItem * loadSourceFileModel();

@@ -23,6 +23,7 @@
 #include "DebugTargetsPage.h"
 #include "ui_DebugTargetsPage.h"
 #include "SABUtils/UtilityModels.h"
+#include "MainLib/Settings.h"
 
 #include <QDir>
 #include <QDebug>
@@ -132,7 +133,67 @@ std::list< std::list< QString > > CDebugTargetsPage::getSampleDirs(const QDir & 
     return retVal;
 }
 
-QStringList CDebugTargetsPage::enabledDebugTargets() const
+std::list< std::shared_ptr< SDebugTargetInfo > > CDebugTargetsPage::enabledDebugTargets(NVSProjectMaker::CSettings * settings ) const
 {
-    return fDebugTargets->getCheckedStrings();
+    std::list< std::shared_ptr< SDebugTargetInfo > > retVal;
+    auto enabledTargets = fDebugTargets->getCheckedStrings();
+    for (auto && ii : enabledTargets)
+    {
+        auto curr = std::make_shared< SDebugTargetInfo >(ii, settings);
+        if (!curr->isAOK())
+            continue;
+        retVal.push_back( curr );
+    }
+    return retVal;
+}
+
+SDebugTargetInfo::SDebugTargetInfo(const QString & initTargetName, NVSProjectMaker::CSettings * settings)
+{
+    fTargetName = initTargetName;
+    fExecutable = QString("<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlclient.exe");
+
+    auto pos = fTargetName.indexOf("+");
+    if (pos != -1)
+    {
+        auto remaining = fTargetName.mid(pos + 1).trimmed();
+        auto addOns = remaining.split("+", QString::SkipEmptyParts);
+        for (auto && ii : addOns)
+        {
+            QString name;
+            bool isExe{ false };
+            std::tie(name, isExe) = settings->findSampleOutputPath(ii.trimmed());
+            if (isExe)
+            {
+                fTargetName = remaining.trimmed();
+                fExecutable = QString("<CLIENTDIR>/devapps/win64/%1.exe").arg(name);
+            }
+            else
+                fArgs << QString("+external_client+<CLIENTDIR>/devapps/visualizer/win64/%1.dll").arg(name);
+        }
+    }
+
+    if (fTargetName == "HDL Studio")
+    {
+        fExecutable = QString("<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlstudio.exe");
+    }
+
+    if (fTargetName.contains("ProjectSample"))
+    {
+        fEnvVars << "SKIP_LIMITED_FEATURES_KEY=1" << "ENABLE_VFPRJ=1";
+        fArgs << "+vfprj_mode";
+    }
+    else if (fTargetName.contains("ProjectCLISample"))
+    {
+        fEnvVars << "SKIP_LIMITED_FEATURES_KEY=1" << "ENABLE_VFPRJ=1";
+        fArgs << "+vfprj_mode";
+    }
+    else if (fTargetName.contains("FlowNavSample"))
+    {
+        fEnvVars << "SKIP_LIMITED_FEATURES_KEY=1" << "ENABLE_VFPRJ=1";
+        fArgs << "+vfprj_mode";
+    }
+    if (fExecutable.isEmpty())
+        return;
+    fWorkingDir = QString("<CLIENTDIR>");
+    fSourceDirPath = QString("src/hdloffice/hdlstudio/cxx/main/src");
 }
