@@ -37,6 +37,7 @@ set(project_H
     DebugTarget.h
     VSProjectMaker.h
     Settings.h
+    Version.h
 )
 
 set(qtproject_UIS
