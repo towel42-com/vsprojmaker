@@ -155,6 +155,10 @@ namespace NVSProjectMaker
         std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > getDirInfo( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;
         bool getParentOfPairDirectoriesMap( std::shared_ptr< SSourceFileInfo > parent, QProgressDialog * progress ) const;
 
+        std::pair< QString, bool > findSampleOutputPath(const QString & baseName ) const;
+        
+        QString getVersion() const;
+
         QString getPrimaryTargetSetting( const QString & projectName ) const;
         [[nodiscard]] QString getEnvVarsForShell() const;
 
@@ -233,7 +237,9 @@ namespace NVSProjectMaker
         {
             SCustomBuildDirInfo( const QString & dirName );
 
+            bool generateCustomTopBuild(const CSettings * settings, QWidget * parent) const;
             QString getDirName() const;
+        private:
             QString getExtraArgs() const;
 
             QString fMakeProjectName;  // name to use for mtimake at the top level
@@ -244,6 +250,7 @@ namespace NVSProjectMaker
 
         std::unique_ptr< QSettings > fSettingsFile;
         std::shared_ptr< NVSProjectMaker::SSourceFileResults > fResults;
+        mutable std::map< QString, std::pair< QString, bool > > fSamplesMap;
         mutable std::unordered_map< QString, QVariant * > fSettings;
     };
 }

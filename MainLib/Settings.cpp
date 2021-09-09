@@ -24,6 +24,7 @@
 #include "DebugTarget.h"
 #include "VSProjectMaker.h"
 #include "DirInfo.h"
+#include "Version.h"
 
 #include <QApplication>
 #include <QStandardItem>
@@ -137,8 +138,10 @@ namespace NVSProjectMaker
 
     bool CSettings::isBuildDir( const QDir & relToDir, const QDir & dir ) const
     {
-        bool retVal = QFileInfo( relToDir.absoluteFilePath( dir.filePath( "subdir.mk" ) ) ).exists();
-        retVal = retVal || QFileInfo( relToDir.absoluteFilePath( dir.filePath( "Makefile" ) ) ).exists();
+        //qDebug() << dir.dirName();
+        bool retVal = QFileInfo(relToDir.absoluteFilePath(dir.filePath("subdir.mk"))).exists();
+        retVal = retVal || QFileInfo(relToDir.absoluteFilePath(dir.filePath("Makefile"))).exists();
+        retVal = retVal || QFileInfo(relToDir.absoluteFilePath(dir.filePath("makefile.inc"))).exists();
         retVal = retVal || getBuildDirs().contains( dir.path() );
         return retVal;
     }
@@ -232,6 +235,11 @@ namespace NVSProjectMaker
         return retVal;
     }
 
+    QString CSettings::getVersion() const
+    {
+        return NVSProjectMaker::getVersionString();
+    }
+
     bool CSettings::generate( QProgressDialog * progress, QWidget * parent, const std::function< void( const QString & msg ) > & logit ) const
     {
         if ( !getBuildDir().has_value() )
@@ -243,6 +251,8 @@ namespace NVSProjectMaker
 
         if ( progress )
             progress->setRange( 0, static_cast<int>( dirs.size() ) );
+        logit(QObject::tr("============================================"));
+        logit(QObject::tr("%1 - %2").arg(NVSProjectMaker::getAppName()).arg(NVSProjectMaker::getVersionString()));
         logit( QObject::tr( "============================================" ) );
         logit( QObject::tr( "Generating CMake Files" ) );
         if ( progress )
@@ -390,6 +400,60 @@ namespace NVSProjectMaker
         return fExtraOptions.join( " " );
     }
 
+    bool CSettings::SCustomBuildDirInfo::generateCustomTopBuild(const CSettings * settings, QWidget * parent) const
+    {
+        auto buildItFileName = QDir(settings->getBuildDir().value()).absoluteFilePath(QString("%1/buildit.sh").arg(getDirName()));
+
+        QFile fo(buildItFileName);
+        if (!fo.open(QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text))
+        {
+            QApplication::restoreOverrideCursor();
+            QMessageBox::critical(parent, QObject::tr("Error:"), QObject::tr("Error opening output file '%1'\n%2").arg(buildItFileName).arg(fo.errorString()));
+            return false;
+        }
+
+        QTextStream qts(&fo);
+        QString cmd = QString("mtimake -w -j24 --directory=\"%1\" %2 %3").arg(settings->getBuildDir().value()).arg(fMakeProjectName).arg(getExtraArgs()).trimmed();
+        qts << settings->getBuildItScript(settings->getBuildDir().value(), cmd, fMakeProjectName);
+
+        fo.close();
+
+        QString cmakeFileName = QString("%1/CMakeLists.txt").arg(getDirName());
+        NVSProjectMaker::readResourceFile(parent, QString(":/resources/custombuilddir.cmake"),
+            [this, cmakeFileName, buildItFileName, settings, parent](QString & resourceText)
+            {
+                resourceText.replace("<PROJECT_NAME>", fCMakeProjectName);
+                resourceText.replace("<ALL_SETTING>", settings->getPrimaryTargetSetting(fCMakeProjectName));
+
+                resourceText.replace("<BUILD_DIR>", settings->getBuildDir().value());
+                resourceText.replace("<MSYS64DIR_MSYS>", settings->getMSys64Dir(true));
+                resourceText.replace("<MSYS64DIR_WIN>", settings->getMSys64Dir(false));
+                resourceText.replace("<BUILDITSHELL>", buildItFileName);
+                resourceText.replace("<SOURCE_FILES>", QString());
+                resourceText.replace("<HEADER_FILES>", QString());
+                resourceText.replace("<UI_FILES>", QString());
+                resourceText.replace("<QRC_FILES>", QString());
+                resourceText.replace("<BUILD_FILES>", QString());
+                resourceText.replace("<YAML_FILES>", QString());
+                resourceText.replace("<OTHER_FILES>", QString());
+
+                QString outFile = QDir(settings->getBuildDir().value()).absoluteFilePath(cmakeFileName);
+                QFile fo(outFile);
+                if (!fo.open(QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text))
+                {
+                    QApplication::restoreOverrideCursor();
+                    QMessageBox::critical(parent, QObject::tr("Error:"), QObject::tr("Error opening output file '%1'\n%2").arg(outFile).arg(fo.errorString()));
+                    return;
+                }
+                QTextStream qts(&fo);
+                qts << resourceText;
+                qts << "\n\nset_target_properties( " << fCMakeProjectName << " PROPERTIES FOLDER " << "\"Global Build Targets\"" << " )\n";
+                fo.close();
+            }
+        );
+        return true;
+    }
+
     std::list< std::shared_ptr< NVSProjectMaker::SDirInfo > > CSettings::generateTopLevelFiles( QProgressDialog * progress, const std::function< void( const QString & msg ) > & logit, QWidget * parent ) const
     {
         NVSProjectMaker::readResourceFile( parent, QString( ":/resources/Project.cmake" ),
@@ -435,8 +499,6 @@ namespace NVSProjectMaker
             for ( auto && ii : customTopBuilds )
             {
                 auto buildDirInfo = SCustomBuildDirInfo( ii );
-                qts << QString( "add_subdirectory( %1 )\n" ).arg( buildDirInfo.getDirName() );
-
                 if ( !QDir( getBuildDir().value() ).mkpath( buildDirInfo.getDirName() ) )
                 {
                     QApplication::restoreOverrideCursor();
@@ -444,55 +506,9 @@ namespace NVSProjectMaker
                     return {};
                 }
 
-                auto buildItFileName = QDir( getBuildDir().value() ).absoluteFilePath( QString( "%1/buildit.sh" ).arg( buildDirInfo.getDirName() ) );
-
-                QFile fo( buildItFileName );
-                if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
-                {
-                    QApplication::restoreOverrideCursor();
-                    QMessageBox::critical( parent, QObject::tr( "Error:" ), QObject::tr( "Error opening output file '%1'\n%2" ).arg( buildItFileName ).arg( fo.errorString() ) );
+                qts << QString("add_subdirectory( %1 )\n").arg(buildDirInfo.getDirName());
+                if ( !buildDirInfo.generateCustomTopBuild( this, parent ) )
                     return {};
-                }
-
-                QTextStream qts( &fo );
-                QString cmd = QString( "mtimake -w -j24 --directory=\"%1\" %2 %3" ).arg( getBuildDir().value() ).arg( buildDirInfo.fMakeProjectName ).arg( buildDirInfo.getExtraArgs() ).trimmed();
-                qts << getBuildItScript( getBuildDir().value(), cmd, buildDirInfo.fMakeProjectName );
-
-                fo.close();
-
-                QString cmakeFileName = QString( "%1/CMakeLists.txt" ).arg( buildDirInfo.getDirName() );
-                NVSProjectMaker::readResourceFile( parent, QString( ":/resources/custombuilddir.cmake" ),
-                                                                               [buildDirInfo, cmakeFileName, buildItFileName, this, parent]( QString & resourceText )
-                {
-                    resourceText.replace( "<PROJECT_NAME>", buildDirInfo.fCMakeProjectName );
-                    resourceText.replace( "<ALL_SETTING>", getPrimaryTargetSetting( buildDirInfo.fCMakeProjectName ) );
-
-                    resourceText.replace( "<BUILD_DIR>", getBuildDir().value() );
-                    resourceText.replace( "<MSYS64DIR_MSYS>", getMSys64Dir( true ) );
-                    resourceText.replace( "<MSYS64DIR_WIN>", getMSys64Dir( false ) );
-                    resourceText.replace( "<BUILDITSHELL>", buildItFileName );
-                    resourceText.replace( "<SOURCE_FILES>", QString() );
-                    resourceText.replace( "<HEADER_FILES>", QString() );
-                    resourceText.replace( "<UI_FILES>", QString() );
-                    resourceText.replace( "<QRC_FILES>", QString() );
-                    resourceText.replace( "<BUILD_FILES>", QString() );
-                    resourceText.replace( "<YAML_FILES>", QString() );
-                    resourceText.replace( "<OTHER_FILES>", QString() );
-
-                    QString outFile = QDir( getBuildDir().value() ).absoluteFilePath( cmakeFileName );
-                    QFile fo( outFile );
-                    if ( !fo.open( QIODevice::OpenModeFlag::WriteOnly | QIODevice::OpenModeFlag::Truncate | QIODevice::OpenModeFlag::Text ) )
-                    {
-                        QApplication::restoreOverrideCursor();
-                        QMessageBox::critical( parent, QObject::tr( "Error:" ), QObject::tr( "Error opening output file '%1'\n%2" ).arg( outFile ).arg( fo.errorString() ) );
-                        return;
-                    }
-                    QTextStream qts( &fo );
-                    qts << resourceText;
-                    qts << "\n\nset_target_properties( " << buildDirInfo.fCMakeProjectName << " PROPERTIES FOLDER " << "\"Global Build Targets\"" << " )\n";
-                    fo.close();
-                }
-                );
             }
             qts << "\n\n";
         }
@@ -968,6 +984,84 @@ namespace NVSProjectMaker
         }
         else
             return 0;
+    }
+
+    std::pair< QString, bool > CSettings::findSampleOutputPath(const QString & baseName ) const
+    {
+        // find the source directory
+        // read the subdir.mk
+        // find SAMPLE_PROJ_NAME value
+        // open platform.mk
+        // find VXC_<VALUE>_SAMPLE_SO which sets the dll name
+        // find VXC_<VALUE>_SAMPLE_EXE which sets the exe
+
+        // find the source directory
+        auto sampleDir = QDir( QDir( QDir( getClientDir() ).absoluteFilePath( "src/hdloffice/hdlstudio/cxx/vxcSamples" ) ).absoluteFilePath( baseName ) );
+        Q_ASSERT(sampleDir.exists());
+        if (!sampleDir.exists())
+            return std::make_pair(QString(), false);
+
+        // read the subdir.mk
+        auto subDirMk = QFileInfo(sampleDir.absoluteFilePath("subdir.mk"));
+        Q_ASSERT(subDirMk.exists());
+        if (!subDirMk.exists())
+            return std::make_pair(QString(), false);
+
+        // find SAMPLE_PROJ_NAME value
+        QFile fi(subDirMk.absoluteFilePath());
+        if (!fi.open(QFile::ReadOnly))
+            return std::make_pair(QString(), false);
+
+        QTextStream ts(&fi);
+        QString currLine;
+        QString projName;
+        QRegularExpression regExp("SAMPLE_PROJ_NAME\\s*\\:\\=\\s*(?<projName>.*)\\s*");
+        while (ts.readLineInto(&currLine) && projName.isEmpty())
+        {
+            auto match = regExp.match(currLine, 0);
+            if (match.hasMatch())
+            {
+                projName = match.captured("projName").trimmed();
+            }
+        }
+        if (projName.isEmpty())
+            return std::make_pair(QString(), false);
+        auto pos = fSamplesMap.find(projName);
+        if (pos != fSamplesMap.end())
+            return (*pos).second;
+
+        // open platform.mk
+        auto platformMk = QFileInfo(QDir(getClientDir()).absoluteFilePath("src/misc/platform.mk"));
+        Q_ASSERT(platformMk.exists());
+        if (!platformMk.exists())
+            return std::make_pair(QString(), false);
+
+        // find VXC_<VALUE>_SAMPLE_SO which sets the dll name
+        QFile fi2(platformMk.absoluteFilePath());
+        if (!fi2.open(QFile::ReadOnly))
+            return std::make_pair(QString(), false);
+
+        QTextStream ts2(&fi2);
+        auto regExpStr = QString("VXC_(?<projName>.*)_SAMPLE_(?<type>(SO|EXE))\\s*\\=\\s*.*\\/(?<dllName>.*)\\$.*");
+        QRegularExpression regExp2( regExpStr );
+        while (ts2.readLineInto(&currLine) )
+        {
+            auto match = regExp2.match(currLine, 0);
+            if (match.hasMatch())
+            {
+                auto type = match.captured("type").trimmed().toLower();
+                auto projName = match.captured("projName").trimmed();
+                auto dllName = match.captured("dllName").trimmed();
+                fSamplesMap[projName] = std::make_pair(dllName, type == "exe");
+            }
+        }
+
+        pos = fSamplesMap.find(projName);
+        Q_ASSERT(pos != fSamplesMap.end());
+        if (pos != fSamplesMap.end())
+            return (*pos).second;
+
+        return std::make_pair(QString(), false);
     }
 
     QString SSourceFileResults::getText( bool forText ) const
