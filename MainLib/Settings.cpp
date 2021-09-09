@@ -349,7 +349,10 @@ namespace NVSProjectMaker
 
     QString CSettings::getEnvVarsForShell() const
     {
-        auto retVal = QStringList() << "export VC_VERSION=15.0";
+        auto retVal = QStringList()
+            << "export VC_VERSION=15.0"
+            << "export PATH=/c/localprod/bin:$PATH"
+            ;
 
         return retVal.join( "\n" ) + "\n";
     }
