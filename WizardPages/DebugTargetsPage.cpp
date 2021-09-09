@@ -75,7 +75,7 @@ void CDebugTargetsPage::initializePage()
         }
         auto target = mainApp;
         if ( !addOns.empty() )
-            target += " + " + addOns.join("+");
+            target += "+" + addOns.join("+");
         customTargets << target;
     }
     fDebugTargets->setStringList(customTargets);
