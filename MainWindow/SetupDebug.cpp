@@ -22,6 +22,7 @@
 
 #include "SetupDebug.h"
 #include "ui_SetupDebug.h"
+#include "SABUtils/StringUtils.h"
 
 #include <QFileDialog>
 #include <QMessageBox>
@@ -56,7 +57,7 @@ QString CSetupDebug::command() const
 
 QStringList CSetupDebug::args() const
 {
-    return fImpl->cmdArgs->text().split( " ", QString::SkipEmptyParts);
+    return fImpl->cmdArgs->text().split( " ", TSkipEmptyParts);
 }
 
 QString CSetupDebug::workDir() const
@@ -71,7 +72,7 @@ QString CSetupDebug::sourceDir() const
 
 QStringList CSetupDebug::envVars() const
 {
-    return fImpl->envVars->text().split(" ", QString::SkipEmptyParts);
+    return fImpl->envVars->text().split(" ", TSkipEmptyParts);
 }
 
 void CSetupDebug::slotSelectCommand()
