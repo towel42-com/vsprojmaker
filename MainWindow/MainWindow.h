@@ -26,15 +26,17 @@
 #include <QDialog>
 #include <QPointer>
 #include <QDir>
-#include <memory>
-#include <optional>
-#include <QHash>
-#include <tuple>
-#include <QSet>
-#include <functional>
-#include <tuple>
 #include <QProcess>
 #include <QStandardItemModel>
+#include <memory>
+#include <optional>
+#include <unordered_map>
+#include <tuple>
+#include <set>
+#include <functional>
+#include <tuple>
+#include <list>
+using TStringSet = std::set< QString >;
 
 struct SDebugTargetInfo;
 class QLineEdit;
@@ -137,19 +139,19 @@ private:
     void loadSettings();
     void saveSettings();
     void appendToLog( const QString & txt );
-    QList < NVSProjectMaker::SDebugTarget > getDebugCommandsForSourceDir( const QString & sourceDir ) const;
-    QList< NVSProjectMaker::SDebugTarget > getDebugCommands( bool abs ) const;
+    std::list < NVSProjectMaker::SDebugTarget > getDebugCommandsForSourceDir( const QString & sourceDir ) const;
+    std::list< NVSProjectMaker::SDebugTarget > getDebugCommands( bool abs ) const;
 
     QStringList getCustomBuildsForSourceDir( const QString & sourceDir ) const;
-    QList< QPair< QString, QString > > getCustomBuilds( bool abs ) const;
-    void addCustomBuild( const QPair< QString, QString > & buildInfo );
-    QList< QPair< QString, bool > > getExecutables( const QDir & dir ) const;
-    std::tuple< QSet< QString >, QHash< QString, QList< QPair< QString, bool > > > > findDirAttributes( QStandardItem * parent ) const;
+    std::list< std::pair< QString, QString > > getCustomBuilds( bool abs ) const;
+    void addCustomBuild( const std::pair< QString, QString > & buildInfo );
+    std::list< std::pair< QString, bool > > getExecutables( const QDir & dir ) const;
+    std::tuple< TStringSet, std::unordered_map< QString, std::list< std::pair< QString, bool > > > > findDirAttributes( QStandardItem * parent ) const;
     QString getIncludeDirs() const;
 
     void doChanged( bool loadSource );
 
-    QHash< QString, QList< QPair< QString, bool > > > fExecutables;
+    std::unordered_map< QString, std::list< std::pair< QString, bool > > > fExecutables;
 
     std::optional< QDir > fSourceDir;
     std::optional< QString > fBuildTextFile;

@@ -38,8 +38,9 @@
 #include "MainLib/BuildInfoData.h"
 
 #include "SABUtils/UtilityModels.h"
+#include "SABUtils/StringUtils.h"
 
-#include <QSet>
+#include <set>
 #include <QFileInfo>
 #include <QProcess>
 #include <QFileDialog>
@@ -232,10 +233,10 @@ void CMainWindow::setProjects( QStringList projects )
     saveRecentProjects();
 }
 
-std::tuple< QSet< QString >, QHash< QString, QList< QPair< QString, bool > > > > CMainWindow::findDirAttributes( QStandardItem * parent ) const
+std::tuple< TStringSet, std::unordered_map< QString, std::list< std::pair< QString, bool > > > > CMainWindow::findDirAttributes( QStandardItem * parent ) const
 {
-    QSet< QString > buildDirs;
-    QHash< QString, QList< QPair< QString, bool > > > execNamesMap;
+    TStringSet buildDirs;
+    std::unordered_map< QString, std::list< std::pair< QString, bool > > > execNamesMap;
 
     int numRows = parent ? parent->rowCount() : fSourceModel->rowCount();
     if ( parent && !parent->data( NVSProjectMaker::ERoles::eIsDirRole ).toBool() )
@@ -249,26 +250,31 @@ std::tuple< QSet< QString >, QHash< QString, QList< QPair< QString, bool > > > >
             if ( curr->data( NVSProjectMaker::ERoles::eIsBuildDirRole ).toBool() )
                 buildDirs.insert( curr->data( NVSProjectMaker::ERoles::eRelPathRole ).toString() );
 
-            auto execNames = curr->data( NVSProjectMaker::ERoles::eExecutablesRole ).value < QList< QPair< QString, bool > > >();
-            if ( !execNames.isEmpty() )
-                execNamesMap.insert( curr->data( NVSProjectMaker::ERoles::eRelPathRole ).toString(), execNames );
+            auto execNames = curr->data( NVSProjectMaker::ERoles::eExecutablesRole ).value < std::list< std::pair< QString, bool > > >();
+            if ( !execNames.empty() )
+                execNamesMap[curr->data( NVSProjectMaker::ERoles::eRelPathRole ).toString() ] = execNames;
 
             auto childValues = findDirAttributes( curr );
-            buildDirs.unite( std::get< 0 >( childValues ) );
-            for ( auto ii = std::get< 1 >( childValues ).cbegin(); ii != std::get< 1 >( childValues ).cend(); ++ii )
+            for ( auto && ii : std::get< 0 >( childValues ) )
             {
-                execNamesMap[ ii.key() ] << ii.value();
+                if ( buildDirs.find( ii ) == buildDirs.end() )
+                    buildDirs.insert( ii );
+            }
+            for ( auto && ii : std::get< 1 >( childValues ) )
+            {
+                auto && curr = execNamesMap[ii.first];  // creates the list if necessary
+                curr.insert( curr.end(), ii.second.begin(), ii.second.end() );
             }
         }
     }
     return std::make_tuple( buildDirs, execNamesMap );
 }
 
-void CMainWindow::addCustomBuild( const QPair< QString, QString > & customBuild )
+void CMainWindow::addCustomBuild( const std::pair< QString, QString > & customBuild )
 {
     auto dirItem = new QStandardItem( customBuild.first );
     auto targetItem = new QStandardItem( customBuild.second );
-    fCustomBuildModel->appendRow( QList< QStandardItem * >() << dirItem << targetItem );
+    fCustomBuildModel->appendRow( QList< QStandardItem * >( { dirItem, targetItem } ) );
 }
 
 std::optional< QDir > CMainWindow::getClientDir() const
@@ -316,12 +322,12 @@ std::optional< QString > CMainWindow::getBuildDir( bool relPath ) const
 
 QStringList argsFromString(const QString& argList)
 {
-    return argList.split(" ", QString::SkipEmptyParts);
+    return argList.split(" ", TSkipEmptyParts);
 }
 
 QStringList envVarsFromString(const QString& envVarList)
 {
-    return envVarList.split(" ", QString::SkipEmptyParts);
+    return envVarList.split(" ", TSkipEmptyParts);
 }
 
 QString stringFromEnvVars(const QStringList& envVars)
@@ -342,9 +348,9 @@ QString stringFromArgs(const QStringList& envVars)
     return envVars.join(" ");
 }
 
-QList < NVSProjectMaker::SDebugTarget > CMainWindow::getDebugCommands( bool absDir ) const
+std::list < NVSProjectMaker::SDebugTarget > CMainWindow::getDebugCommands( bool absDir ) const
 {
-    QList < NVSProjectMaker::SDebugTarget > retVal;
+    std::list < NVSProjectMaker::SDebugTarget > retVal;
 
     auto sourceDirPath = getSourceDir();
     if ( !sourceDirPath.has_value() )
@@ -363,14 +369,14 @@ QList < NVSProjectMaker::SDebugTarget > CMainWindow::getDebugCommands( bool absD
         curr.fArgs = argsFromString( fDebugTargetsModel->item( ii, 3 )->text() );
         curr.fWorkDir = fDebugTargetsModel->item( ii, 4 )->text();
         curr.fEnvVars = envVarsFromString(fDebugTargetsModel->item(ii, 5)->text());
-        retVal << curr;
+        retVal.push_back( curr );
     }
     return retVal;
 }
 
-QList< QPair< QString, QString > > CMainWindow::getCustomBuilds( bool absDir ) const
+std::list< std::pair< QString, QString > > CMainWindow::getCustomBuilds( bool absDir ) const
 {
-    QList< QPair< QString, QString > > retVal;
+    std::list< std::pair< QString, QString > > retVal;
 
     auto bldDirPath = getBuildDir();
     if ( !bldDirPath.has_value() )
@@ -385,7 +391,7 @@ QList< QPair< QString, QString > > CMainWindow::getCustomBuilds( bool absDir ) c
         if ( absDir )
             dir = bldDir.absoluteFilePath( dir );
         auto target = fCustomBuildModel->item( ii, 1 )->text();
-        retVal << qMakePair( dir, target );
+        retVal.push_back( std::pair( dir, target ) );
     }
     return retVal;
 }
@@ -627,7 +633,7 @@ void CMainWindow::slotRunWizard()
         loadIncludeDirsFromWizard( includesPage->enabledIncludeDirs() );
         loadPreProcessorDefinesFromWizard( preProcDefinesPage->enabledPreProcDefines() );
 
-        QString projFile = QDir( wizard.field( "clientDir" ).toString() ).absoluteFilePath( wizard.field( "clientName" ).toString() ) + ".vsprjmkr.ini";
+        QString projFile = QDir( wizard.field( "clientDir" ).toString() ).absoluteFilePath( wizard.field( "clientName" ).toString() ) + ".vsprjmkr.json";
         saveProjectFile( projFile );
 
         slotLoadSource();
@@ -639,7 +645,7 @@ void CMainWindow::loadBuildTargetsFromWizard( const QStringList & targets, const
 {
     for ( auto && ii : targets )
     {
-        addCustomBuild( qMakePair( fImpl->buildRelDir->text(), ii ) );
+        addCustomBuild( std::make_pair( fImpl->buildRelDir->text(), ii ) );
     }
     fImpl->primaryBuildTarget->clear();
     fImpl->primaryBuildTarget->addItems( targets );
@@ -681,7 +687,7 @@ void CMainWindow::slotOpenProjectFile()
         currPath = fSettings->fileName();
     if ( currPath.isEmpty() )
         currPath = QString();
-    auto projFile = QFileDialog::getOpenFileName( this, tr( "Select Project File to open" ), currPath, "Project Files *.ini;;All Files *.*" );
+    auto projFile = QFileDialog::getOpenFileName( this, tr( "Select Project File to open" ), currPath, "Project Files *.json;;All Files *.*" );
     if ( projFile.isEmpty() )
         return;
     setProjectFile( projFile, true );
@@ -700,7 +706,7 @@ void CMainWindow::slotSaveProjectFile()
 
 void CMainWindow::saveProjectFile( const QString & currPath )
 {
-    auto projFile = QFileDialog::getSaveFileName( this, tr( "Select Project File to save" ), currPath, "Project Files *.ini;;All Files *.*" );
+    auto projFile = QFileDialog::getSaveFileName( this, tr( "Select Project File to save" ), currPath, "Project Files *.json;;All Files *.*" );
     if ( !projFile.isEmpty() )
         setProjectFile( projFile, false );
 }
@@ -811,7 +817,7 @@ void CMainWindow::slotVSChanged()
     }
     auto data = QString( getProcess()->readAll() );
     clearProcess();
-    auto lines = data.split( '\n', QString::SkipEmptyParts);
+    auto lines = data.split( '\n', TSkipEmptyParts);
     QStringList generators;
     bool inGenerators = false;
     bool usePrev = false;
@@ -980,7 +986,7 @@ void CMainWindow::slotAddCustomBuild()
     CAddCustomBuild dlg( getBuildDir().value(), this );
     if ( dlg.exec() == QDialog::Accepted && !dlg.buildDir().isEmpty() && !dlg.targetName().isEmpty() )
     {
-        addCustomBuild( qMakePair( dlg.buildDir(), dlg.targetName() ) );
+        addCustomBuild( std::make_pair( dlg.buildDir(), dlg.targetName() ) );
     }
 }
 
