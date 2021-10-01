@@ -1361,17 +1361,17 @@ namespace NVSProjectMaker
 
     void SItem::loadIntoTree( QStandardItem * parent  )
     {
-        QList< QStandardItem * > retVal;
-        retVal << new QStandardItem( QString() );
-        retVal << new QStandardItem( targetDir() );
-        retVal << new QStandardItem( getItemTypeName() );
-        retVal << new QStandardItem( firstSrcFile() );
-        retVal << new QStandardItem( targetFile() );
-        parent->appendRow( retVal );
+        QList< QStandardItem * > currRow;
+        currRow << new QStandardItem( QString() );
+        currRow << new QStandardItem( targetDir() );
+        currRow << new QStandardItem( getItemTypeName() );
+        currRow << new QStandardItem( firstSrcFile() );
+        currRow << new QStandardItem( targetFile() );
+        parent->appendRow( currRow );
         if ( !targetFile().isEmpty() )
         {
             auto folder = new QStandardItem( "Target" );
-            retVal.front()->appendRow( QList< QStandardItem * >() << folder );
+            currRow.front()->appendRow( QList< QStandardItem * >() << folder );
             auto tgtItem = new QStandardItem( targetFile() );
             folder->appendRow( QList< QStandardItem * >() << tgtItem );
         }
@@ -1380,7 +1380,7 @@ namespace NVSProjectMaker
         if ( !allSources.isEmpty() )
         {
             auto folder = new QStandardItem( "Dependencies" );
-            retVal.front()->appendRow( QList< QStandardItem * >() << folder );
+            currRow.front()->appendRow( QList< QStandardItem * >() << folder );
             for ( auto && ii : allSources )
             {
                 auto item = new QStandardItem( ii );

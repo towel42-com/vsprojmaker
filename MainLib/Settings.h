@@ -24,39 +24,113 @@
 #define __SETTINGS_H
 
 #include "DebugTarget.h"
-#include "SABUtils/QtUtils.h"
+#include "JsonUtils.h"
 
 #include <utility>
 #include <QVariant>
+#include <QDebug>
 #include <QSettings>
-#include <QSet>
+#include <set>
 #include <QDir>
 #include <functional>
 #include <optional>
 #include <tuple>
-#include "SABUtils/QtUtils.h"
 class QStandardItem;
 class QProgressDialog;
 class QProcess;
+class QJsonObject;
+class QJsonValue;
+
+class CValueBase
+{
+public:
+    virtual QVariant get( const QVariant& defValue = QVariant() ) const = 0;
+    virtual void set( const QVariant& value ) = 0;
+    virtual bool isSet() const { return false; }
+    virtual void reset() = 0;
+    virtual void save( QJsonValue& value ) const = 0;
+    virtual void load( const QJsonValue& value ) = 0;
+};
+
+template< typename T >
+class CValue : public CValueBase
+{
+public:
+    CValue() = default;
+    CValue( const CValue& rhs ) = default;
+    CValue& operator=( const CValue& rhs ) = default;
+
+    virtual void set( const QVariant& value ) override
+    {
+        setValue( value.value< T >() );
+    }
+    void setValue( const T& value ) { fValue = value; }
+
+    [[nodiscard]] virtual QVariant get( const QVariant& defValueVariant = QVariant() ) const override
+    {
+        T defValue = defValueVariant.value< T >();
+        return QVariant::fromValue( getValue( defValue ) );
+    }
+
+    [[nodiscard]] T getValue( const T& defValue = T() ) const
+    {
+        if ( !isSet() )
+            return defValue;
+        return fValue.value();
+    }
+
+    virtual void save( QJsonValue & value ) const
+    {
+        if ( !fValue.has_value() )
+            return;
+        return ToJson( fValue.value(), value );
+    }
+
+    virtual void load( const QJsonValue& value )
+    {
+        T tmpValue;
+        FromJson( tmpValue, value );
+        fValue = tmpValue;
+    }
+
+    virtual void reset() override
+    {
+        fValue.reset();
+    }
+
+    virtual bool isSet() const override
+    {
+        return fValue.has_value();
+    }
+private:
+    std::optional< T > fValue;
+};
+
+#define ADD_SETTING_BASE( Type, Name ) \
+inline void set ## Name( const Type & value ){ /* qDebug() << #Name; */ f ## Name .setValue( value ); } \
+inline [[nodiscard]] Type get ## Name( const Type & defValue = Type() ) const \
+{ return f ## Name.getValue( defValue ); } \
+inline [[nodiscard]] bool is ## Name ## Set() const { return f ## Name.isSet() ; } \
+private: \
+    CValue< Type > f ## Name
 
 #define ADD_SETTING( Type, Name ) \
 public: \
-inline void set ## Name( const Type & value ){ f ## Name = QVariant::fromValue( value ); } \
-inline [[nodiscard]] Type get ## Name() const { return f ## Name.value< Type >(); } \
-private: \
-QVariant f ## Name
-
-using TFuncType = std::function< void() >;
+ADD_SETTING_BASE( Type, Name )
 
 #define ADD_SETTING_SETFUNC( Type, Name, func ) \
 public: \
-inline void set ## Name( const Type & value ){ f ## Name = QVariant::fromValue( value ); func(); } \
-inline [[nodiscard]] Type get ## Name() const { return f ## Name.value< Type >(); } \
+inline void set ## Name( const Type & value ){ f ## Name .setValue( value ); func(); } \
+inline [[nodiscard]] Type get ## Name( const Type & defValue = Type() ) const { return f ## Name.getValue( defValue ); } \
 private: \
-QVariant f ## Name
+    CValue< Type > f ## Name
 
-#define ADD_SETTING_VALUE( Type, Name ) \
-registerSetting< Type >( #Name, const_cast<QVariant *>( &f ## Name ) );
+#define ADD_SETTING_DEPRICATED( Type, Name ) \
+private: \
+ADD_SETTING_BASE( Type, Name )
+
+#define ADD_SETTING_VALUE( Name ) \
+registerSetting( #Name, &f ## Name );
 
 namespace NVSProjectMaker
 {
@@ -64,10 +138,16 @@ namespace NVSProjectMaker
     struct SDirInfo;
 }
 
-using TExecNameType = QHash< QString, QList< QPair< QString, bool > > >;
-using TListOfStringPair = QList< QPair< QString, QString > >;
-using TListOfDebugTargets = QList< NVSProjectMaker::SDebugTarget >;
+using TExecNameType = std::unordered_map< QString, std::list< std::pair< QString, bool > > >;
+using TListOfStringPair = std::list< std::pair< QString, QString > >;
+using TListOfDebugTargets = std::list< NVSProjectMaker::SDebugTarget >;
+using TStringSet = std::set< QString >;
 Q_DECLARE_METATYPE( TListOfDebugTargets );
+Q_DECLARE_METATYPE( TListOfStringPair );
+Q_DECLARE_METATYPE( TExecNameType );
+Q_DECLARE_METATYPE( TStringSet );
+
+QDebug& operator<<( QDebug& stream, const TExecNameType& value );
 
 namespace NVSProjectMaker
 {
@@ -79,7 +159,7 @@ namespace NVSProjectMaker
         bool fIsBuildDir{ false };
         bool fIsDir{ false };
         bool fIsIncludeDir{ false };
-        QList< QPair< QString, bool > > fExecutables;
+        std::list< std::pair< QString, bool > > fExecutables;
 
         std::list< std::shared_ptr< SSourceFileInfo > > fChildren;
 
@@ -102,7 +182,7 @@ namespace NVSProjectMaker
         int fFiles{ 0 };
         QStringList fBuildDirs;
         QStringList fInclDirs;
-        QList< QPair< QString, bool > > fExecutables;
+        std::list< std::pair< QString, bool > > fExecutables;
         QStringList fQtLibs;
         QString getText( bool forText ) const;
 
@@ -130,6 +210,8 @@ namespace NVSProjectMaker
         ~CSettings();
 
         void clear();
+        void reset();
+
         QString fileName() const;
         bool loadSourceFiles( const QDir & sourceDir, const QString & dir, QProgressDialog * progress, const std::function< void( const QString & msg ) > & logit );
         std::optional< QString > getBuildDir( bool relPath = false ) const;
@@ -138,7 +220,6 @@ namespace NVSProjectMaker
         QStringList getCmakeArgs() const;
 
         bool saveSettings(); // only valid if filename has been set;
-        void sync(); // flushes it to the harddrive
 
         void loadSettings(); // loads from the registry
         bool loadSettings( const QString & fileName ); // sets the filename and loads from it
@@ -146,7 +227,7 @@ namespace NVSProjectMaker
 
         bool isBuildDir( const QDir & relToDir, const QDir & dir ) const;
         bool isInclDir( const QDir & relToDir, const QDir & dir ) const;
-        QList< QPair< QString, bool > > getExecutables( const QDir & dir ) const;
+        std::list< std::pair< QString, bool > > getExecutables( const QDir & dir ) const;
 
         QStringList addInclDirs( const QStringList & inclDirs );
         QStringList addPreProcessorDefines( const QStringList & preProcDefines );
@@ -194,7 +275,7 @@ namespace NVSProjectMaker
         ADD_SETTING( QString, ProdDir );
         ADD_SETTING( QString, MSys64Dir );
         ADD_SETTING( QStringList, SelectedQtDirs );
-        ADD_SETTING( QSet< QString >, BuildDirs );
+        ADD_SETTING( TStringSet, BuildDirs );
         ADD_SETTING( QStringList, InclDirs );
         ADD_SETTING( QStringList, SelectedInclDirs );
         ADD_SETTING( QStringList, PreProcDefines );
@@ -211,27 +292,17 @@ namespace NVSProjectMaker
     private:
         QMap< QString, QString > getVarMap() const;
 
-        template< typename Type >
-        void registerSetting( const QString & attribName, QVariant * value ) const
-        {
-            auto pos = fSettings.find( attribName );
-            if ( pos != fSettings.end() )
-                return;
-
-            Q_ASSERT( value );
-            if ( !value )
-                return;
-            if ( !value->isValid() )
-                *value = QVariant::fromValue( Type() );
-            fSettings[ attribName ] = value;
-        }
+        void registerSetting( const QString & attribName, CValueBase * value ) const;
         QStringList getCustomBuildsForSourceDir( const QString & inSourcePath ) const;
-        QList < NVSProjectMaker::SDebugTarget > getDebugCommandsForSourceDir( const QString & inSourcePath ) const;
+        std::list < NVSProjectMaker::SDebugTarget > getDebugCommandsForSourceDir( const QString & inSourcePath ) const;
         bool loadSourceFiles( const QDir & sourceDir, const QString & dir, QProgressDialog * progress, std::shared_ptr< SSourceFileInfo  > parent, const std::function< void( const QString & msg ) > & logit );
         bool loadData();
         void incProgress( QProgressDialog * progress ) const;
         void registerSettings();
         void loadQtSettings();
+
+        void save( QJsonObject& json ) const;
+        void load( const QJsonObject& json );
 
         struct SCustomBuildDirInfo
         {
@@ -248,10 +319,11 @@ namespace NVSProjectMaker
             QStringList fExtraOptions; // the options
         };
 
-        std::unique_ptr< QSettings > fSettingsFile;
+        QString fSettingsFileName;
+        void dump() const;
         std::shared_ptr< NVSProjectMaker::SSourceFileResults > fResults;
         mutable std::map< QString, std::pair< QString, bool > > fSamplesMap;
-        mutable std::unordered_map< QString, QVariant * > fSettings;
+        mutable std::unordered_map< QString, CValueBase* > fSettings;
     };
 }
 

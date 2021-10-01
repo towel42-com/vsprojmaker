@@ -24,23 +24,40 @@
 #include "Settings.h"
 #include "DebugTarget.h"
 
-#include <QSet>
+#include <set>
 #include <QDataStream>
 #include <QFile>
 #include <QApplication>
 #include <QMessageBox>
 
-QDataStream & operator<<( QDataStream & stream, const QSet<QString> & value )
+QDataStream & operator<<( QDataStream & stream, const TStringSet & value )
 {
-    stream << value.count();
-    for ( auto ii = value.constBegin(); ii != value.constEnd(); ++ii )
+    stream << value.size();
+    for ( auto ii = value.begin(); ii != value.end(); ++ii )
     {
         stream << *ii;
     }
     return stream;
 }
 
-QDataStream & operator>>( QDataStream & stream, QSet<QString> & value )
+QDebug& operator<<( QDebug& stream, const TStringSet& value )
+{
+    const bool oldSetting = stream.autoInsertSpaces();
+    stream.nospace() << "std::set< QString >(";
+    auto && ii = value.begin();
+    if ( ii != value.end() )
+        stream << *ii;
+    while ( ii != value.end() )
+    {
+        stream << ", " << *ii;
+        ++ii;
+    }
+    stream.nospace() << ')';
+    stream.setAutoInsertSpaces( oldSetting );
+    return stream.maybeSpace();
+}
+
+QDataStream & operator>>( QDataStream & stream, TStringSet & value )
 {
     int count;
     stream >> count;
@@ -54,26 +71,26 @@ QDataStream & operator>>( QDataStream & stream, QSet<QString> & value )
     return stream;
 }
 
-QDataStream & operator<<( QDataStream & stream, const QPair< QString, bool > & value )
+QDataStream & operator<<( QDataStream & stream, const std::pair< QString, bool > & value )
 {
     stream << value.first << value.second;
     return stream;
 }
 
-QDataStream & operator>>( QDataStream & stream, QPair< QString, bool > & value )
+QDataStream & operator>>( QDataStream & stream, std::pair< QString, bool > & value )
 {
     stream >> value.first;
     stream >> value.second;
     return stream;
 }
 
-QDataStream & operator<<( QDataStream & stream, const QPair< QString, QString > & value )
+QDataStream & operator<<( QDataStream & stream, const std::pair< QString, QString > & value )
 {
     stream << value.first << value.second;
     return stream;
 }
 
-QDataStream & operator>>( QDataStream & stream, QPair< QString, QString > & value )
+QDataStream & operator>>( QDataStream & stream, std::pair< QString, QString > & value )
 {
     stream >> value.first;
     stream >> value.second;
@@ -81,24 +98,24 @@ QDataStream & operator>>( QDataStream & stream, QPair< QString, QString > & valu
 }
 
 
-QDataStream & operator<<( QDataStream & stream, const QList< QPair< QString, bool > > & value )
+QDataStream & operator<<( QDataStream & stream, const std::list< std::pair< QString, bool > > & value )
 {
-    stream << value.count();
-    for ( auto ii = value.constBegin(); ii != value.constEnd(); ++ii )
+    stream << value.size();
+    for ( auto ii = value.begin(); ii != value.end(); ++ii )
     {
         stream << *ii;
     }
     return stream;
 }
 
-QDataStream & operator>>( QDataStream & stream, QList< QPair< QString, bool > > & value )
+QDataStream & operator>>( QDataStream & stream, std::list< std::pair< QString, bool > > & value )
 {
     int count;
     stream >> count;
 
     for ( int ii = 0; ii < count; ++ii )
     {
-        QPair< QString, bool > curr;
+        std::pair< QString, bool > curr;
         stream >> curr;
         value.push_back( curr );
     }
@@ -107,8 +124,8 @@ QDataStream & operator>>( QDataStream & stream, QList< QPair< QString, bool > > 
 
 QDataStream & operator<<( QDataStream & stream, const TListOfStringPair & value )
 {
-    stream << value.count();
-    for ( auto ii = value.constBegin(); ii != value.constEnd(); ++ii )
+    stream << value.size();
+    for ( auto ii = value.begin(); ii != value.end(); ++ii )
     {
         stream << *ii;
     }
@@ -122,25 +139,25 @@ QDataStream & operator>>( QDataStream & stream, TListOfStringPair & value )
 
     for ( int ii = 0; ii < count; ++ii )
     {
-        QPair< QString, QString > curr;
+        std::pair< QString, QString > curr;
         stream >> curr;
         value.push_back( curr );
     }
     return stream;
 }
 
-QDataStream & operator<<( QDataStream & stream, const QHash< QString, QList< QPair< QString, bool > > > & value )
+QDataStream & operator<<( QDataStream & stream, const std::unordered_map< QString, std::list< std::pair< QString, bool > > > & value )
 {
-    stream << value.count();
-    for ( auto ii = value.constBegin(); ii != value.constEnd(); ++ii )
+    stream << value.size();
+    for ( auto ii = value.begin(); ii != value.end(); ++ii )
     {
-        stream << ii.key();
-        stream << ii.value();
+        stream << (*ii).first;
+        stream << (*ii).second;
     }
     return stream;
 }
 
-QDataStream & operator>>( QDataStream & stream, QHash< QString, QList< QPair< QString, bool > > > & value )
+QDataStream & operator>>( QDataStream & stream, std::unordered_map< QString, std::list< std::pair< QString, bool > > > & value )
 {
     int count;
     stream >> count;
@@ -149,9 +166,9 @@ QDataStream & operator>>( QDataStream & stream, QHash< QString, QList< QPair< QS
     {
         QString key;
         stream >> key;
-        QList< QPair< QString, bool > > currValue;
+        std::list< std::pair< QString, bool > > currValue;
         stream >> currValue;
-        value.insert( key, currValue );
+        value[key] = currValue;
     }
     return stream;
 }
@@ -174,13 +191,13 @@ namespace NVSProjectMaker
 
     void registerTypes()
     {
-        qRegisterMetaTypeStreamOperators< QSet<QString> >( "QSet<QString>" );
-        qRegisterMetaTypeStreamOperators< QHash<QString, QList< QPair< QString, bool > >> >( "QHash<QString,QList<QPair<QString,bool>>>" );
-        qRegisterMetaTypeStreamOperators< QList< QPair< QString, bool > > >( "QList<QPair<QString,bool>>" );
-        qRegisterMetaTypeStreamOperators< QPair< QString, bool > >( "QPair<QString,bool>" );
+        qRegisterMetaTypeStreamOperators< TStringSet >( "TStringSet" );
+        qRegisterMetaTypeStreamOperators< std::unordered_map<QString, std::list< std::pair< QString, bool > >> >( "std::unordered_map<QString,std::list<std::pair<QString,bool>>>" );
+        qRegisterMetaTypeStreamOperators< std::list< std::pair< QString, bool > > >( "std::list<std::pair<QString,bool>>" );
+        qRegisterMetaTypeStreamOperators< std::pair< QString, bool > >( "std::pair<QString,bool>" );
         qRegisterMetaTypeStreamOperators< TListOfStringPair >( "TListOfStringPair" );
-        qRegisterMetaTypeStreamOperators< QPair< QString, QString > >( "QPair<QString,QString>" );
+        qRegisterMetaTypeStreamOperators< std::pair< QString, QString > >( "std::pair<QString,QString>" );
         qRegisterMetaTypeStreamOperators< SDebugTarget >( "SDebugTarget" );
-        qRegisterMetaTypeStreamOperators< QList< SDebugTarget > >( "QList< SDebugTarget >" );
+        qRegisterMetaTypeStreamOperators< std::list< SDebugTarget > >( "std::list< SDebugTarget >" );
     }
 }

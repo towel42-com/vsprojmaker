@@ -26,6 +26,21 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <QFile>
+#include <QDebug>
+
+QDebug & operator<<( QDebug & stream, const NVSProjectMaker::SDebugTarget & value )
+{
+    stream.noquote().nospace() << "("
+        << value.fSourceDir << ", "
+        << value.fName << ", "
+        << value.fCmd << ", "
+        << value.fArgs << ", "
+        << value.fWorkDir << ", "
+        << value.fEnvVars 
+        << ")";
+        ;
+    return stream;
+}
 
 QDataStream & operator<<( QDataStream & stream, const NVSProjectMaker::SDebugTarget & value )
 {
@@ -51,17 +66,17 @@ QDataStream & operator>>( QDataStream & stream, NVSProjectMaker::SDebugTarget & 
     return stream;
 }
 
-QDataStream & operator<<( QDataStream & stream, const QList< NVSProjectMaker::SDebugTarget > & value )
+QDataStream & operator<<( QDataStream & stream, const std::list< NVSProjectMaker::SDebugTarget > & value )
 {
-    stream << value.count();
-    for ( auto ii = value.constBegin(); ii != value.constEnd(); ++ii )
+    stream << value.size();
+    for ( auto ii = value.begin(); ii != value.end(); ++ii )
     {
         stream << *ii;
     }
     return stream;
 }
 
-QDataStream & operator>>( QDataStream & stream, QList< NVSProjectMaker::SDebugTarget > & value )
+QDataStream & operator>>( QDataStream & stream, std::list< NVSProjectMaker::SDebugTarget > & value )
 {
     int count;
     stream >> count;
@@ -77,6 +92,36 @@ QDataStream & operator>>( QDataStream & stream, QList< NVSProjectMaker::SDebugTa
 
 namespace NVSProjectMaker
 {
+    void SDebugTarget::toJson( QJsonValue& value ) const
+    {
+        QJsonObject obj;
+        obj["sourcedir"] = fSourceDir;
+        obj["name"] = fName;
+        obj["cmd"] = fCmd;
+        QJsonValue args;
+        ToJson( fArgs, args );
+        obj["args"] = args;
+        obj["workdir"] = fWorkDir;
+        QJsonValue envVar;
+        ToJson( fEnvVars, envVar );
+        obj["envvars"] = envVar;
+        value = obj;
+    }
+
+    void SDebugTarget::fromJson( const QJsonValue& value )
+    {
+        if ( !value.isObject() )
+            return;
+        auto obj = value.toObject();
+        fSourceDir = obj["sourcedir"].toString();
+        fName = obj["name"].toString();
+        fCmd = obj["cmd"].toString();
+        FromJson( fArgs, obj["args"] );
+        fWorkDir = obj["workdir"].toString();
+        fSourceDir = obj["sourcedir"].toString();
+        FromJson( fEnvVars, obj["envvars"] );
+    }
+
     QString SDebugTarget::getEnvVars() const
     {
         QStringList tmp;

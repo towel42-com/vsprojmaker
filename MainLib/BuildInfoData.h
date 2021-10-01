@@ -32,6 +32,8 @@
 #include <set>
 #include <functional>
 
+using TStringSet = std::set< QString >;
+
 class QProgressDialog;
 class QStandardItemModel;
 class QStandardItem;
@@ -333,7 +335,7 @@ namespace NVSProjectMaker
         std::multimap< QString, std::shared_ptr< SItem > > fSources;
 
         std::pair< bool, QString > fStatus = std::make_pair( false, QString() );
-        std::set< QString > fProdDirUsages;
+        TStringSet fProdDirUsages;
     };
 }
 

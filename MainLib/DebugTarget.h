@@ -27,6 +27,8 @@
 #include <QMap>
 #include <QDataStream>
 
+class QJsonObject;
+
 namespace NVSProjectMaker
 {
     class CSettings;
@@ -39,6 +41,8 @@ namespace NVSProjectMaker
         QString fWorkDir;
         QStringList fEnvVars;
 
+        void toJson( QJsonValue& obj ) const;
+        void fromJson( const QJsonValue& obj );
         QString getEnvVars() const;
         QString getProjectName() const;
         QString getCmd() const;
@@ -48,8 +52,10 @@ namespace NVSProjectMaker
 
 QDataStream & operator<<( QDataStream & stream, const NVSProjectMaker::SDebugTarget & value );
 QDataStream & operator>>( QDataStream & stream, NVSProjectMaker::SDebugTarget & value );
-QDataStream & operator<<( QDataStream & stream, const QList< NVSProjectMaker::SDebugTarget > & value );
-QDataStream & operator>>( QDataStream & stream, QList< NVSProjectMaker::SDebugTarget > & value );
+QDataStream & operator<<( QDataStream & stream, const std::list< NVSProjectMaker::SDebugTarget > & value );
+QDataStream & operator>>( QDataStream & stream, std::list< NVSProjectMaker::SDebugTarget > & value );
+
+QDebug & operator<<( QDebug & stream, const NVSProjectMaker::SDebugTarget & value );
 
 Q_DECLARE_METATYPE( NVSProjectMaker::SDebugTarget );
 

@@ -58,7 +58,7 @@ namespace NVSProjectMaker
         if ( fRelToDir.isEmpty() )
             return false;
 
-        return ( fIsInclDir || fIsBuildDir || !fExecutables.isEmpty() || !fExtraTargets.isEmpty() || !fDebugCommands.isEmpty() );
+        return ( fIsInclDir || fIsBuildDir || !fExecutables.empty() || !fExtraTargets.empty() || !fDebugCommands.empty() );
     }
 
     void SDirInfo::replaceFiles( QString & text, const QString & variable, const QStringList & files ) const
@@ -262,7 +262,7 @@ namespace NVSProjectMaker
             }
         }
 
-        bool isSubHeader = ( !fIsBuildDir && fExecutables.isEmpty() && fSourceFiles.isEmpty() );
+        bool isSubHeader = ( !fIsBuildDir && fExecutables.empty() && fSourceFiles.empty() );
         auto buildItFileName = vsProjDir.absoluteFilePath( QString( "buildit.sh" ) );
         if ( !isSubHeader )
         {
@@ -314,7 +314,7 @@ namespace NVSProjectMaker
 
         QString folder = "src/" + fRelToDir;
         QFileInfo( fRelToDir ).path();
-        if ( fIsBuildDir || fExecutables.isEmpty() )
+        if ( fIsBuildDir || fExecutables.empty() )
         {
             qts << "set_target_properties( " << fProjectName << " PROPERTIES FOLDER " << folder << " )\n";
         }

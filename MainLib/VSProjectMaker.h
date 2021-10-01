@@ -25,11 +25,7 @@
 
 #include <QString>
 #include <functional>
-#include <QPair>
-#include <QHash>
-#include <QList>
-#include <QSet>
-
+#include <set>
 class QWidget;
 class QStandardItem;
 class QTextStream;
@@ -48,18 +44,21 @@ namespace NVSProjectMaker
     QString readResourceFile( QWidget * parent, const QString & resourceFile, const std::function< void( QString & resourceText ) > & function = {} );
     void registerTypes();
 }
+using TStringSet = std::set< QString >;
 
-QDataStream & operator<<( QDataStream & stream, const QSet<QString> & value );
-QDataStream & operator>>( QDataStream & stream, QSet<QString> & value );
-QDataStream & operator<<( QDataStream & stream, const QPair< QString, bool > & value );
-QDataStream & operator>>( QDataStream & stream, QPair< QString, bool > & value );
-QDataStream & operator<<( QDataStream & stream, const QPair< QString, QString > & value );
-QDataStream & operator>>( QDataStream & stream, QPair< QString, QString > & value );
-QDataStream & operator<<( QDataStream & stream, const QList< QPair< QString, bool > > & value );
-QDataStream & operator>>( QDataStream & stream, QList< QPair< QString, bool > > & value );
-QDataStream & operator<<( QDataStream & stream, const QList< QPair< QString, QString > > & value );
-QDataStream & operator>>( QDataStream & stream, QList< QPair< QString, QString > > & value );
-QDataStream & operator<<( QDataStream & stream, const QHash< QString, QList< QPair< QString, bool > > > & value );
-QDataStream & operator>>( QDataStream & stream, QHash< QString, QList< QPair< QString, bool > > > & value );
+QDataStream & operator<<( QDataStream & stream, const TStringSet & value );
+QDataStream & operator>>( QDataStream & stream, TStringSet & value );
+QDataStream & operator<<( QDataStream & stream, const std::pair< QString, bool > & value );
+QDataStream & operator>>( QDataStream & stream, std::pair< QString, bool > & value );
+QDataStream & operator<<( QDataStream & stream, const std::pair< QString, QString > & value );
+QDataStream & operator>>( QDataStream & stream, std::pair< QString, QString > & value );
+QDataStream & operator<<( QDataStream & stream, const std::list< std::pair< QString, bool > > & value );
+QDataStream & operator>>( QDataStream & stream, std::list< std::pair< QString, bool > > & value );
+QDataStream & operator<<( QDataStream & stream, const std::list< std::pair< QString, QString > > & value );
+QDataStream & operator>>( QDataStream & stream, std::list< std::pair< QString, QString > > & value );
+QDataStream & operator<<( QDataStream & stream, const std::unordered_map< QString, std::list< std::pair< QString, bool > > > & value );
+QDataStream & operator>>( QDataStream & stream, std::unordered_map< QString, std::list< std::pair< QString, bool > > > & value );
+
+QDebug& operator<<( QDebug& stream, const TStringSet& value );
 
 #endif 

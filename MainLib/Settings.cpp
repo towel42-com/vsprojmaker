@@ -25,13 +25,14 @@
 #include "VSProjectMaker.h"
 #include "DirInfo.h"
 #include "Version.h"
+#include "JsonUtils.h"
 
 #include <QApplication>
 #include <QStandardItem>
 #include <QString>
 #include <QStringList>
-#include <QList>
-#include <QSet>
+#include <list>
+#include <set>
 #include <QSettings>
 #include <QFileInfo>
 #include <QDir>
@@ -42,7 +43,10 @@
 #include <QTextStream>
 #include <QProcess>
 #include <QDebug>
-
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonValue>
 namespace NVSProjectMaker
 {
     CSettings::CSettings() :
@@ -72,30 +76,73 @@ namespace NVSProjectMaker
     {
         setFileName( QString(), false );
         fResults = std::make_shared< SSourceFileResults >();
-        for ( auto && ii : fSettings )
-            *ii.second = QVariant();
+        reset();
     }
 
     QString CSettings::fileName() const
     {
-        if ( !fSettingsFile )
-            return QString();
-        auto fname = fSettingsFile->fileName();
-        if ( fname.startsWith( "\\HKEY" ) )
-            return QString();
-        return fname;
+        return fSettingsFileName;
     }
 
     bool CSettings::saveSettings()
     {
-        if ( !fSettingsFile )
+        if ( fSettingsFileName.isEmpty() )
             return false;
 
-        for ( auto && ii : fSettings )
-            fSettingsFile->setValue( ii.first, *(ii.second) );
+        QFile fi( fSettingsFileName );
+        if ( !fi.open( QFile::WriteOnly | QFile::Truncate ) )
+            return false;
 
-        sync();
+        QJsonObject object;
+        save( object );
+        fi.write( QJsonDocument( object ).toJson() );
         return true;
+    }
+    
+    void CSettings::save( QJsonObject & json ) const
+    {
+        QJsonArray settingsArray;
+        for( auto && ii : fSettings )
+        {
+            QJsonObject currSettings;
+            currSettings["key"] = ii.first;
+            QJsonValue value;
+            ii.second->save( value );
+            currSettings.insert( "value", value );
+            settingsArray.append( currSettings );
+        }
+        json["settings"] = settingsArray;
+    }
+
+    void CSettings::load( const QJsonObject& json )
+    {
+        reset();
+
+        if ( !json.contains( "settings" ) || !json["settings"].isArray() )
+            return;
+
+        QJsonArray settings = json["settings"].toArray();
+        for( int ii = 0; ii < settings.size(); ++ii )
+        {
+            QJsonObject setting = settings[ii].toObject();
+            if ( !setting.contains( "key" ) || !setting["key"].isString() )
+                continue;
+
+            auto name = setting["key"].toString();
+            auto pos = fSettings.find( name );
+            if ( pos == fSettings.end() )
+                continue;
+
+            if ( !setting.contains( "value" ) )
+                continue;
+            ( *pos ).second->load( setting["value"] );
+        }
+    }
+
+    void CSettings::reset()
+    {
+        for ( auto&& ii : fSettings )
+            ii.second->reset();
     }
 
     void CSettings::loadSettings()
@@ -106,23 +153,19 @@ namespace NVSProjectMaker
     bool CSettings::setFileName( const QString & fileName, bool andSave )
     {
         if ( fileName.isEmpty() )
-            fSettingsFile = std::make_unique< QSettings >();
-        else
         {
-            auto fi = QFileInfo( fileName );
-            if ( !andSave && ( !fi.exists() || !fi.isReadable() ) )
-                return false;
-            fSettingsFile = std::make_unique< QSettings >( fileName, QSettings::IniFormat );
+            fSettingsFileName.clear();
+            return true;
         }
+
+        auto fi = QFileInfo( fileName );
+        if ( !andSave && ( !fi.exists() || !fi.isReadable() ) )
+            return false;
+        fSettingsFileName = fileName;
+
         if ( andSave )
             saveSettings();
         return true;
-    }
-
-    void CSettings::sync()
-    {
-        if ( fSettingsFile )
-            return fSettingsFile->sync();
     }
 
     void CSettings::incProgress( QProgressDialog * progress ) const
@@ -142,7 +185,8 @@ namespace NVSProjectMaker
         bool retVal = QFileInfo(relToDir.absoluteFilePath(dir.filePath("subdir.mk"))).exists();
         retVal = retVal || QFileInfo(relToDir.absoluteFilePath(dir.filePath("Makefile"))).exists();
         retVal = retVal || QFileInfo(relToDir.absoluteFilePath(dir.filePath("makefile.inc"))).exists();
-        retVal = retVal || getBuildDirs().contains( dir.path() );
+        auto bldDirs = getBuildDirs();
+        retVal = retVal || ( bldDirs.find( dir.path() ) != bldDirs.end() );
         return retVal;
     }
 
@@ -158,12 +202,12 @@ namespace NVSProjectMaker
         return retVal;
     }
 
-    QList< QPair< QString, bool > > CSettings::getExecutables( const QDir & dir ) const
+    std::list< std::pair< QString, bool > > CSettings::getExecutables( const QDir & dir ) const
     {
         auto execNames = getExecNames();
         auto pos = execNames.find( dir.path() );
         if ( pos != execNames.end() )
-            return pos.value();
+            return (*pos).second;
         return {};
     }
 
@@ -295,9 +339,21 @@ namespace NVSProjectMaker
         return map;
     }
 
-    QList < NVSProjectMaker::SDebugTarget > CSettings::getDebugCommandsForSourceDir( const QString & inSourcePath ) const
+    void CSettings::registerSetting( const QString& attribName, CValueBase* value ) const
     {
-        QList < NVSProjectMaker::SDebugTarget > retVal;
+        auto pos = fSettings.find( attribName );
+        if ( pos != fSettings.end() )
+            return;
+
+        Q_ASSERT( value );
+        if ( !value )
+            return;
+        fSettings[attribName] = value;
+    }
+
+    std::list < NVSProjectMaker::SDebugTarget > CSettings::getDebugCommandsForSourceDir( const QString& inSourcePath ) const
+    {
+        std::list < NVSProjectMaker::SDebugTarget > retVal;
 
         auto sourceDirPath = getSourceDir();
         if ( !sourceDirPath.has_value() )
@@ -313,7 +369,7 @@ namespace NVSProjectMaker
 
             if ( sourceDir.absoluteFilePath( curr.fSourceDir ) == inSourcePath )
             {
-                retVal << curr;
+                retVal.push_back( curr );
             }
         }
         return retVal;
@@ -637,8 +693,10 @@ namespace NVSProjectMaker
                 currInfo->fExtraTargets  << getCustomBuildsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir + "/src" ) ).canonicalFilePath() );
                 currInfo->fExtraTargets  << getCustomBuildsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir + "/incl" ) ).canonicalFilePath() );
 
-                currInfo->fDebugCommands << getDebugCommandsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir + "/src" ) ).canonicalFilePath() );
-                currInfo->fDebugCommands << getDebugCommandsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir + "/incl" ) ).canonicalFilePath() );
+                auto curr = getDebugCommandsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir + "/src" ) ).canonicalFilePath() );
+                currInfo->fDebugCommands.insert( currInfo->fDebugCommands.end(), curr.begin(), curr.end() );
+                curr = getDebugCommandsForSourceDir( QFileInfo( sourceDir.absoluteFilePath( currInfo->fRelToDir + "/incl" ) ).canonicalFilePath() );
+                currInfo->fDebugCommands.insert( currInfo->fDebugCommands.end(), curr.begin(), curr.end() );
                 retVal.push_back( currInfo );
             }
             else if ( currInfo->isValid() )
@@ -801,7 +859,7 @@ namespace NVSProjectMaker
                     fResults->fBuildDirs.push_back( relDirPath );
                 if ( node->fIsIncludeDir )
                     fResults->fInclDirs.push_back( relDirPath );
-                fResults->fExecutables << node->fExecutables;
+                fResults->fExecutables.insert( fResults->fExecutables.end(), node->fExecutables.begin(), node->fExecutables.end() );
 
                 if ( loadSourceFiles( sourceDir, curr.absoluteFilePath(), progress, node, logit ) )
                     return true;
@@ -859,29 +917,29 @@ namespace NVSProjectMaker
 
     void CSettings::registerSettings()
     {
-        ADD_SETTING_VALUE( QString, VSPath );
-        ADD_SETTING_VALUE(bool, UseCustomCMake);
-        ADD_SETTING_VALUE(QString, CustomCMakeExec);
-        ADD_SETTING_VALUE( QString, Generator );
-        ADD_SETTING_VALUE( QString, ClientDir );
-        ADD_SETTING_VALUE( QString, SourceRelDir );
-        ADD_SETTING_VALUE( QString, BuildRelDir );
-        ADD_SETTING_VALUE( QString, QtDir );
-        ADD_SETTING_VALUE( QString, ProdDir );
-        ADD_SETTING_VALUE( QString, MSys64Dir );
-        ADD_SETTING_VALUE( QStringList, SelectedQtDirs );
-        ADD_SETTING_VALUE( QSet< QString >, BuildDirs );
-        ADD_SETTING_VALUE( QStringList, InclDirs );
-        ADD_SETTING_VALUE( QStringList, SelectedInclDirs );
-        ADD_SETTING_VALUE( QStringList, PreProcDefines );
-        ADD_SETTING_VALUE( QStringList, SelectedPreProcDefines );
-        ADD_SETTING_VALUE( TExecNameType, ExecNames );
-        ADD_SETTING_VALUE( TListOfStringPair, CustomBuilds );
-        ADD_SETTING_VALUE( QString, PrimaryTarget );
-        ADD_SETTING_VALUE( TListOfDebugTargets, DebugCommands );
-        ADD_SETTING_VALUE( QString, BuildOutputDataFile );
-        ADD_SETTING_VALUE( QString, BldTxtProdDir );
-        ADD_SETTING_VALUE( bool, Verbose );
+        ADD_SETTING_VALUE( VSPath );
+        ADD_SETTING_VALUE( UseCustomCMake);
+        ADD_SETTING_VALUE( CustomCMakeExec);
+        ADD_SETTING_VALUE( Generator );
+        ADD_SETTING_VALUE( ClientDir );
+        ADD_SETTING_VALUE( SourceRelDir );
+        ADD_SETTING_VALUE( BuildRelDir );
+        ADD_SETTING_VALUE( QtDir );
+        ADD_SETTING_VALUE( ProdDir );
+        ADD_SETTING_VALUE( MSys64Dir );
+        ADD_SETTING_VALUE( SelectedQtDirs );
+        ADD_SETTING_VALUE( BuildDirs );
+        ADD_SETTING_VALUE( InclDirs );
+        ADD_SETTING_VALUE( SelectedInclDirs );
+        ADD_SETTING_VALUE( PreProcDefines );
+        ADD_SETTING_VALUE( SelectedPreProcDefines );
+        ADD_SETTING_VALUE( ExecNames );
+        ADD_SETTING_VALUE( CustomBuilds );
+        ADD_SETTING_VALUE( PrimaryTarget );
+        ADD_SETTING_VALUE( DebugCommands );
+        ADD_SETTING_VALUE( BuildOutputDataFile );
+        ADD_SETTING_VALUE( BldTxtProdDir );
+        ADD_SETTING_VALUE( Verbose );
     }
 
     QStringList CSettings::getQtIncludeDirs( const QString & qtDirStr )
@@ -907,26 +965,62 @@ namespace NVSProjectMaker
 
     void CSettings::loadQtSettings()
     {
-        fQtDirs.clear();
-        if ( !fQtDir.isValid() )
+        fQtDirs.reset();
+        if ( !fQtDir.isSet() )
             return;
 
-        fQtDirs = getQtIncludeDirs( fQtDir.toString() );
+        fQtDirs.setValue( getQtIncludeDirs( fQtDir.getValue() ) );
+    }
+
+    void CSettings::dump() const
+    {
+        qDebug() << "Filename: " << fSettingsFileName;
+        
+        qDebug() << "VSPath=" << getVSPath();
+        qDebug() << "UseCustomCMake=" << getUseCustomCMake();
+        qDebug() << "CustomCMakeExec=" << getCustomCMakeExec();
+        qDebug() << "Generator=" << getGenerator();
+        qDebug() << "ClientDir=" << getClientDir();
+        qDebug() << "SourceRelDir=" << getSourceRelDir();
+        qDebug() << "BuildRelDir=" << getBuildRelDir();
+        qDebug() << "QtDir=" << getQtDir();
+        qDebug() << "QtDirs=" << getQtDirs();
+        qDebug() << "ProdDir=" << getProdDir();
+        qDebug() << "MSys64Dir=" << getMSys64Dir();
+        qDebug() << "SelectedQtDirs=" << getSelectedQtDirs();
+        qDebug() << "BuildDirs=" << getBuildDirs();
+        qDebug() << "InclDirs=" << getInclDirs();
+        qDebug() << "SelectedInclDirs=" << getSelectedInclDirs();
+        qDebug() << "PreProcDefines=" << getPreProcDefines();
+        qDebug() << "SelectedPreProcDefines=" << getSelectedPreProcDefines();
+        qDebug() << "ExecNames=" << getExecNames();
+        qDebug() << "CustomBuilds=" << getCustomBuilds();
+        qDebug() << "PrimaryTarget=" << getPrimaryTarget();
+        qDebug() << "DebugCommands=" << getDebugCommands();
+        qDebug() << "BuildOutputDataFile=" << getBuildOutputDataFile();
+        qDebug() << "BldTxtProdDir=" << getBldTxtProdDir();
+
+        qDebug() << "Verbose=" << getVerbose();
     }
 
     bool CSettings::loadData()
     {
-        auto keys = fSettingsFile->childKeys();
-        for ( auto && ii : keys )
-        {
-            auto pos = fSettings.find( ii );
-            if ( pos == fSettings.end() )
-                continue;
+        dump();
 
-            auto value = fSettingsFile->value( ii );
-            *( *pos ).second = value;
-        }
+        if ( fSettingsFileName.isEmpty() )
+            return false;
+
+        QFile fi( fSettingsFileName );
+        if ( !fi.open( QFile::ReadOnly ) )
+            return false;
+
+        QByteArray data = fi.readAll();
+
+        QJsonDocument loadDoc( QJsonDocument::fromJson( data ) );
+        load( loadDoc.object() );
+
         loadQtSettings();
+        dump();
         return true;
     }
 
@@ -960,7 +1054,7 @@ namespace NVSProjectMaker
         int returnExitCode = -1;
         auto returnExitStatus = QProcess::ExitStatus::NormalExit;
 
-        auto localCallback = new std::function< void() >( finishedInfo.second );
+        auto localCallback = finishedInfo.second ? new std::function< void() >( finishedInfo.second ) : nullptr;
         QObject::connect( process, QOverload<int, QProcess::ExitStatus>::of( &QProcess::finished ),
                           [process, outFunc, errFunc, &returnExitCode, &returnExitStatus, localCallback ]( int exitCode, QProcess::ExitStatus status )
         {
@@ -1082,9 +1176,9 @@ namespace NVSProjectMaker
                            )
                            ).arg( fFiles )
             .arg( fDirs )
-            .arg( fExecutables.count() )
-            .arg( fInclDirs.count() )
-            .arg( fBuildDirs.count() )
+            .arg( fExecutables.size() )
+            .arg( fInclDirs.size() )
+            .arg( fBuildDirs.size() )
             ;
         return retVal;
     }
@@ -1178,3 +1272,31 @@ namespace NVSProjectMaker
         return QFileInfo( dir.absoluteFilePath( "src" ) ).exists() && QFileInfo( dir.absoluteFilePath( "incl" ) ).exists();
     }
 }
+
+QDebug& operator<<( QDebug& stream, const TExecNameType & value )
+{
+    stream.nospace() << "TExecNameType(";
+    bool first = true;
+    for ( auto&& ii : value )
+    {
+        stream.nospace()  << "    ";
+        if ( first )
+            stream.nospace() << " ";
+        else
+            stream.nospace() << ",";
+        first = false;
+
+        stream.nospace() << qPrintable( ii.first ) << " => ( ";
+        bool firstInList = true;
+        for( auto && jj : ii.second )
+        {
+            if ( firstInList )
+                stream.nospace() << ",";
+            stream.nospace() << " ( " << qPrintable( jj.first ) << ", " << ( jj.second ? "true" : "false" ) << " )";
+        }
+        stream << " )\n";
+    }
+    stream.nospace() << ")";
+    return stream;
+}
+

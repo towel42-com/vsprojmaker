@@ -23,11 +23,9 @@
 #ifndef _DIRINFO_H
 #define _DIRINFO_H
 
+#include <unordered_map>
 #include <QString>
-#include <QPair>
-#include <QList>
 #include <QStringList>
-#include <QMap>
 class QWidget;
 class QTextStream;
 
@@ -65,7 +63,7 @@ namespace NVSProjectMaker
         QString fProjectName;
         bool fIsInclDir{ false };
         bool fIsBuildDir{ false };
-        QList< QPair< QString, bool > > fExecutables;
+        std::list< std::pair< QString, bool > > fExecutables;
 
         QStringList fSourceFiles;
         QStringList fHeaderFiles;
@@ -76,7 +74,7 @@ namespace NVSProjectMaker
         QStringList fOtherFiles;
 
         QStringList fExtraTargets;
-        QList<SDebugTarget> fDebugCommands;
+        std::list<SDebugTarget> fDebugCommands;
 
         void getFiles( const std::shared_ptr< SSourceFileInfo > & fileInfo );
         void addFile( const QString & path );
