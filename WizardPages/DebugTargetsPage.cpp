@@ -24,6 +24,7 @@
 #include "ui_DebugTargetsPage.h"
 #include "SABUtils/UtilityModels.h"
 #include "MainLib/Settings.h"
+#include "SABUtils/StringUtils.h"
 
 #include <QDir>
 #include <QDebug>
@@ -156,7 +157,7 @@ SDebugTargetInfo::SDebugTargetInfo(const QString & initTargetName, NVSProjectMak
     if (pos != -1)
     {
         auto remaining = fTargetName.mid(pos + 1).trimmed();
-        auto addOns = remaining.split("+", QString::SkipEmptyParts);
+        auto addOns = remaining.split("+", TSkipEmptyParts );
         for (auto && ii : addOns)
         {
             QString name;
