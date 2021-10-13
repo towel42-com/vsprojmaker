@@ -131,5 +131,8 @@ int main( int argc, char ** argv )
         << "Running CMake" << "\n";
 
     QProcess process;
-    return settings.runCMake( []( const QString & outMsg ) { std::cout << outMsg.toStdString(); }, []( const QString & errMsg ) { std::cerr << errMsg.toStdString(); }, &process, { true, {} } );
+    auto retVal = settings.runCMake( []( const QString & outMsg ) { std::cout << outMsg.toStdString(); }, []( const QString & errMsg ) { std::cerr << errMsg.toStdString(); }, &process, { true, {} } );
+    for ( auto && ii : retVal.second )
+        QObject::disconnect( ii );
+    return retVal.first;
 }

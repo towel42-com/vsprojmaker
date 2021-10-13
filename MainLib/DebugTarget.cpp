@@ -92,6 +92,16 @@ QDataStream & operator>>( QDataStream & stream, std::list< NVSProjectMaker::SDeb
 
 namespace NVSProjectMaker
 {
+    void ToJson( const SDebugTarget & value, QJsonValue& val )
+    {
+        value.toJson( val );
+    }
+
+    void FromJson( SDebugTarget & value, const QJsonValue & val )
+    {
+        value.fromJson( val );
+    }
+
     void SDebugTarget::toJson( QJsonValue& value ) const
     {
         QJsonObject obj;

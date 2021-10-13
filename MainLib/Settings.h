@@ -24,7 +24,7 @@
 #define __SETTINGS_H
 
 #include "DebugTarget.h"
-#include "JsonUtils.h"
+#include "SABUtils/JsonUtils.h"
 
 #include <utility>
 #include <QVariant>
@@ -35,6 +35,8 @@
 #include <functional>
 #include <optional>
 #include <tuple>
+#include <QMetaObject>
+
 class QStandardItem;
 class QProgressDialog;
 class QProcess;
@@ -261,7 +263,7 @@ namespace NVSProjectMaker
         [[nodiscard]] QString getBuildItScript( const QString & buildDir, const QString & cmd, const QString & descriptiveName ) const;
 
         static [[nodiscard]] QStringList getQtIncludeDirs( const QString & qtDir );
-        int runCMake( const std::function< void( const QString & ) > & outFunc, const std::function< void( const QString & ) > & errFunc, QProcess * process, const std::pair< bool, std::function< void() > > & finishedInfo ) const;
+        std::pair< int, std::vector< QMetaObject::Connection > > runCMake( const std::function< void( const QString & ) > & outFunc, const std::function< void( const QString & ) > & errFunc, QProcess * process, const std::pair< bool, std::function< void() > > & finishedInfo ) const;
 
         ADD_SETTING( QString, VSPath );
         ADD_SETTING( bool, UseCustomCMake);
@@ -289,7 +291,19 @@ namespace NVSProjectMaker
 
         ADD_SETTING( bool, Verbose );
 
+    public:
+        QString getVSPathForSelection( const QString & selected ) const;
+        const std::map< QString, QString > & getInstalledVS() const
+        {
+            return fInstalledVS;
+        }
+
+        void setInstalledVS( const std::map< QString, QString > & installedVS )
+        {
+            fInstalledVS = installedVS;
+        }
     private:
+        void updateProcessEnvironment( QProcess * process ) const;
         QMap< QString, QString > getVarMap() const;
 
         void registerSetting( const QString & attribName, CValueBase * value ) const;
@@ -324,6 +338,7 @@ namespace NVSProjectMaker
         std::shared_ptr< NVSProjectMaker::SSourceFileResults > fResults;
         mutable std::map< QString, std::pair< QString, bool > > fSamplesMap;
         mutable std::unordered_map< QString, CValueBase* > fSettings;
+        std::map< QString, QString > fInstalledVS;
     };
 }
 

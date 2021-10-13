@@ -48,6 +48,8 @@ namespace NVSProjectMaker
         QString getCmd() const;
         void cleanUp( const CSettings * settings );
     };
+    void ToJson( const NVSProjectMaker::SDebugTarget & value, QJsonValue& obj );
+    void FromJson( NVSProjectMaker::SDebugTarget& value, const QJsonValue& obj );
 }
 
 QDataStream & operator<<( QDataStream & stream, const NVSProjectMaker::SDebugTarget & value );

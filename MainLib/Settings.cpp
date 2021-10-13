@@ -25,7 +25,7 @@
 #include "VSProjectMaker.h"
 #include "DirInfo.h"
 #include "Version.h"
-#include "JsonUtils.h"
+#include "SABUtils/JsonUtils.h"
 
 #include <QApplication>
 #include <QStandardItem>
@@ -740,7 +740,7 @@ namespace NVSProjectMaker
         auto vsDir = QDir( dir );
         if ( !vsDir.exists() )
             return QString();
-        auto cmake = QFileInfo( vsDir.absoluteFilePath( "Professional/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe" ) );
+        auto cmake = QFileInfo( vsDir.absoluteFilePath( "Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe" ) );
         if ( !cmake.exists() )
             return QString();
         return cmake.absoluteFilePath();
@@ -748,7 +748,37 @@ namespace NVSProjectMaker
 
     QString CSettings::getCMakeExecViaVSPath() const
     {
-        return getCMakeExecViaVSPath( getVSPath() );
+        return getCMakeExecViaVSPath( getVSPathForSelection( getVSPath() ) );
+    }
+
+    void CSettings::updateProcessEnvironment( QProcess * process ) const
+    {
+        auto vsDir = QDir( getVSPathForSelection( getVSPath() ) );
+        if ( !vsDir.exists() )
+            return;
+
+        auto msBuildExe = QFileInfo( vsDir.absoluteFilePath( "MSBuild/15.0/Bin/MSBuild.exe" ) );
+        if ( !msBuildExe.exists() )
+            msBuildExe = QFileInfo( vsDir.absoluteFilePath( "MSBuild/Current/Bin/MSBuild.exe" ) );
+
+        if ( !msBuildExe.exists() )
+            return;
+        
+        auto env = QProcessEnvironment::systemEnvironment();
+
+        QStringList newPath =
+        {
+            msBuildExe.absolutePath()
+            , vsDir.absoluteFilePath( "VC/Tools/MSVC/14.16.27023/bin/HostX64/x64" )
+            , vsDir.absoluteFilePath( "Common7/IDE/VC/VCPackages" )
+            , vsDir.absoluteFilePath( "Common7/IDE" )
+            , vsDir.absoluteFilePath( "Common7/Tools" )
+        };
+
+        newPath << env.value( "PATH" ).split( ";" );
+
+        env.insert( "PATH", newPath.join( ";" ) );
+        process->setProcessEnvironment( env );
     }
 
     QString CSettings::getMSys64Dir( bool msys ) const
@@ -1024,14 +1054,15 @@ namespace NVSProjectMaker
         return true;
     }
 
-    int CSettings::runCMake( const std::function< void( const QString & ) > & outFunc, const std::function< void( const QString & ) > & errFunc, QProcess * process, const std::pair< bool, std::function< void() > > & finishedInfo ) const
+    std::pair< int, std::vector< QMetaObject::Connection > > CSettings::runCMake( const std::function< void( const QString & ) > & outFunc, const std::function< void( const QString & ) > & errFunc, QProcess * process, const std::pair< bool, std::function< void() > > & finishedInfo ) const
     {
         if ( !process )
-            return -1;
+            return std::make_pair( -1, std::vector< QMetaObject::Connection >() );
 
         auto buildDir = getBuildDir().value();
         auto cmakeExec = getCMakeExec();
         auto args = getCmakeArgs();
+        updateProcessEnvironment( process );
         outFunc( QString( "Build Dir: %1" ).arg( buildDir ) + "\n" );
         outFunc( QString( "CMake Path: %1" ).arg( cmakeExec ) + "\n" );
         outFunc( QString( "Args: %1" ).arg( args.join( " " ) ) + "\n" );
@@ -1039,23 +1070,25 @@ namespace NVSProjectMaker
         outFunc( QObject::tr( "============================================" ) + "\n" );
         outFunc( QObject::tr( "Running CMake" ) + "\n" );
 
-        QObject::connect( process, &QProcess::readyReadStandardOutput,
+        std::pair< int, std::vector< QMetaObject::Connection > > retVal;
+
+        retVal.second.push_back( QObject::connect( process, &QProcess::readyReadStandardOutput,
                           [process, outFunc]()
         {
             outFunc( process->readAllStandardOutput() );
-        } );
+        } ) );
 
-        QObject::connect( process, &QProcess::readyReadStandardError,
+        retVal.second.push_back( QObject::connect( process, &QProcess::readyReadStandardError,
                           [process, errFunc]()
         {
             errFunc( process->readAllStandardError() );
-        } );
+        } ) );
 
         int returnExitCode = -1;
         auto returnExitStatus = QProcess::ExitStatus::NormalExit;
 
         auto localCallback = finishedInfo.second ? new std::function< void() >( finishedInfo.second ) : nullptr;
-        QObject::connect( process, QOverload<int, QProcess::ExitStatus>::of( &QProcess::finished ),
+        retVal.second.push_back( QObject::connect( process, QOverload<int, QProcess::ExitStatus>::of( &QProcess::finished ),
                           [process, outFunc, errFunc, &returnExitCode, &returnExitStatus, localCallback ]( int exitCode, QProcess::ExitStatus status )
         {
             QString msg = 
@@ -1070,20 +1103,32 @@ namespace NVSProjectMaker
                 outFunc( msg );
             if ( localCallback )
                 ( *localCallback )( );
-        } );
+        } ) );
         process->setWorkingDirectory( buildDir );
         process->start( cmakeExec, args );
 
         if ( finishedInfo.first )
         {
             process->waitForFinished( -1 );
-            return ( returnExitStatus == QProcess::ExitStatus::NormalExit ) ? returnExitCode : -1;
+            retVal.first = ( returnExitStatus == QProcess::ExitStatus::NormalExit ) ? returnExitCode : -1;
+            return retVal;
         }
         else
-            return 0;
+        {
+            retVal.first = 0;
+            return retVal;
+        }
     }
 
-    std::pair< QString, bool > CSettings::findSampleOutputPath(const QString & baseName ) const
+    QString CSettings::getVSPathForSelection( const QString & selected ) const
+    {
+        auto pos = fInstalledVS.find( selected );
+        if ( pos == fInstalledVS.end() )
+            return QString();
+        return ( *pos ).second;
+    }
+
+    std::pair< QString, bool > CSettings::findSampleOutputPath( const QString & baseName ) const
     {
         // find the source directory
         // read the subdir.mk

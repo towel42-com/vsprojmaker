@@ -72,6 +72,8 @@ public:
     std::optional< QString > getSourceDir( bool relPath = false ) const;
     std::optional< QString > getBuildDir( bool relPath = false ) const;
 
+Q_SIGNALS:
+    void sigCMakeFinished();
 public Q_SLOTS:
     void slotChanged();
     void slotQtChanged();
@@ -90,7 +92,7 @@ public Q_SLOTS:
 
     void slotSelectCMake();
     void slotRunWizard();
-    void slotSelectVS();
+    //void slotSelectVS();
     void slotSelectSourceDir();
     void slotSelectQtDir();
     void slotSelectProdDir();
@@ -103,15 +105,18 @@ public Q_SLOTS:
     void slotAddDebugTarget();
     void slotCurrentProjectChanged( const QString & projFile );
     void slotSetBuildOutputFile();
+    void slotCMakeFinished();
 
     void addDebugTarget( const QString & sourceDir, const QString & name, const QString & cmd, const QStringList & args, const QString & workDir, const QStringList & envVars );
     void addDebugTarget( const NVSProjectMaker::SDebugTarget & dbgCmd );
 
     void slotGenerate();
     void slotBuildsChanged();
+    void slotLoadInstalledVS();
 private:
-    QString CMainWindow::getCMakeExec() const;
-    
+    QString getCMakeExec() const;
+    QString getSelectedVSPath() const;
+
     QProcess * getProcess();
     void clearProcess();
     void loadBuildTargetsFromWizard(const QStringList & target, const QString & primaryTarget);
@@ -153,6 +158,7 @@ private:
 
     std::unordered_map< QString, std::list< std::pair< QString, bool > > > fExecutables;
 
+    std::vector< QMetaObject::Connection > fConnectionList;
     std::optional< QDir > fSourceDir;
     std::optional< QString > fBuildTextFile;
     QStandardItemModel * fSourceModel{ nullptr };
