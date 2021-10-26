@@ -39,7 +39,7 @@ CBuildTargetsPage::CBuildTargetsPage( QWidget * parent )
 
     fImpl->primaryTarget->addItems( buildTargets );
     fImpl->primaryTarget->setCurrentText( "qworld" );
-    registerField( "primaryTarget", fImpl->primaryTarget );
+    registerField( "primaryTarget", fImpl->primaryTarget, "currentText" );
     slotBuildsChanged();
 }
 

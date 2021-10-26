@@ -28,6 +28,7 @@
 
 #include <QDir>
 #include <QDebug>
+#include <QDirIterator>
 
 CDebugTargetsPage::CDebugTargetsPage( QWidget * parent )
     : QWizardPage( parent ),
@@ -102,35 +103,33 @@ std::list< std::list< QString > > CDebugTargetsPage::getDebugTargets() const
 std::list< std::list< QString > > CDebugTargetsPage::getSampleDirs(const QDir & currDir ) const
 {
     qDebug() << currDir.absolutePath();
+    std::map< QString, std::list< QString > > retValMap;
+
+    std::map< QString, std::list< QString > > groupedSamples;
+
+    QDirIterator di( currDir.absolutePath(), QStringList() << "subdir.mk", QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks, QDirIterator::Subdirectories );
+    while ( di.hasNext() )
+    {
+        di.next();
+        qDebug() << di.filePath();
+        qDebug() << di.fileInfo().absolutePath();
+        auto sampleName = currDir.relativeFilePath( di.fileInfo().absolutePath() );
+        if ( sampleName.contains( "/" ) )
+        {
+            auto pos = sampleName.indexOf( "/" );
+            auto parent = sampleName.left( pos );
+            groupedSamples[parent].push_back( QString( "HDL Client + %1" ).arg( sampleName ) );
+        }
+        else
+            retValMap[ sampleName ] = std::list< QString >( { QString( "HDL Client + %1" ).arg( sampleName ) } );
+    }
+    for ( auto && ii : groupedSamples )
+    {
+        retValMap[ii.first] = ii.second;
+    }
     std::list< std::list< QString > > retVal;
-
-    auto files = currDir.entryList(QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks);
-    bool isBuildDir = false;
-    for (auto&& file : files)
-    {
-        if (file == "subdir.mk")
-        {
-            isBuildDir = true;
-            break;
-        }
-    }
-    if (isBuildDir)
-        retVal.push_back(std::list< QString >({ QString("HDL Client + %1").arg(currDir.dirName()) }));
-
-    auto subDirs = currDir.entryList(QDir::AllDirs | QDir::NoDotAndDotDot | QDir::NoSymLinks);
-    for (auto&& ii : subDirs)
-    {
-        auto subDir = currDir.absoluteFilePath(ii);
-        auto subSampleDirs= getSampleDirs(subDir);
-        // flatten all sub
-        std::list< QString > flattened;
-        for (auto&& jj : subSampleDirs)
-        {
-            flattened.insert(flattened.end(), jj.begin(), jj.end());
-        }
-        retVal.push_back(flattened);
-    }
-
+    for ( auto && ii : retValMap )
+        retVal.push_back( ii.second );
     return retVal;
 }
 

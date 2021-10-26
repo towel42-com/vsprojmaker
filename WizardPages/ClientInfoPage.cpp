@@ -81,6 +81,10 @@ bool CClientInfoPage::isComplete() const
 
 void CClientInfoPage::slotChanged()
 {
+    disconnect( fImpl->clientName, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    disconnect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    disconnect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    
     QString clientName;
     QDir dir;
     if ( !fImpl->clientDir->text().isEmpty() )
@@ -110,6 +114,9 @@ void CClientInfoPage::slotChanged()
         if ( QFileInfo( dir.absoluteFilePath( "build/win64" ) ).exists() )
             fImpl->buildRelDir->setText( "build/win64" );
     }
+    connect( fImpl->clientName, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
 }
 
 void CClientInfoPage::slotSelectClientDir()

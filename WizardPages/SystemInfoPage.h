@@ -23,8 +23,11 @@
 #ifndef __SYSTEMINFOPAGE_H
 #define __SYSTEMINFOPAGE_H
 
+#include "SABUtils/VSInstallUtils.h"
+
 #include <QWizardPage>
 #include <memory>
+
 namespace Ui {class CSystemInfoPage;};
 
 class CSystemInfoPage : public QWizardPage
@@ -38,10 +41,13 @@ public:
     virtual bool isComplete() const override;
 public Q_SLOTS:
     void slotChanged();
-    void slotSelectVS();
+    void slotSelectCMake();
     void slotSelectProdDir();
     void slotSelectMSys64Dir();
 private:
+    NVSInstallUtils::TInstalledVisualStudios fInstalledVSes;
+    QString getVSPathForSelection( const QString & selected ) const;
+
     std::unique_ptr< Ui::CSystemInfoPage > fImpl;
 };
 

@@ -22,11 +22,14 @@
 
 #include "SystemInfoPage.h"
 #include "ui_SystemInfoPage.h"
+
 #include "MainLib/Settings.h"
+#include "SABUtils/VSInstallUtils.h"
 
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QProcess>
 
 CSystemInfoPage::CSystemInfoPage( QWidget * parent )
     : QWizardPage( parent ),
@@ -34,19 +37,40 @@ CSystemInfoPage::CSystemInfoPage( QWidget * parent )
 {
     fImpl->setupUi( this );
 
-    connect( fImpl->vsPath, &QLineEdit::textChanged, this, &CSystemInfoPage::slotChanged );
-    connect( fImpl->vsPathBtn, &QToolButton::clicked, this, &CSystemInfoPage::slotSelectVS );
+    connect( fImpl->vsVersion, &QComboBox::currentTextChanged, this, &CSystemInfoPage::slotChanged );
+    connect( fImpl->cmakeExec, &QLineEdit::textChanged, this, &CSystemInfoPage::slotChanged );
+    connect( fImpl->useCustomCMake, &QGroupBox::clicked, this, &CSystemInfoPage::slotChanged );
+    connect( fImpl->cmakeExecBtn, &QToolButton::clicked, this, &CSystemInfoPage::slotSelectCMake );
     connect( fImpl->prodDirBtn, &QToolButton::clicked, this, &CSystemInfoPage::slotSelectProdDir );
     connect( fImpl->msys64DirBtn, &QToolButton::clicked, this, &CSystemInfoPage::slotSelectMSys64Dir );
 
-    registerField( "vsPath*", fImpl->vsPath );
+    registerField( "useCustomCMake", fImpl->useCustomCMake );
+    registerField( "cmakeExec", fImpl->cmakeExec );
+    registerField( "vsVersion*", fImpl->vsVersion, "currentText" );
     registerField( "prodDir*", fImpl->prodDir );
     registerField( "msys64Dir*", fImpl->msys64Dir );
 }
 
 void CSystemInfoPage::setDefaults()
 {
-    fImpl->vsPath->setText( "C:/Program Files (x86)/Microsoft Visual Studio/2017" );
+    bool aOK = false;
+    bool retry = false;
+    QString errorMsg;
+    std::tie( aOK, errorMsg, fInstalledVSes ) = NVSInstallUtils::getInstalledVisualStudios( new QProcess( this ), &retry );
+
+    fImpl->vsVersion->addItems( fInstalledVSes.second );
+    // default is 2017
+    QString defVS;
+    for ( auto && ii : fInstalledVSes.second )
+    {
+        if ( ii.contains( "2017" ) )
+        {
+            defVS = ii;
+            break;
+        }
+    }
+    fImpl->useCustomCMake->setChecked( false );
+    fImpl->vsVersion->setCurrentText( defVS );
     fImpl->prodDir->setText( "C:/localprod" );
     fImpl->msys64Dir->setText( "C:/msys64" );
 }
@@ -69,11 +93,20 @@ bool CSystemInfoPage::isComplete() const
     if ( !fi.exists() || !fi.isDir() || !fi.isReadable() )
         return false;
 
-    fi = QFileInfo( fImpl->vsPath->text() );
-    if ( !fi.exists() || !fi.isDir() || !fi.isReadable() )
-        return false;
+    if ( fImpl->useCustomCMake->isChecked() )
+    {
+        fi = QFileInfo( fImpl->cmakeExec->text() );
+    }
+    else
+    {
+        auto pos = fInstalledVSes.first.find( fImpl->vsVersion->currentText() );
+        if ( pos == fInstalledVSes.first.end() )
+            return false;
 
-    fi = QFileInfo( fImpl->cmakeExec->text() );
+        auto cmakePath = NVSProjectMaker::CSettings::getCMakeExecViaVSPath( (*pos).second );
+        fi = QFileInfo( cmakePath );
+    }
+
     if ( !fi.exists() || !fi.isExecutable() || !fi.isReadable() )
         return false;
 
@@ -82,33 +115,27 @@ bool CSystemInfoPage::isComplete() const
 
 void CSystemInfoPage::slotChanged()
 {
-    QString cmakeExec = NVSProjectMaker::CSettings::getCMakeExecViaVSPath( fImpl->vsPath->text() );
-    fImpl->cmakeExec->setText( cmakeExec );
+    //QString cmakeExec = NVSProjectMaker::CSettings::getCMakeExecViaVSPath( fImpl->vsPath->currentText() );
+    //fImpl->cmakeExec->setText( cmakeExec );
+    emit completeChanged();
 }
 
-void CSystemInfoPage::slotSelectVS()
+void CSystemInfoPage::slotSelectCMake()
 {
-    auto currPath = fImpl->vsPath->text();
-    if ( currPath.isEmpty() )
-        currPath = QString( "C:/Program Files (x86)/Microsoft Visual Studio/2017" );
-    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Visual Studio Directory" ), currPath );
-    if ( dir.isEmpty() )
+    auto currPath = fImpl->cmakeExec->text();
+    auto cmakePath = QFileDialog::getOpenFileName( this, tr( "Select Visual Studio Directory" ), currPath );
+    if ( cmakePath.isEmpty() )
         return;
 
-    QFileInfo fi( dir );
-    if ( !fi.exists() || !fi.isDir() )
+    auto fi = QFileInfo( cmakePath );
+
+    if ( !fi.exists() || !fi.isExecutable() || !fi.isReadable() )
     {
-        QMessageBox::critical( this, tr( "Error Valid Directory not Selected" ), QString( "Error: '%1' is not a directory" ).arg( dir ) );
+        QMessageBox::critical( this, tr( "Error Valid Executable not Selected" ), QString( "Error: '%1' is not a valid executable" ).arg( cmakePath ) );
         return;
     }
 
-    fi = QFileInfo( NVSProjectMaker::CSettings::getCMakeExecViaVSPath( dir ) );
-    if ( !fi.exists() || !fi.isExecutable() )
-    {
-        QMessageBox::critical( this, tr( "Error Valid Directory not Selected" ), QString( "Error: '%1' is not an executable" ).arg( fi.absoluteFilePath() ) );
-        return;
-    }
-    fImpl->vsPath->setText( dir );
+    fImpl->cmakeExec->setText( cmakePath );
 }
 
 void CSystemInfoPage::slotSelectProdDir()
@@ -147,4 +174,12 @@ void CSystemInfoPage::slotSelectMSys64Dir()
     }
 
     fImpl->msys64Dir->setText( dir );
+}
+
+QString CSystemInfoPage::getVSPathForSelection( const QString & selected ) const
+{
+    auto pos = fInstalledVSes.first.find( selected );
+    if ( pos == fInstalledVSes.first.end() )
+        return QString();
+    return ( *pos ).second;
 }
