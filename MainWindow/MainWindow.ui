@@ -435,7 +435,7 @@
           <item row="1" column="0">
            <widget class="QLabel" name="label_14">
             <property name="text">
-             <string>Visual Studio Directory:</string>
+             <string>Visual Studio Version:</string>
             </property>
            </widget>
           </item>
@@ -546,7 +546,7 @@
            </widget>
           </item>
           <item row="1" column="1">
-           <widget class="QComboBox" name="vsPath"/>
+           <widget class="QComboBox" name="vsVersion"/>
           </item>
          </layout>
         </widget>

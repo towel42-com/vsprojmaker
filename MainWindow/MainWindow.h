@@ -113,6 +113,7 @@ public Q_SLOTS:
     void slotGenerate();
     void slotBuildsChanged();
     void slotLoadInstalledVS();
+
 private:
     QString getCMakeExec() const;
     QString getSelectedVSPath() const;
