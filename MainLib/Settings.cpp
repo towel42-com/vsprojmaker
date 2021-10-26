@@ -47,6 +47,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonValue>
+#include "SABUtils/VSInstallUtils.h"
 namespace NVSProjectMaker
 {
     CSettings::CSettings() :
@@ -748,12 +749,12 @@ namespace NVSProjectMaker
 
     QString CSettings::getCMakeExecViaVSPath() const
     {
-        return getCMakeExecViaVSPath( getVSPathForSelection( getVSPath() ) );
+        return getCMakeExecViaVSPath( getVSPathForVersion( getVSVersion() ) );
     }
 
     void CSettings::updateProcessEnvironment( QProcess * process ) const
     {
-        auto vsDir = QDir( getVSPathForSelection( getVSPath() ) );
+        auto vsDir = QDir( getVSPathForVersion( getVSVersion() ) );
         if ( !vsDir.exists() )
             return;
 
@@ -947,7 +948,7 @@ namespace NVSProjectMaker
 
     void CSettings::registerSettings()
     {
-        ADD_SETTING_VALUE( VSPath );
+        ADD_SETTING_VALUE( VSVersion );
         ADD_SETTING_VALUE( UseCustomCMake);
         ADD_SETTING_VALUE( CustomCMakeExec);
         ADD_SETTING_VALUE( Generator );
@@ -1006,7 +1007,7 @@ namespace NVSProjectMaker
     {
         qDebug() << "Filename: " << fSettingsFileName;
         
-        qDebug() << "VSPath=" << getVSPath();
+        qDebug() << "VSVersion=" << getVSVersion();
         qDebug() << "UseCustomCMake=" << getUseCustomCMake();
         qDebug() << "CustomCMakeExec=" << getCustomCMakeExec();
         qDebug() << "Generator=" << getGenerator();
@@ -1120,12 +1121,34 @@ namespace NVSProjectMaker
         }
     }
 
-    QString CSettings::getVSPathForSelection( const QString & selected ) const
+    QString CSettings::getVSPathForVersion( const QString & selected ) const
     {
-        auto pos = fInstalledVS.find( selected );
-        if ( pos == fInstalledVS.end() )
+        if ( fInstalledVSes.first.empty() )
+        {
+            QProcess process;
+            setupInstalledVSes( fInstalledVSes, &process, nullptr );
+        }
+        auto pos = fInstalledVSes.first.find( selected );
+        if ( pos == fInstalledVSes.first.end() )
             return QString();
         return ( *pos ).second;
+    }
+
+    std::tuple< bool, QString, NVSInstallUtils::TInstalledVisualStudios > CSettings::setupInstalledVSes( QProcess * process, bool * retry )
+    {
+        if ( !fInstalledVSes.first.empty() )
+        {
+            return { true, QString(), fInstalledVSes };
+        }
+        return setupInstalledVSes( fInstalledVSes, process, retry );
+    }
+
+    std::tuple< bool, QString, NVSInstallUtils::TInstalledVisualStudios > CSettings::setupInstalledVSes( NVSInstallUtils::TInstalledVisualStudios & retVal, QProcess * process, bool * retry )
+    {
+        bool aOK = false;
+        QString errorMsg;
+        std::tie( aOK, errorMsg, retVal ) = NVSInstallUtils::getInstalledVisualStudios( process, retry );
+        return std::make_tuple( aOK, errorMsg, retVal );
     }
 
     std::pair< QString, bool > CSettings::findSampleOutputPath( const QString & baseName ) const

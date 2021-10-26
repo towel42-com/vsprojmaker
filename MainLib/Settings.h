@@ -25,11 +25,11 @@
 
 #include "DebugTarget.h"
 #include "SABUtils/JsonUtils.h"
+#include "SABUtils/VSInstallUtils.h"
 
 #include <utility>
 #include <QVariant>
 #include <QDebug>
-#include <QSettings>
 #include <set>
 #include <QDir>
 #include <functional>
@@ -265,7 +265,7 @@ namespace NVSProjectMaker
         static [[nodiscard]] QStringList getQtIncludeDirs( const QString & qtDir );
         std::pair< int, std::vector< QMetaObject::Connection > > runCMake( const std::function< void( const QString & ) > & outFunc, const std::function< void( const QString & ) > & errFunc, QProcess * process, const std::pair< bool, std::function< void() > > & finishedInfo ) const;
 
-        ADD_SETTING( QString, VSPath );
+        ADD_SETTING( QString, VSVersion );
         ADD_SETTING( bool, UseCustomCMake);
         ADD_SETTING( QString, CustomCMakeExec );
         ADD_SETTING( QString, Generator );
@@ -292,16 +292,9 @@ namespace NVSProjectMaker
         ADD_SETTING( bool, Verbose );
 
     public:
-        QString getVSPathForSelection( const QString & selected ) const;
-        const std::map< QString, QString > & getInstalledVS() const
-        {
-            return fInstalledVS;
-        }
-
-        void setInstalledVS( const std::map< QString, QString > & installedVS )
-        {
-            fInstalledVS = installedVS;
-        }
+        QString getVSPathForVersion( const QString & version ) const;
+        std::tuple< bool, QString, NVSInstallUtils::TInstalledVisualStudios > setupInstalledVSes( QProcess * process, bool * retry );
+        static std::tuple< bool, QString, NVSInstallUtils::TInstalledVisualStudios > setupInstalledVSes( NVSInstallUtils::TInstalledVisualStudios & installedVSes, QProcess * process, bool * retry );
     private:
         void updateProcessEnvironment( QProcess * process ) const;
         QMap< QString, QString > getVarMap() const;
@@ -338,7 +331,7 @@ namespace NVSProjectMaker
         std::shared_ptr< NVSProjectMaker::SSourceFileResults > fResults;
         mutable std::map< QString, std::pair< QString, bool > > fSamplesMap;
         mutable std::unordered_map< QString, CValueBase* > fSettings;
-        std::map< QString, QString > fInstalledVS;
+        mutable NVSInstallUtils::TInstalledVisualStudios fInstalledVSes;
     };
 }
 
