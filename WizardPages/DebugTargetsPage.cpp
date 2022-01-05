@@ -104,9 +104,8 @@ std::list< std::list< QString > > CDebugTargetsPage::getSampleDirs(const QDir & 
 {
     qDebug() << currDir.absolutePath();
     std::map< QString, std::list< QString > > retValMap;
-
-    std::map< QString, std::list< QString > > groupedSamples;
-
+    std::map< QString, QStringList > groupedSamples;
+    
     QDirIterator di( currDir.absolutePath(), QStringList() << "subdir.mk", QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks, QDirIterator::Subdirectories );
     while ( di.hasNext() )
     {
@@ -118,14 +117,14 @@ std::list< std::list< QString > > CDebugTargetsPage::getSampleDirs(const QDir & 
         {
             auto pos = sampleName.indexOf( "/" );
             auto parent = sampleName.left( pos );
-            groupedSamples[parent].push_back( QString( "HDL Client + %1" ).arg( sampleName ) );
+            groupedSamples[parent].push_back( sampleName );
         }
         else
             retValMap[ sampleName ] = std::list< QString >( { QString( "HDL Client + %1" ).arg( sampleName ) } );
     }
     for ( auto && ii : groupedSamples )
     {
-        retValMap[ii.first] = ii.second;
+        retValMap[ii.first].push_back( QString( "HDL Client + %1;;%2" ).arg( ii.first ).arg( ii.second.join( "+" ) ) );
     }
     std::list< std::list< QString > > retVal;
     for ( auto && ii : retValMap )
@@ -152,24 +151,36 @@ SDebugTargetInfo::SDebugTargetInfo(const QString & initTargetName, NVSProjectMak
     fTargetName = initTargetName;
     fExecutable = QString("<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlclient.exe");
 
-    auto pos = fTargetName.indexOf("+");
+    auto pos = fTargetName.indexOf( "+" );
     if (pos != -1)
     {
         auto remaining = fTargetName.mid(pos + 1).trimmed();
+
+        pos = fTargetName.indexOf( ";;" );
+        if ( pos != -1 )
+        {
+            remaining = fTargetName.mid( pos + 2 ).trimmed();
+            fTargetName = fTargetName.left( pos ).trimmed();
+        }
+
         auto addOns = remaining.split("+", TSkipEmptyParts );
+        QStringList dllsFound;
         for (auto && ii : addOns)
         {
             QString name;
             bool isExe{ false };
             std::tie(name, isExe) = settings->findSampleOutputPath(ii.trimmed());
-            if (isExe)
+            if ( isExe )
             {
                 fTargetName = remaining.trimmed();
-                fExecutable = QString("<CLIENTDIR>/devapps/win64/%1.exe").arg(name);
+                fExecutable = QString( "<CLIENTDIR>/devapps/win64/%1.exe" ).arg( name );
             }
             else
-                fArgs << QString("+external_client+<CLIENTDIR>/devapps/visualizer/win64/%1.dll").arg(name);
+                dllsFound << QString( "<CLIENTDIR>/devapps/visualizer/win64/%1.dll" ).arg( name );
         }
+        if ( !dllsFound.isEmpty() )
+            fArgs << QString( "+external_client+%1" ).arg( dllsFound.join( "+" ) );
+
     }
 
     if (fTargetName == "HDL Studio")
@@ -177,19 +188,25 @@ SDebugTargetInfo::SDebugTargetInfo(const QString & initTargetName, NVSProjectMak
         fExecutable = QString("<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlstudio.exe");
     }
 
-    if (fTargetName.contains("ProjectSample"))
+    if ( fTargetName.toLower().contains( "sample" ) )
     {
-        fEnvVars << "SKIP_LIMITED_FEATURES_KEY=1" << "ENABLE_VFPRJ=1";
+        fEnvVars << "SKIP_LIMITED_FEATURES_KEY=1";
+    }
+    
+    if ( fTargetName.contains( "ProjectSample" ) )
+    {
         fArgs << "+vfprj_mode";
     }
     else if (fTargetName.contains("ProjectCLISample"))
     {
-        fEnvVars << "SKIP_LIMITED_FEATURES_KEY=1" << "ENABLE_VFPRJ=1";
         fArgs << "+vfprj_mode";
     }
     else if (fTargetName.contains("FlowNavSample"))
     {
-        fEnvVars << "SKIP_LIMITED_FEATURES_KEY=1" << "ENABLE_VFPRJ=1";
+        fArgs << "+vfprj_mode";
+    }
+    else if ( fTargetName.contains( "MCSample" ) )
+    {
         fArgs << "+vfprj_mode";
     }
     if (fExecutable.isEmpty())
