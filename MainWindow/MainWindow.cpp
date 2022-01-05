@@ -96,20 +96,20 @@ CMainWindow::CMainWindow( QWidget * parent )
     fSourceModel = new QStandardItemModel( this );
     fImpl->sourceTree->setModel( fSourceModel );
 
-    fPreProcDefineModel = new CCheckableStringListModel( this );
+    fPreProcDefineModel = new NSABUtils::CCheckableStringListModel( this );
     fImpl->preProcDefines->setModel( fPreProcDefineModel );
 
-    fIncDirModel = new CCheckableStringListModel( this );
+    fIncDirModel = new NSABUtils::CCheckableStringListModel( this );
     fImpl->incPaths->setModel( fIncDirModel );
 
-    fQtLibsModel = new CCheckableStringListModel( this );
+    fQtLibsModel = new NSABUtils::CCheckableStringListModel( this );
     fImpl->qtLibs->setModel( fQtLibsModel );
 
     fCustomBuildModel = new QStandardItemModel( this );
     fCustomBuildModel->setHorizontalHeaderLabels( QStringList() << "Directory" << "Target Name" );
     fImpl->customBuilds->setModel( fCustomBuildModel );
 
-    connect( fCustomBuildModel, &CCheckableStringListModel::dataChanged, this, &CMainWindow::slotBuildsChanged );
+    connect( fCustomBuildModel, &NSABUtils::CCheckableStringListModel::dataChanged, this, &CMainWindow::slotBuildsChanged );
     connect( this, &CMainWindow::sigCMakeFinished, this, &CMainWindow::slotCMakeFinished );
 
     fDebugTargetsModel = new QStandardItemModel( this );
@@ -145,7 +145,7 @@ void CMainWindow::popDisconnected( bool force )
         connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
         connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
         connect( fImpl->bldOutputFile, &QLineEdit::textChanged, this, &CMainWindow::slotLoadOutputData );
-        connect( fCustomBuildModel, &CCheckableStringListModel::dataChanged, this, &CMainWindow::slotBuildsChanged );
+        connect( fCustomBuildModel, &NSABUtils::CCheckableStringListModel::dataChanged, this, &CMainWindow::slotBuildsChanged );
     }
 }
 
@@ -163,7 +163,7 @@ void CMainWindow::pushDisconnected()
         disconnect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
         disconnect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
         disconnect( fImpl->bldOutputFile, &QLineEdit::textChanged, this, &CMainWindow::slotLoadOutputData );
-        disconnect( fCustomBuildModel, &CCheckableStringListModel::dataChanged, this, &CMainWindow::slotBuildsChanged );
+        disconnect( fCustomBuildModel, &NSABUtils::CCheckableStringListModel::dataChanged, this, &CMainWindow::slotBuildsChanged );
     }
     fDisconnected++;
 }
@@ -440,7 +440,7 @@ void CMainWindow::slotLoadInstalledVS()
     bool aOK = false;
     bool retry = false;
     QString errorMsg;
-    NVSInstallUtils::TInstalledVisualStudios installedVSes;
+    NSABUtils::NVSInstallUtils::TInstalledVisualStudios installedVSes;
 
     std::tie( aOK, errorMsg, installedVSes ) = fSettings->setupInstalledVSes( getProcess(), &retry );
 
@@ -831,7 +831,7 @@ void CMainWindow::slotVSChanged()
         currText = fSettings->getGenerator();
     fImpl->generator->clear();
 
-    CAutoWaitCursor awc;
+    NSABUtils::CAutoWaitCursor awc;
 
     //process.setProcessChannelMode(QProcess::MergedChannels);
     getProcess()->start( cmakePath, QStringList() << "-help" );
@@ -1220,7 +1220,7 @@ QString CMainWindow::getIncludeDirs() const
 
 void CMainWindow::slotGenerate()
 {
-    CAutoWaitCursor awc;
+    NSABUtils::CAutoWaitCursor awc;
 
     fProgress = new QProgressDialog( tr( "Generating CMake Files..." ), tr( "Cancel" ), 0, 0, this );
     QPushButton * pb = new QPushButton( tr( "Cancel" ) );

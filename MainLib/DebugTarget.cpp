@@ -109,11 +109,11 @@ namespace NVSProjectMaker
         obj["name"] = fName;
         obj["cmd"] = fCmd;
         QJsonValue args;
-        ToJson( fArgs, args );
+        NSABUtils::ToJson( fArgs, args );
         obj["args"] = args;
         obj["workdir"] = fWorkDir;
         QJsonValue envVar;
-        ToJson( fEnvVars, envVar );
+        NSABUtils::ToJson( fEnvVars, envVar );
         obj["envvars"] = envVar;
         value = obj;
     }
@@ -126,10 +126,10 @@ namespace NVSProjectMaker
         fSourceDir = obj["sourcedir"].toString();
         fName = obj["name"].toString();
         fCmd = obj["cmd"].toString();
-        FromJson( fArgs, obj["args"] );
+        NSABUtils::FromJson( fArgs, obj["args"] );
         fWorkDir = obj["workdir"].toString();
         fSourceDir = obj["sourcedir"].toString();
-        FromJson( fEnvVars, obj["envvars"] );
+        NSABUtils::FromJson( fEnvVars, obj["envvars"] );
     }
 
     QString SDebugTarget::getEnvVars() const

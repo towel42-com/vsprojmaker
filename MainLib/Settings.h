@@ -85,13 +85,13 @@ public:
     {
         if ( !fValue.has_value() )
             return;
-        return ToJson( fValue.value(), value );
+        return NSABUtils::ToJson( fValue.value(), value );
     }
 
     virtual void load( const QJsonValue& value )
     {
         T tmpValue;
-        FromJson( tmpValue, value );
+        NSABUtils::FromJson( tmpValue, value );
         fValue = tmpValue;
     }
 
@@ -293,8 +293,8 @@ namespace NVSProjectMaker
 
     public:
         QString getVSPathForVersion( const QString & version ) const;
-        std::tuple< bool, QString, NVSInstallUtils::TInstalledVisualStudios > setupInstalledVSes( QProcess * process, bool * retry );
-        static std::tuple< bool, QString, NVSInstallUtils::TInstalledVisualStudios > setupInstalledVSes( NVSInstallUtils::TInstalledVisualStudios & installedVSes, QProcess * process, bool * retry );
+        std::tuple< bool, QString, NSABUtils::NVSInstallUtils::TInstalledVisualStudios > setupInstalledVSes( QProcess * process, bool * retry );
+        static std::tuple< bool, QString, NSABUtils::NVSInstallUtils::TInstalledVisualStudios > setupInstalledVSes(NSABUtils::NVSInstallUtils::TInstalledVisualStudios & installedVSes, QProcess * process, bool * retry);
     private:
         void updateProcessEnvironment( QProcess * process ) const;
         QMap< QString, QString > getVarMap() const;
@@ -331,7 +331,7 @@ namespace NVSProjectMaker
         std::shared_ptr< NVSProjectMaker::SSourceFileResults > fResults;
         mutable std::map< QString, std::pair< QString, bool > > fSamplesMap;
         mutable std::unordered_map< QString, CValueBase* > fSettings;
-        mutable NVSInstallUtils::TInstalledVisualStudios fInstalledVSes;
+        mutable NSABUtils::NVSInstallUtils::TInstalledVisualStudios fInstalledVSes;
     };
 }
 

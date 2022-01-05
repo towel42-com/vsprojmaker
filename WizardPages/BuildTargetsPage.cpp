@@ -29,13 +29,13 @@ CBuildTargetsPage::CBuildTargetsPage( QWidget * parent )
     fImpl( new Ui::CBuildTargetsPage )
 {
     fImpl->setupUi( this );
-    fBuildTargets = new CCheckableStringListModel( this );
+    fBuildTargets = new NSABUtils::CCheckableStringListModel( this );
     auto buildTargets = QStringList() << "qworld" << "qworld -k" << "qoffice" << "qoffice -k" << "world" << "world -k" << "vxcsamples" << "vxcsamples -k";
     fBuildTargets->setStringList( buildTargets );
     fBuildTargets->setChecked( buildTargets, true, true );
     fImpl->buildTargets->setModel( fBuildTargets );
 
-    connect( fBuildTargets, &CCheckableStringListModel::dataChanged, this, &CBuildTargetsPage::slotBuildsChanged );
+    connect( fBuildTargets, &NSABUtils::CCheckableStringListModel::dataChanged, this, &CBuildTargetsPage::slotBuildsChanged );
 
     fImpl->primaryTarget->addItems( buildTargets );
     fImpl->primaryTarget->setCurrentText( "qworld" );

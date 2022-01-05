@@ -25,8 +25,11 @@
 
 #include <QWizardPage>
 #include <memory>
-class CCheckableStringListModel;
-namespace Ui {class CQtPage;};
+namespace NSABUtils
+{
+    class CCheckableStringListModel;
+}
+namespace Ui { class CQtPage; };
 
 class CQtPage : public QWizardPage
 {
@@ -44,7 +47,7 @@ public Q_SLOTS:
     void slotSelectQtDir();
 private:
     std::unique_ptr< Ui::CQtPage > fImpl;
-    CCheckableStringListModel * fQtLibsModel{ nullptr };
+    NSABUtils::CCheckableStringListModel * fQtLibsModel{ nullptr };
 
 };
 

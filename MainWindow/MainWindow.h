@@ -57,8 +57,12 @@ class QStandardItem;
 class QStringListModel;
 class QProgressDialog;
 class QProcess;
-class CCheckableStringListModel;
-namespace Ui {class CMainWindow;};
+namespace NSABUtils
+{
+    class CCheckableStringListModel;
+}
+
+namespace Ui { class CMainWindow; };
 
 class CMainWindow : public QDialog
 {
@@ -164,11 +168,11 @@ private:
     std::optional< QString > fBuildTextFile;
     QStandardItemModel * fSourceModel{ nullptr };
     QStandardItemModel * fBuildInfoDataModel{ nullptr };
-    CCheckableStringListModel * fIncDirModel{ nullptr };
-    CCheckableStringListModel * fPreProcDefineModel{ nullptr };
+    NSABUtils::CCheckableStringListModel * fIncDirModel{ nullptr };
+    NSABUtils::CCheckableStringListModel * fPreProcDefineModel{ nullptr };
     QStandardItemModel * fCustomBuildModel{ nullptr };
     QStandardItemModel * fDebugTargetsModel{ nullptr };
-    CCheckableStringListModel * fQtLibsModel{ nullptr };
+    NSABUtils::CCheckableStringListModel * fQtLibsModel{ nullptr };
     std::unique_ptr< Ui::CMainWindow > fImpl;
     QProcess * fProcess{ nullptr };
 

@@ -34,7 +34,7 @@ CQtPage::CQtPage( QWidget * parent )
     fImpl( new Ui::CQtPage )
 {
     fImpl->setupUi( this );
-    fQtLibsModel = new CCheckableStringListModel( this );
+    fQtLibsModel = new NSABUtils::CCheckableStringListModel( this );
     fImpl->qtLibs->setModel( fQtLibsModel );
 
     connect( fImpl->qtDirBtn, &QToolButton::clicked, this, &CQtPage::slotSelectQtDir );

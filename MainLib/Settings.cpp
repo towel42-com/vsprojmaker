@@ -1134,7 +1134,7 @@ namespace NVSProjectMaker
         return ( *pos ).second;
     }
 
-    std::tuple< bool, QString, NVSInstallUtils::TInstalledVisualStudios > CSettings::setupInstalledVSes( QProcess * process, bool * retry )
+    std::tuple< bool, QString, NSABUtils::NVSInstallUtils::TInstalledVisualStudios > CSettings::setupInstalledVSes( QProcess * process, bool * retry )
     {
         if ( !fInstalledVSes.first.empty() )
         {
@@ -1143,11 +1143,11 @@ namespace NVSProjectMaker
         return setupInstalledVSes( fInstalledVSes, process, retry );
     }
 
-    std::tuple< bool, QString, NVSInstallUtils::TInstalledVisualStudios > CSettings::setupInstalledVSes( NVSInstallUtils::TInstalledVisualStudios & retVal, QProcess * process, bool * retry )
+    std::tuple< bool, QString, NSABUtils::NVSInstallUtils::TInstalledVisualStudios > CSettings::setupInstalledVSes(NSABUtils::NVSInstallUtils::TInstalledVisualStudios & retVal, QProcess * process, bool * retry )
     {
         bool aOK = false;
         QString errorMsg;
-        std::tie( aOK, errorMsg, retVal ) = NVSInstallUtils::getInstalledVisualStudios( process, retry );
+        std::tie( aOK, errorMsg, retVal ) = NSABUtils::NVSInstallUtils::getInstalledVisualStudios( process, retry );
         return std::make_tuple( aOK, errorMsg, retVal );
     }
 

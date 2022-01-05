@@ -32,7 +32,7 @@ CIncludesPage::CIncludesPage( QWidget * parent )
     fImpl( new Ui::CIncludesPage )
 {
     fImpl->setupUi( this );
-    fIncludes = new CCheckableStringListModel( this );
+    fIncludes = new NSABUtils::CCheckableStringListModel( this );
     auto includes = QStringList() << "<PRODDIR>/tcltk/tcl8605-20201227/debug/win64/usr/include";
     fIncludes->setStringList( includes );
     fIncludes->setChecked( includes, true, true );

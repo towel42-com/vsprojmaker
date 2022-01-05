@@ -28,7 +28,10 @@
 #include <list>
 #include <memory>
 namespace NVSProjectMaker { class CSettings; }
-class CCheckableStringListModel;
+namespace NSABUtils
+{
+    class CCheckableStringListModel;
+}
 class QDir;
 namespace Ui {class CDebugTargetsPage;};
 
@@ -61,7 +64,7 @@ private:
     std::list< std::list< QString > > getSampleDirs(const QDir & dir) const;
     std::list< std::list< QString > > fAllTargets;
     std::unique_ptr< Ui::CDebugTargetsPage > fImpl;
-    CCheckableStringListModel * fDebugTargets{ nullptr };
+    NSABUtils::CCheckableStringListModel * fDebugTargets{ nullptr };
 
 };
 

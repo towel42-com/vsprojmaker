@@ -35,7 +35,7 @@ CDebugTargetsPage::CDebugTargetsPage( QWidget * parent )
     fImpl( new Ui::CDebugTargetsPage )
 {
     fImpl->setupUi( this );
-    fDebugTargets = new CCheckableStringListModel( this );
+    fDebugTargets = new NSABUtils::CCheckableStringListModel( this );
     fImpl->debugTargets->setModel( fDebugTargets );
 }
 

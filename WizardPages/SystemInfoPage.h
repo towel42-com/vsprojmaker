@@ -45,7 +45,7 @@ public Q_SLOTS:
     void slotSelectProdDir();
     void slotSelectMSys64Dir();
 private:
-    NVSInstallUtils::TInstalledVisualStudios fInstalledVSes;
+    NSABUtils::NVSInstallUtils::TInstalledVisualStudios fInstalledVSes;
     QString getVSPathForSelection( const QString & selected ) const;
 
     std::unique_ptr< Ui::CSystemInfoPage > fImpl;

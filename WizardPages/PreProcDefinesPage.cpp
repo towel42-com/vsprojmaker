@@ -31,7 +31,7 @@ CPreProcDefinesPage::CPreProcDefinesPage( QWidget * parent )
     fImpl( new Ui::CPreProcDefinesPage )
 {
     fImpl->setupUi( this );
-    fPreProcDefines = new CCheckableStringListModel( this );
+    fPreProcDefines = new NSABUtils::CCheckableStringListModel( this );
     auto PreProcDefines = QStringList() << "WIN32" << "Q_OS_WIN";
     fPreProcDefines->setStringList( PreProcDefines );
     fPreProcDefines->setChecked( PreProcDefines, true, true );

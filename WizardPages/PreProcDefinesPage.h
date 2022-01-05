@@ -25,8 +25,12 @@
 
 #include <QWizardPage>
 #include <memory>
-class CCheckableStringListModel;
-namespace Ui {class CPreProcDefinesPage;};
+namespace NSABUtils
+{
+    class CCheckableStringListModel;
+}
+
+namespace Ui { class CPreProcDefinesPage; };
 
 class CPreProcDefinesPage : public QWizardPage
 {
@@ -42,8 +46,7 @@ public Q_SLOTS:
     void slotAddPreProcDefine();
 private:
     std::unique_ptr< Ui::CPreProcDefinesPage > fImpl;
-    CCheckableStringListModel * fPreProcDefines{ nullptr };
-
+    NSABUtils::CCheckableStringListModel * fPreProcDefines{ nullptr };
 };
 
 #endif // _ALCULATOR_H

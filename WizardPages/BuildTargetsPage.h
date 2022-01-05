@@ -25,7 +25,10 @@
 
 #include <QWizardPage>
 #include <memory>
-class CCheckableStringListModel;
+namespace NSABUtils 
+{
+    class CCheckableStringListModel;
+}
 namespace Ui {class CBuildTargetsPage;};
 
 class CBuildTargetsPage : public QWizardPage
@@ -43,7 +46,7 @@ public Q_SLOTS:
     void slotBuildsChanged();
 private:
     std::unique_ptr< Ui::CBuildTargetsPage > fImpl;
-    CCheckableStringListModel * fBuildTargets{ nullptr };
+    NSABUtils::CCheckableStringListModel * fBuildTargets{ nullptr };
 
 };
 
