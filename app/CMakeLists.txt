@@ -20,12 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-project(VSProjectMakerGUI) 
+project(VSProjectMaker) 
 
 include( include.cmake )
 include( ${CMAKE_SOURCE_DIR}/SABUtils/Project.cmake )
 
-add_executable( VSProjectMakerGUI WIN32
+add_executable( VSProjectMaker WIN32
                  ${project_SRCS} 
                  ${project_H} 
                  ${qtproject_SRCS} 
@@ -40,9 +40,9 @@ add_executable( VSProjectMakerGUI WIN32
                  ${_CMAKE_MODULE_FILES}
                 application.rc
           )
-set_target_properties( VSProjectMakerGUI PROPERTIES FOLDER Apps )
+set_target_properties( VSProjectMaker PROPERTIES FOLDER Apps )
           
-target_link_libraries( VSProjectMakerGUI 
+target_link_libraries( VSProjectMaker 
                  Qt5::Widgets
                  Qt5::Core
                  MainWindow
@@ -50,8 +50,8 @@ target_link_libraries( VSProjectMakerGUI
                  MainLib
                  SABUtils
           )
-DeployQt( VSProjectMakerGUI . )
-DeploySystem( VSProjectMakerGUI . )
+DeployQt( VSProjectMaker . )
+DeploySystem( VSProjectMaker . )
 
 INSTALL( TARGETS ${PROJECT_NAME} RUNTIME DESTINATION . )
 INSTALL( FILES ${CMAKE_CURRENT_BINARY_DIR}/Debug/${PROJECT_NAME}.pdb DESTINATION . CONFIGURATIONS Debug RelWithDebInfo )
