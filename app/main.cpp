@@ -33,7 +33,6 @@
 #include <QSharedPointer>
 #include <iostream>
 #include <string>
-#define UNICODE
 #include <qt_windows.h>
 
 int waitForPrompt(bool consoleCreated, int value)

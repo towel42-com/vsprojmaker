@@ -26,30 +26,19 @@ include( include.cmake )
 include( ${CMAKE_SOURCE_DIR}/SABUtils/Project.cmake )
 
 add_executable( VSProjectMaker WIN32
-                 ${project_SRCS} 
-                 ${project_H} 
-                 ${qtproject_SRCS} 
-                 ${qtproject_QRC} 
-                 ${qtproject_QRC_SRCS} 
-                 ${qtproject_UIS_H} 
-                 ${qtproject_MOC_SRCS} 
-                 ${qtproject_H} 
-                 ${qtproject_UIS}
-                 ${qtproject_QRC_SOURCES}
-                 ${_CMAKE_FILES}
+                 ${_PROJECT_DEPENDENCIES} 
                  ${_CMAKE_MODULE_FILES}
                 application.rc
           )
 set_target_properties( VSProjectMaker PROPERTIES FOLDER Apps )
           
-target_link_libraries( VSProjectMaker 
-                 Qt5::Widgets
-                 Qt5::Core
-                 MainWindow
-                 WizardPages
-                 MainLib
-                 SABUtils
-          )
+target_link_libraries( ${PROJECT_NAME}
+    PUBLIC
+        ${project_pub_DEPS}
+    PRIVATE 
+        ${project_pri_DEPS}
+)
+
 DeployQt( VSProjectMaker . )
 DeploySystem( VSProjectMaker . )
 
