@@ -146,8 +146,8 @@ namespace NVSProjectMaker
             return true;
 
         suffixes[ suffix ] = retVal;
-        for ( auto && ii : suffixes )
-            qDebug() << ii.first << " = " << ii.second;
+        //for ( auto && ii : suffixes )
+        //    qDebug() << ii.first << " = " << ii.second;
         return retVal;
     }
 
@@ -164,10 +164,10 @@ namespace NVSProjectMaker
     {
         for ( auto && ii : fTargets )
         {
-            qDebug() << ii.second->dump();
+            //qDebug() << ii.second->dump();
             for ( auto && jj : ii.second->allSources() )
             {
-                qDebug() << "    " << jj;
+                //qDebug() << "    " << jj;
                 if ( isSourceFile( jj ) )
                     continue;
                 auto pos = fSources.find( jj );
@@ -317,10 +317,10 @@ namespace NVSProjectMaker
         if ( !item )
             return false;
 
-        qDebug() << item->targetFile();
-        qDebug() << item->srcDir();
-        qDebug() << item->targetDir();
-        qDebug() << item->dirForItem();
+        //qDebug() << item->targetFile();
+        //qDebug() << item->srcDir();
+        //qDebug() << item->targetDir();
+        //qDebug() << item->dirForItem();
 
         addItem( item );
         return true;
