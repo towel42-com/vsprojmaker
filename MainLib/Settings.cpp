@@ -409,6 +409,7 @@ namespace NVSProjectMaker
         auto retVal = QStringList()
             << "export VC_VERSION=15.0"
             << "export PATH=/c/localprod/bin:$PATH"
+            << "export INCLUDE="
             ;
 
         return retVal.join( "\n" ) + "\n";
@@ -418,8 +419,22 @@ namespace NVSProjectMaker
     {
         QString retVal;
         QTextStream ts( &retVal );
-        ts 
-            << "echo \"Building '" << descriptiveName << "' in directory '" << buildDir << " using cmd '" << QString( cmd ).replace( '"', "\\\"" ) << "'\"\n"
+        ts
+            << "JARG=24\n"
+            << "while [[ $# > 0 ]]; do\n"
+            << "    case \"$1\" in\n"
+            << "        -j)\n"
+            << "            shift\n"
+            << "            JARG=$1\n"
+            << "            ;;\n"
+            << "        *)\n"
+            << "            echo \"Unknown option '$arg'\"\n"
+            << "            exit -1\n"
+            << "            ;;\n"
+            << "    esac\n"
+            << "    shift\n"
+            << "done\n"
+            << "echo \"Building '" << descriptiveName << "' in directory '" << buildDir << " using cmd '" << QString( cmd ).replace( '"', R"(\")" ) << "'\"\n"
             << "cd \"" << buildDir << "\" \n"
             << getEnvVarsForShell()
             << cmd << "\n"
@@ -473,14 +488,15 @@ namespace NVSProjectMaker
         }
 
         QTextStream qts(&fo);
-        QString cmd = QString("mtimake -w -j24 --directory=\"%1\" %2 %3").arg(settings->getBuildDir().value()).arg(fMakeProjectName).arg(getExtraArgs()).trimmed();
+        QString cmd = QString("mtimake -w -j$JARG --directory=\"%1\" %2 %3").arg(settings->getBuildDir().value()).arg(fMakeProjectName).arg(getExtraArgs()).trimmed();
         qts << settings->getBuildItScript(settings->getBuildDir().value(), cmd, fMakeProjectName);
 
         fo.close();
 
+        auto buildItShellCmd = SDirInfo::getBuildItShellCmd( buildItFileName );
         QString cmakeFileName = QString("%1/CMakeLists.txt").arg(getDirName());
         NVSProjectMaker::readResourceFile(parent, QString(":/resources/custombuilddir.cmake"),
-            [this, cmakeFileName, buildItFileName, settings, parent](QString & resourceText)
+            [this, cmakeFileName, buildItShellCmd, settings, parent](QString & resourceText)
             {
                 resourceText.replace("<PROJECT_NAME>", fCMakeProjectName);
                 resourceText.replace("<ALL_SETTING>", settings->getPrimaryTargetSetting(fCMakeProjectName));
@@ -488,7 +504,7 @@ namespace NVSProjectMaker
                 resourceText.replace("<BUILD_DIR>", settings->getBuildDir().value());
                 resourceText.replace("<MSYS64DIR_MSYS>", settings->getMSys64Dir(true));
                 resourceText.replace("<MSYS64DIR_WIN>", settings->getMSys64Dir(false));
-                resourceText.replace("<BUILDITSHELL>", buildItFileName);
+                resourceText.replace("<BUILDITSHELL>", buildItShellCmd );
                 resourceText.replace("<SOURCE_FILES>", QString());
                 resourceText.replace("<HEADER_FILES>", QString());
                 resourceText.replace("<UI_FILES>", QString());
@@ -1036,7 +1052,7 @@ namespace NVSProjectMaker
 
     bool CSettings::loadData()
     {
-        dump();
+        //dump();
 
         if ( fSettingsFileName.isEmpty() )
             return false;
@@ -1051,7 +1067,7 @@ namespace NVSProjectMaker
         load( loadDoc.object() );
 
         loadQtSettings();
-        dump();
+        //dump();
         return true;
     }
 
