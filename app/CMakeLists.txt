@@ -30,8 +30,19 @@ add_executable( VSProjectMaker WIN32
                  ${_CMAKE_MODULE_FILES}
                 application.rc
           )
-set_target_properties( VSProjectMaker PROPERTIES FOLDER Apps )
-          
+
+set ( DEBUG_PATH 
+    "%PATH%"
+    "$<TARGET_FILE_DIR:SABUtils>"
+    "${QTDIR}"
+    )
+
+set_target_properties( VSProjectMaker PROPERTIES FOLDER Apps 
+                        VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:VSProjectMaker>" 
+                        VS_DEBUGGER_COMMAND "$<TARGET_FILE:VSProjectMaker>" 
+                        VS_DEBUGGER_ENVIRONMENT "PATH=${DEBUG_PATH}" 
+                     )
+
 target_link_libraries( ${PROJECT_NAME}
     PUBLIC
         ${project_pub_DEPS}
