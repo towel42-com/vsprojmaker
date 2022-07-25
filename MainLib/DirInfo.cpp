@@ -248,6 +248,12 @@ namespace NVSProjectMaker
         return retVal;
     }
 
+    QString SDirInfo::getBuildItShellCmd( const QString & buildItFile )
+    {
+        auto retVal = QString( R"x(\"%1 -j $(NUMBER_OF_PROCESSORS)\")x" ).arg( buildItFile );
+        return retVal;
+    }
+
     void SDirInfo::writeCMakeFile( QWidget * parent, const CSettings * settings ) const
     {
         auto vsProjDir = QDir( settings->getBuildDir().value() );
@@ -275,13 +281,14 @@ namespace NVSProjectMaker
             }
 
             QTextStream qts( &fo );
-            QString cmd = QString( "%1/usr/bin/make -w -j24" ).arg( settings->getMSys64Dir( true ) );
+            QString cmd = QString( "%1/usr/bin/make -w -j$JARG" ).arg( settings->getMSys64Dir( true ) );
             qts << settings->getBuildItScript( outPath, cmd, fProjectName );
             fo.close();
         }
+        auto buildItShellCmd = getBuildItShellCmd( buildItFileName );
         QString resourceFile = isSubHeader ? "subheaderdir.cmake" : "subbuilddir.cmake";
         auto resourceText = NVSProjectMaker::readResourceFile( parent, QString( ":/resources/%1" ).arg( resourceFile ),
-                                              [this, settings, buildItFileName, outPath, vsProjDir, parent ]( QString & resourceText )
+                                              [this, settings, buildItShellCmd, outPath, vsProjDir, parent ]( QString & resourceText )
         {
             resourceText.replace( "<PROJECT_NAME>", fProjectName );
             resourceText.replace( "<ALL_SETTING>", settings->getPrimaryTargetSetting( fProjectName ) );
@@ -289,7 +296,7 @@ namespace NVSProjectMaker
             resourceText.replace( "<VSPROJDIR>", vsProjDir.absolutePath() );
             resourceText.replace( "<MSYS64DIR_MSYS>", settings->getMSys64Dir( true ) );
             resourceText.replace( "<MSYS64DIR_WIN>", settings->getMSys64Dir( false ) );
-            resourceText.replace( "<BUILDITSHELL>", buildItFileName );
+            resourceText.replace( "<BUILDITSHELL>", buildItShellCmd );
             replaceFiles( resourceText, "<SOURCE_FILES>", QStringList() << fSourceFiles );
             replaceFiles( resourceText, "<HEADER_FILES>", QStringList() << fHeaderFiles );
             replaceFiles( resourceText, "<UI_FILES>", QStringList() << fUIFiles );

@@ -55,6 +55,8 @@ namespace NVSProjectMaker
         void computeRelToDir( const std::shared_ptr< SSourceFileInfo > & fileInfo );
         bool isBuildFile( const QString & path ) const;
 
+        static QString getBuildItShellCmd( const QString & buildItFile );
+
         QString getSrcRelPath() const;
         QString getInclRelPath() const;
 
