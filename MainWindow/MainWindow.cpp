@@ -72,7 +72,6 @@ CMainWindow::CMainWindow( QWidget * parent )
     NVSProjectMaker::registerTypes();
 
     fImpl->setupUi( this );
-    popDisconnected( true );
 
     connect( fImpl->openProjectFileBtn, &QToolButton::clicked, this, &CMainWindow::slotOpenProjectFile );
     connect( fImpl->saveProjectFileBtn, &QToolButton::clicked, this, &CMainWindow::slotSaveProjectFile );
@@ -125,6 +124,8 @@ CMainWindow::CMainWindow( QWidget * parent )
     fImpl->projectFile->setFocus();
     fImpl->tabWidget->setCurrentIndex( 0 );
     fImpl->verbose->setChecked( true );
+
+    popDisconnected( true );
 
     QTimer::singleShot( 0, this, &CMainWindow::slotLoadInstalledVS );
 }
