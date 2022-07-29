@@ -20,18 +20,28 @@
    <string>Client Name is automatically determined</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
-    <widget class="QLabel" name="label">
+   <item row="3" column="0">
+    <widget class="QLabel" name="label_4">
      <property name="text">
-      <string>P4 Client Directory:</string>
+      <string>Build Directory:</string>
      </property>
     </widget>
    </item>
-   <item row="0" column="1">
-    <widget class="QLineEdit" name="clientDir"/>
+   <item row="5" column="0">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>209</height>
+      </size>
+     </property>
+    </spacer>
    </item>
-   <item row="0" column="2">
-    <widget class="QToolButton" name="clientDirBtn">
+   <item row="3" column="2">
+    <widget class="QToolButton" name="buildRelativeDirBtn">
      <property name="text">
       <string>...</string>
      </property>
@@ -48,6 +58,51 @@
      </property>
     </widget>
    </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="label_3">
+     <property name="text">
+      <string>Source Directory:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QLineEdit" name="sourceRelativeDir"/>
+   </item>
+   <item row="0" column="2">
+    <widget class="QToolButton" name="clientDirBtn">
+     <property name="text">
+      <string>...</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../MainWindow/MainWindow.qrc">
+       <normaloff>:/resources/open.png</normaloff>:/resources/open.png</iconset>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="clientDir"/>
+   </item>
+   <item row="2" column="2">
+    <widget class="QToolButton" name="sourceRelativeDirBtn">
+     <property name="text">
+      <string>...</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../MainWindow/MainWindow.qrc">
+       <normaloff>:/resources/open.png</normaloff>:/resources/open.png</iconset>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>P4 Client Directory:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <widget class="QLineEdit" name="buildRelativeDir"/>
+   </item>
    <item row="1" column="1">
     <widget class="QLineEdit" name="clientName">
      <property name="enabled">
@@ -58,60 +113,26 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="label_3">
-     <property name="text">
-      <string>Source Directory:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="1">
-    <widget class="QLineEdit" name="sourceRelDir"/>
-   </item>
-   <item row="2" column="2">
-    <widget class="QToolButton" name="sourceDirBtn">
-     <property name="text">
-      <string>...</string>
-     </property>
-     <property name="icon">
-      <iconset resource="../MainWindow/MainWindow.qrc">
-       <normaloff>:/resources/open.png</normaloff>:/resources/open.png</iconset>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="0">
-    <widget class="QLabel" name="label_4">
-     <property name="text">
-      <string>Build Directory:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="1">
-    <widget class="QLineEdit" name="buildRelDir"/>
-   </item>
-   <item row="3" column="2">
-    <widget class="QToolButton" name="buildDirBtn">
-     <property name="text">
-      <string>...</string>
-     </property>
-     <property name="icon">
-      <iconset resource="../MainWindow/MainWindow.qrc">
-       <normaloff>:/resources/open.png</normaloff>:/resources/open.png</iconset>
-     </property>
-    </widget>
+   <item row="4" column="1">
+    <widget class="QLineEdit" name="modelTechRelativeDir"/>
    </item>
    <item row="4" column="0">
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
+    <widget class="QLabel" name="label_2">
+     <property name="text">
+      <string>ModelTech Directory:</string>
      </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>209</height>
-      </size>
+    </widget>
+   </item>
+   <item row="4" column="2">
+    <widget class="QToolButton" name="modelTechRelativeDirBtn">
+     <property name="text">
+      <string>...</string>
      </property>
-    </spacer>
+     <property name="icon">
+      <iconset resource="../MainWindow/MainWindow.qrc">
+       <normaloff>:/resources/open.png</normaloff>:/resources/open.png</iconset>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>
@@ -119,10 +140,10 @@
   <tabstop>clientDir</tabstop>
   <tabstop>clientDirBtn</tabstop>
   <tabstop>clientName</tabstop>
-  <tabstop>sourceRelDir</tabstop>
-  <tabstop>sourceDirBtn</tabstop>
-  <tabstop>buildRelDir</tabstop>
-  <tabstop>buildDirBtn</tabstop>
+  <tabstop>sourceRelativeDir</tabstop>
+  <tabstop>sourceRelativeDirBtn</tabstop>
+  <tabstop>buildRelativeDir</tabstop>
+  <tabstop>buildRelativeDirBtn</tabstop>
  </tabstops>
  <resources>
   <include location="../MainWindow/MainWindow.qrc"/>

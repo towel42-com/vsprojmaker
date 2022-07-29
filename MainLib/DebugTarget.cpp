@@ -138,13 +138,15 @@ namespace NVSProjectMaker
         for (auto&& ii : fEnvVars)
         {
             auto curr = ii.trimmed();
-            if (!curr.startsWith("{"))
-                curr = "{" + curr;
-            if (!curr.endsWith("}"))
-                curr += "}";
+            if ( curr.startsWith( "{" ) )
+                curr = curr.mid( 1 );
+            if ( curr.endsWith( "}" ) )
+                curr = curr.mid( 0, curr.length() - 1 );
             tmp << curr;
         }
         auto retVal = tmp.join( '\n' );
+        if ( !retVal.isEmpty() )
+            int xyz = 0;
         return retVal;
     }
 

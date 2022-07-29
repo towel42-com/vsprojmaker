@@ -270,8 +270,9 @@ namespace NVSProjectMaker
         ADD_SETTING( QString, CustomCMakeExec );
         ADD_SETTING( QString, Generator );
         ADD_SETTING( QString, ClientDir );
-        ADD_SETTING( QString, SourceRelDir );
-        ADD_SETTING( QString, BuildRelDir );
+        ADD_SETTING( QString, SourceRelativeDir );
+        ADD_SETTING( QString, BuildRelativeDir );
+        ADD_SETTING( QString, ModelTechRelativeDir );
         ADD_SETTING_SETFUNC( QString, QtDir, [ this ]() { loadQtSettings(); } );
         ADD_SETTING( QStringList, QtDirs );
         ADD_SETTING( QString, ProdDir );

@@ -75,6 +75,7 @@ public:
     std::optional< QDir > getClientDir() const;
     std::optional< QString > getSourceDir( bool relPath = false ) const;
     std::optional< QString > getBuildDir( bool relPath = false ) const;
+    std::optional< QString > getModelTechDir( bool relPath = false ) const;
 
 Q_SIGNALS:
     void sigCMakeFinished();
@@ -102,6 +103,7 @@ public Q_SLOTS:
     void slotSelectProdDir();
     void slotSelectMSys64Dir();
     void slotSelectBuildDir();
+    void slotSelectModelTechDir();
     void slotSelectClientDir();
     void slotAddPreProcDefine();
     void slotAddIncDir();

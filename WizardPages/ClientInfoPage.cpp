@@ -35,16 +35,19 @@ CClientInfoPage::CClientInfoPage( QWidget * parent )
     fImpl->setupUi( this );
 
     connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
-    connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
-    connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    connect( fImpl->sourceRelativeDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    connect( fImpl->buildRelativeDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    connect( fImpl->modelTechRelativeDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
     connect( fImpl->clientDirBtn, &QToolButton::clicked, this, &CClientInfoPage::slotSelectClientDir );
-    connect( fImpl->sourceDirBtn, &QToolButton::clicked, this, &CClientInfoPage::slotSelectSourceDir );
-    connect( fImpl->buildDirBtn, &QToolButton::clicked, this, &CClientInfoPage::slotSelectBuildDir );
+    connect( fImpl->sourceRelativeDirBtn, &QToolButton::clicked, this, &CClientInfoPage::slotSelectSourceDir );
+    connect( fImpl->buildRelativeDirBtn, &QToolButton::clicked, this, &CClientInfoPage::slotSelectBuildDir );
+    connect( fImpl->modelTechRelativeDirBtn, &QToolButton::clicked, this, &CClientInfoPage::slotSelectModelTechDir );
 
     registerField( "clientDir*", fImpl->clientDir );
     registerField( "clientName", fImpl->clientName );
-    registerField( "sourceRelDir*", fImpl->sourceRelDir );
-    registerField( "buildRelDir*", fImpl->buildRelDir );
+    registerField( "sourceRelativeDir*", fImpl->sourceRelativeDir );
+    registerField( "buildRelativeDir*", fImpl->buildRelativeDir );
+    registerField( "modelTechRelativeDir*", fImpl->modelTechRelativeDir );
 
     slotChanged();
 }
@@ -68,11 +71,15 @@ bool CClientInfoPage::isComplete() const
         return false;
 
     QDir clientDir( fImpl->clientDir->text() );
-    fi = QFileInfo( clientDir.absoluteFilePath( fImpl->sourceRelDir->text() ) );
+    fi = QFileInfo( clientDir.absoluteFilePath( fImpl->sourceRelativeDir->text() ) );
     if ( !fi.exists() || !fi.isDir() || !fi.isReadable() )
         return false;
 
-    fi = QFileInfo( clientDir.absoluteFilePath( fImpl->buildRelDir->text() ) );
+    fi = QFileInfo( clientDir.absoluteFilePath( fImpl->buildRelativeDir->text() ) );
+    if ( !fi.exists() || !fi.isDir() || !fi.isWritable() )
+        return false;
+
+    fi = QFileInfo( clientDir.absoluteFilePath( fImpl->modelTechRelativeDir->text() ) );
     if ( !fi.exists() || !fi.isDir() || !fi.isWritable() )
         return false;
 
@@ -82,9 +89,10 @@ bool CClientInfoPage::isComplete() const
 void CClientInfoPage::slotChanged()
 {
     disconnect( fImpl->clientName, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
-    disconnect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
-    disconnect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
-    
+    disconnect( fImpl->sourceRelativeDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    disconnect( fImpl->buildRelativeDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    disconnect( fImpl->modelTechRelativeDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+
     QString clientName;
     QDir dir;
     if ( !fImpl->clientDir->text().isEmpty() )
@@ -94,29 +102,44 @@ void CClientInfoPage::slotChanged()
     }
     fImpl->clientName->setText( clientName );
 
-    fImpl->sourceRelDir->setEnabled( fSourceDirManuallySet );
-    fImpl->buildRelDir->setEnabled( fBuildDirManuallySet );
+    fImpl->sourceRelativeDirBtn->setEnabled( !clientName.isEmpty() );
+    fImpl->buildRelativeDirBtn->setEnabled( !clientName.isEmpty() );
+    fImpl->modelTechRelativeDirBtn->setEnabled( !clientName.isEmpty() );
 
-    if ( fSourceDirManuallySet && fImpl->sourceRelDir->text().isEmpty() )
+    fImpl->sourceRelativeDir->setEnabled( fSourceDirManuallySet );
+    fImpl->buildRelativeDir->setEnabled( fBuildDirManuallySet );
+    fImpl->modelTechRelativeDir->setEnabled( fModelTechDirManuallySet );
+
+    if ( fSourceDirManuallySet && fImpl->sourceRelativeDir->text().isEmpty() )
         fSourceDirManuallySet = false;
 
-    if ( fBuildDirManuallySet && fImpl->buildRelDir->text().isEmpty() )
+    if ( fBuildDirManuallySet && fImpl->buildRelativeDir->text().isEmpty() )
         fBuildDirManuallySet = false;
+
+    if ( fModelTechDirManuallySet && fImpl->modelTechRelativeDir->text().isEmpty() )
+        fModelTechDirManuallySet = false;
 
     if ( !fSourceDirManuallySet )
     {
         if ( QFileInfo( dir.absoluteFilePath( "src" ) ).exists() )
-            fImpl->sourceRelDir->setText( "src" );
+            fImpl->sourceRelativeDir->setText( "src" );
     }
 
     if ( !fBuildDirManuallySet )
     {
         if ( QFileInfo( dir.absoluteFilePath( "build/win64" ) ).exists() )
-            fImpl->buildRelDir->setText( "build/win64" );
+            fImpl->buildRelativeDir->setText( "build/win64" );
+    }
+
+    if ( !fModelTechDirManuallySet )
+    {
+        if ( QFileInfo( dir.absoluteFilePath( "modeltech/win64" ) ).exists() )
+            fImpl->modelTechRelativeDir->setText( "modeltech/win64" );
     }
     connect( fImpl->clientName, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
-    connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
-    connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    connect( fImpl->sourceRelativeDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    connect( fImpl->buildRelativeDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
+    connect( fImpl->modelTechRelativeDir, &QLineEdit::textChanged, this, &CClientInfoPage::slotChanged );
 }
 
 void CClientInfoPage::slotSelectClientDir()
@@ -141,10 +164,10 @@ void CClientInfoPage::slotSelectSourceDir()
     auto clientDir = fImpl->clientDir->text();
     if ( clientDir.isEmpty() )
         return;
-    auto currSrcRelDir = fImpl->sourceRelDir->text();
-    if ( !currSrcRelDir.isEmpty() )
-        currSrcRelDir = clientDir + "/" + currSrcRelDir;
-    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Source Directory" ), currSrcRelDir );
+    auto currSrcRelativeDir = fImpl->sourceRelativeDir->text();
+    if ( !currSrcRelativeDir.isEmpty() )
+        currSrcRelativeDir = clientDir + "/" + currSrcRelativeDir;
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Source Directory" ), currSrcRelativeDir );
     if ( dir.isEmpty() )
         return;
 
@@ -155,7 +178,7 @@ void CClientInfoPage::slotSelectSourceDir()
         return;
     }
 
-    fImpl->sourceRelDir->setText( QDir( clientDir ).relativeFilePath( dir ) );
+    fImpl->sourceRelativeDir->setText( QDir( clientDir ).relativeFilePath( dir ) );
     fSourceDirManuallySet = true;
     slotChanged();
 }
@@ -165,11 +188,11 @@ void CClientInfoPage::slotSelectBuildDir()
     auto clientDir = fImpl->clientDir->text();
     if ( clientDir.isEmpty() )
         return;
-    auto currBldRelDir = fImpl->buildRelDir->text();
-    if ( !currBldRelDir.isEmpty() )
-        currBldRelDir = clientDir + "/" + currBldRelDir;
+    auto currBldRelativeDir = fImpl->buildRelativeDir->text();
+    if ( !currBldRelativeDir.isEmpty() )
+        currBldRelativeDir = clientDir + "/" + currBldRelativeDir;
 
-    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Build Directory" ), currBldRelDir );
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select Build Directory" ), currBldRelativeDir );
     if ( dir.isEmpty() )
         return;
 
@@ -180,7 +203,32 @@ void CClientInfoPage::slotSelectBuildDir()
         return;
     }
 
-    fImpl->buildRelDir->setText( QDir( clientDir ).relativeFilePath( dir ) );
+    fImpl->buildRelativeDir->setText( QDir( clientDir ).relativeFilePath( dir ) );
     fBuildDirManuallySet = true;
+    slotChanged();
+}
+
+void CClientInfoPage::slotSelectModelTechDir()
+{
+    auto clientDir = fImpl->clientDir->text();
+    if ( clientDir.isEmpty() )
+        return;
+    auto currModelTechRelativeDir = fImpl->modelTechRelativeDir->text();
+    if ( !currModelTechRelativeDir.isEmpty() )
+        currModelTechRelativeDir = clientDir + "/" + currModelTechRelativeDir;
+
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select ModelTech Directory" ), currModelTechRelativeDir );
+    if ( dir.isEmpty() )
+        return;
+
+    QFileInfo fi( dir );
+    if ( !fi.exists() || !fi.isDir() || !fi.isWritable() )
+    {
+        QMessageBox::critical( this, tr( "Error Writable Directory not Selected" ), QString( "Error: '%1' is not an writable directory" ).arg( dir ) );
+        return;
+    }
+
+    fImpl->modelTechRelativeDir->setText( QDir( clientDir ).relativeFilePath( dir ) );
+    fModelTechDirManuallySet = true;
     slotChanged();
 }

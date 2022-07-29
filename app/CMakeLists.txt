@@ -25,7 +25,7 @@ project(VSProjectMaker)
 include( include.cmake )
 include( ${CMAKE_SOURCE_DIR}/SABUtils/Project.cmake )
 
-add_executable( VSProjectMaker WIN32
+add_executable( VSProjectMaker 
                  ${_PROJECT_DEPENDENCIES} 
                  ${_CMAKE_MODULE_FILES}
                 application.rc

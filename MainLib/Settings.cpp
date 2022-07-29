@@ -945,12 +945,12 @@ namespace NVSProjectMaker
 
     std::optional< QString > CSettings::getBuildDir( bool relPath ) const
     {
-        return getDir( getBuildRelDir(), relPath );
+        return getDir( getBuildRelativeDir(), relPath );
     }
 
     std::optional< QString > CSettings::getSourceDir( bool relPath ) const
     {
-        return getDir( getSourceRelDir(), relPath );
+        return getDir( getSourceRelativeDir(), relPath );
     }
 
 
@@ -969,8 +969,9 @@ namespace NVSProjectMaker
         ADD_SETTING_VALUE( CustomCMakeExec);
         ADD_SETTING_VALUE( Generator );
         ADD_SETTING_VALUE( ClientDir );
-        ADD_SETTING_VALUE( SourceRelDir );
-        ADD_SETTING_VALUE( BuildRelDir );
+        ADD_SETTING_VALUE( SourceRelativeDir );
+        ADD_SETTING_VALUE( BuildRelativeDir );
+        ADD_SETTING_VALUE( ModelTechRelativeDir );
         ADD_SETTING_VALUE( QtDir );
         ADD_SETTING_VALUE( ProdDir );
         ADD_SETTING_VALUE( MSys64Dir );
@@ -1028,8 +1029,9 @@ namespace NVSProjectMaker
         qDebug() << "CustomCMakeExec=" << getCustomCMakeExec();
         qDebug() << "Generator=" << getGenerator();
         qDebug() << "ClientDir=" << getClientDir();
-        qDebug() << "SourceRelDir=" << getSourceRelDir();
-        qDebug() << "BuildRelDir=" << getBuildRelDir();
+        qDebug() << "SourceRelaltiveDir=" << getSourceRelativeDir();
+        qDebug() << "BuildRelativeDir=" << getBuildRelativeDir();
+        qDebug() << "ModelTechRelativeDir=" << getBuildRelativeDir();
         qDebug() << "QtDir=" << getQtDir();
         qDebug() << "QtDirs=" << getQtDirs();
         qDebug() << "ProdDir=" << getProdDir();

@@ -78,8 +78,9 @@ CMainWindow::CMainWindow( QWidget * parent )
     connect( fImpl->runWizardBtn, &QToolButton::clicked, this, &CMainWindow::slotRunWizard );
     connect(fImpl->cmakeExecBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectCMake);
     connect( fImpl->clientDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectClientDir );
-    connect( fImpl->sourceDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectSourceDir );
-    connect( fImpl->buildDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectBuildDir );
+    connect( fImpl->sourceRelativeDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectSourceDir );
+    connect( fImpl->buildRelativeDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectBuildDir );
+    connect( fImpl->modelTechRelativeDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectModelTechDir );
     connect( fImpl->qtDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectQtDir );
     connect( fImpl->prodDirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectProdDir );
     connect( fImpl->msys64DirBtn, &QToolButton::clicked, this, &CMainWindow::slotSelectMSys64Dir );
@@ -142,8 +143,9 @@ void CMainWindow::popDisconnected( bool force )
         connect(fImpl->useCustomCMake, &QGroupBox::clicked, this, &CMainWindow::slotChanged);
         connect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
         connect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-        connect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-        connect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        connect( fImpl->sourceRelativeDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        connect( fImpl->buildRelativeDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        connect( fImpl->modelTechRelativeDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
         connect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
         connect( fImpl->bldOutputFile, &QLineEdit::textChanged, this, &CMainWindow::slotLoadOutputData );
         connect( fCustomBuildModel, &NSABUtils::CCheckableStringListModel::dataChanged, this, &CMainWindow::slotBuildsChanged );
@@ -160,8 +162,9 @@ void CMainWindow::pushDisconnected()
         disconnect(fImpl->useCustomCMake, &QGroupBox::clicked, this, &CMainWindow::slotChanged);
         disconnect( fImpl->generator, &QComboBox::currentTextChanged, this, &CMainWindow::slotChanged );
         disconnect( fImpl->clientDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-        disconnect( fImpl->sourceRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
-        disconnect( fImpl->buildRelDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        disconnect( fImpl->sourceRelativeDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        disconnect( fImpl->buildRelativeDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
+        disconnect( fImpl->modelTechRelativeDir, &QLineEdit::textChanged, this, &CMainWindow::slotChanged );
         disconnect( fImpl->qtDir, &QLineEdit::textChanged, this, &CMainWindow::slotQtChanged );
         disconnect( fImpl->bldOutputFile, &QLineEdit::textChanged, this, &CMainWindow::slotLoadOutputData );
         disconnect( fCustomBuildModel, &NSABUtils::CCheckableStringListModel::dataChanged, this, &CMainWindow::slotBuildsChanged );
@@ -315,14 +318,21 @@ std::optional< QString > CMainWindow::getDir( const QLineEdit * lineEdit, bool r
 std::optional< QString > CMainWindow::getSourceDir( bool relPath ) const
 {
     fSettings->setClientDir( fImpl->clientDir->text() );
-    fSettings->setSourceRelDir( fImpl->sourceRelDir->text() );
+    fSettings->setSourceRelativeDir( fImpl->sourceRelativeDir->text() );
     return fSettings->getSourceDir( relPath );
 }
 
 std::optional< QString > CMainWindow::getBuildDir( bool relPath ) const
 {
     fSettings->setClientDir( fImpl->clientDir->text() );
-    fSettings->setBuildRelDir( fImpl->buildRelDir->text() );
+    fSettings->setBuildRelativeDir( fImpl->buildRelativeDir->text() );
+    return fSettings->getBuildDir( relPath );
+}
+
+std::optional< QString > CMainWindow::getModelTechDir( bool relPath ) const
+{
+    fSettings->setClientDir( fImpl->clientDir->text() );
+    fSettings->setModelTechRelativeDir( fImpl->modelTechRelativeDir->text() );
     return fSettings->getBuildDir( relPath );
 }
 
@@ -410,9 +420,9 @@ void CMainWindow::saveSettings()
     fSettings->setGenerator(fImpl->generator->currentText());
     fSettings->setClientDir(fImpl->clientDir->text());
     auto srcDir = getSourceDir(true);
-    fSettings->setSourceRelDir(srcDir.has_value() ? srcDir.value() : QString());
+    fSettings->setSourceRelativeDir(srcDir.has_value() ? srcDir.value() : QString());
     auto bldDir = getBuildDir(true);
-    fSettings->setBuildRelDir(bldDir.has_value() ? bldDir.value() : QString());
+    fSettings->setBuildRelativeDir(bldDir.has_value() ? bldDir.value() : QString());
     fSettings->setQtDir(fImpl->qtDir->text());
     fSettings->setProdDir(fImpl->prodDir->text());
     fSettings->setMSys64Dir(fImpl->msys64Dir->text());
@@ -484,8 +494,9 @@ void CMainWindow::loadSettings()
     fImpl->cmakeExec->setText(fSettings->getCustomCMakeExec());
     fImpl->generator->setCurrentText(fSettings->getGenerator());
     fImpl->clientDir->setText(fSettings->getClientDir());
-    fImpl->buildRelDir->setText(fSettings->getBuildRelDir());
-    fImpl->qtDir->setText(fSettings->getQtDir());
+    fImpl->buildRelativeDir->setText(fSettings->getBuildRelativeDir());
+    fImpl->modelTechRelativeDir->setText( fSettings->getModelTechRelativeDir() );
+    fImpl->qtDir->setText( fSettings->getQtDir() );
     fImpl->prodDir->setText(fSettings->getProdDir());
     fImpl->msys64Dir->setText(fSettings->getMSys64Dir());
     fImpl->origBldTxtProdDir->setText(fSettings->getBldTxtProdDir());
@@ -523,7 +534,7 @@ void CMainWindow::loadSettings()
     slotBuildsChanged();
     fImpl->primaryBuildTarget->setCurrentText(fSettings->getPrimaryTarget());
 
-    fImpl->sourceRelDir->setText(fSettings->getSourceRelDir());
+    fImpl->sourceRelativeDir->setText(fSettings->getSourceRelativeDir());
 
     auto dbgCmds = fSettings->getDebugCommands();
     for (auto && ii : dbgCmds)
@@ -618,8 +629,9 @@ void CMainWindow::doChanged( bool andLoad )
 
     bool generatorOK = !fImpl->generator->currentText().isEmpty();
 
-    fImpl->sourceDirBtn->setEnabled( clientDirOK );
-    fImpl->buildDirBtn->setEnabled( clientDirOK );
+    fImpl->sourceRelativeDirBtn->setEnabled( clientDirOK );
+    fImpl->buildRelativeDirBtn->setEnabled( clientDirOK );
+    fImpl->modelTechRelativeDirBtn->setEnabled( clientDirOK );
     fImpl->addDebugTargetBtn->setEnabled( sourceDirOK && bldDirOK );
     fImpl->addIncDirBtn->setEnabled( sourceDirOK );
     fImpl->generateBtn->setEnabled( cmakePathOK && clientDirOK && generatorOK && sourceDirOK && bldDirOK );
@@ -666,8 +678,9 @@ void CMainWindow::slotRunWizard()
         fImpl->msys64Dir->setText( wizard.field( "msys64Dir" ).toString() );
 
         fImpl->clientDir->setText( wizard.field( "clientDir" ).toString() );
-        fImpl->buildRelDir->setText( wizard.field( "buildRelDir" ).toString() );
-        fImpl->sourceRelDir->setText( wizard.field( "sourceRelDir" ).toString() );
+        fImpl->buildRelativeDir->setText( wizard.field( "buildRelativeDir" ).toString() );
+        fImpl->modelTechRelativeDir->setText( wizard.field( "modelTechRelativeDir" ).toString() );
+        fImpl->sourceRelativeDir->setText( wizard.field( "sourceRelativeDir" ).toString() );
 
         fImpl->qtDir->setText( wizard.field( "qtDir" ).toString() );
 
@@ -696,7 +709,7 @@ void CMainWindow::loadBuildTargetsFromWizard( const QStringList & targets, const
 {
     for ( auto && ii : targets )
     {
-        addCustomBuild( std::make_pair( fImpl->buildRelDir->text(), ii ) );
+        addCustomBuild( std::make_pair( fImpl->buildRelativeDir->text(), ii ) );
     }
     fImpl->primaryBuildTarget->clear();
     fImpl->primaryBuildTarget->addItems( targets );
@@ -930,7 +943,7 @@ void CMainWindow::slotSelectSourceDir()
         return;
     }
 
-    fImpl->sourceRelDir->setText( QDir( getClientDir().value() ).relativeFilePath( dir ) );
+    fImpl->sourceRelativeDir->setText( QDir( getClientDir().value() ).relativeFilePath( dir ) );
 }
 
 void CMainWindow::slotSelectClientDir()
@@ -970,7 +983,28 @@ void CMainWindow::slotSelectBuildDir()
         return;
     }
 
-    fImpl->buildRelDir->setText( QDir( getClientDir().value() ).relativeFilePath( dir ) );
+    fImpl->buildRelativeDir->setText( QDir( getClientDir().value() ).relativeFilePath( dir ) );
+}
+
+void CMainWindow::slotSelectModelTechDir()
+{
+    auto currPath = getBuildDir();
+    if ( !currPath.has_value() )
+        currPath = fImpl->clientDir->text();
+    if ( !currPath.has_value() || currPath.value().isEmpty() )
+        currPath = QString();
+    auto dir = QFileDialog::getExistingDirectory( this, tr( "Select ModelTech Directory" ), currPath.value() );
+    if ( dir.isEmpty() )
+        return;
+
+    QFileInfo fi( dir );
+    if ( !fi.exists() || !fi.isDir() || !fi.isWritable() )
+    {
+        QMessageBox::critical( this, tr( "Error Writable Directory not Selected" ), QString( "Error: '%1' is not an writable directory" ).arg( dir ) );
+        return;
+    }
+
+    fImpl->modelTechRelativeDir->setText( QDir( getClientDir().value() ).relativeFilePath( dir ) );
 }
 
 void CMainWindow::slotAddDebugTarget()

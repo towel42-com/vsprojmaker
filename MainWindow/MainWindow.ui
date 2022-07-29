@@ -51,8 +51,22 @@
           <string>P4 Client Information:</string>
          </property>
          <layout class="QGridLayout" name="gridLayout">
+          <item row="2" column="1">
+           <widget class="QLineEdit" name="sourceRelativeDir"/>
+          </item>
+          <item row="3" column="2">
+           <widget class="QToolButton" name="buildRelativeDirBtn">
+            <property name="text">
+             <string>...</string>
+            </property>
+            <property name="icon">
+             <iconset resource="MainWindow.qrc">
+              <normaloff>:/resources/open.png</normaloff>:/resources/open.png</iconset>
+            </property>
+           </widget>
+          </item>
           <item row="2" column="2">
-           <widget class="QToolButton" name="sourceDirBtn">
+           <widget class="QToolButton" name="sourceRelativeDirBtn">
             <property name="text">
              <string>...</string>
             </property>
@@ -69,8 +83,8 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
-           <widget class="QLineEdit" name="sourceRelDir"/>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="clientDir"/>
           </item>
           <item row="0" column="2">
            <widget class="QToolButton" name="clientDirBtn">
@@ -83,26 +97,15 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="2">
-           <widget class="QToolButton" name="buildDirBtn">
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_10">
             <property name="text">
-             <string>...</string>
-            </property>
-            <property name="icon">
-             <iconset resource="MainWindow.qrc">
-              <normaloff>:/resources/open.png</normaloff>:/resources/open.png</iconset>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
-           <widget class="QLabel" name="label_4">
-            <property name="text">
-             <string>Build Directory:</string>
+             <string>Client Directory:</string>
             </property>
            </widget>
           </item>
           <item row="3" column="1">
-           <widget class="QLineEdit" name="buildRelDir"/>
+           <widget class="QLineEdit" name="buildRelativeDir"/>
           </item>
           <item row="1" column="1">
            <widget class="QLineEdit" name="clientName">
@@ -114,9 +117,6 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="1">
-           <widget class="QLineEdit" name="clientDir"/>
-          </item>
           <item row="2" column="0">
            <widget class="QLabel" name="label_3">
             <property name="text">
@@ -124,10 +124,31 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="label_10">
+          <item row="3" column="0">
+           <widget class="QLabel" name="label_4">
             <property name="text">
-             <string>Client Directory:</string>
+             <string>Build Directory:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="label_19">
+            <property name="text">
+             <string>ModelTech Directory:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QLineEdit" name="modelTechRelativeDir"/>
+          </item>
+          <item row="4" column="2">
+           <widget class="QToolButton" name="modelTechRelativeDirBtn">
+            <property name="text">
+             <string>...</string>
+            </property>
+            <property name="icon">
+             <iconset resource="MainWindow.qrc">
+              <normaloff>:/resources/open.png</normaloff>:/resources/open.png</iconset>
             </property>
            </widget>
           </item>
@@ -622,6 +643,7 @@
   <tabstop>runWizardBtn</tabstop>
   <tabstop>prodDir</tabstop>
   <tabstop>prodDirBtn</tabstop>
+  <tabstop>vsVersion</tabstop>
   <tabstop>useCustomCMake</tabstop>
   <tabstop>cmakeExec</tabstop>
   <tabstop>cmakeExecBtn</tabstop>
@@ -633,10 +655,12 @@
   <tabstop>clientDir</tabstop>
   <tabstop>clientDirBtn</tabstop>
   <tabstop>clientName</tabstop>
-  <tabstop>sourceRelDir</tabstop>
-  <tabstop>sourceDirBtn</tabstop>
-  <tabstop>buildRelDir</tabstop>
-  <tabstop>buildDirBtn</tabstop>
+  <tabstop>sourceRelativeDir</tabstop>
+  <tabstop>sourceRelativeDirBtn</tabstop>
+  <tabstop>buildRelativeDir</tabstop>
+  <tabstop>buildRelativeDirBtn</tabstop>
+  <tabstop>modelTechRelativeDir</tabstop>
+  <tabstop>modelTechRelativeDirBtn</tabstop>
   <tabstop>tabWidget</tabstop>
   <tabstop>sourceTree</tabstop>
   <tabstop>bldOutputFile</tabstop>

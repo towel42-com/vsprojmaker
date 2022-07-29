@@ -120,7 +120,7 @@ int runCLI(QSharedPointer< QCoreApplication > & appl)
         return waitForPrompt( consoleCreated, -1);
     }
     std::cout << "Finding directories\n";
-    if (settings.loadSourceFiles(clientDir.absoluteFilePath(settings.getSourceRelDir()), clientDir.absoluteFilePath(settings.getSourceRelDir()), nullptr,
+    if (settings.loadSourceFiles(clientDir.absoluteFilePath(settings.getSourceRelativeDir()), clientDir.absoluteFilePath(settings.getSourceRelativeDir()), nullptr,
         [](const QString & msg) { std::cout << msg.toStdString() << "\n"; }))
     {
         std::cerr << "Could not load directories\n";
@@ -158,7 +158,7 @@ int runGUI( QSharedPointer< QCoreApplication > & /*appl*/)
     return mainWindow.exec();
 }
 
-int main(int argc, char ** argv)
+int main( int argc, char ** argv )
 {
     Q_INIT_RESOURCE(MainLib);
 
