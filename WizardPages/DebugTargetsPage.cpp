@@ -185,13 +185,14 @@ SDebugTargetInfo::SDebugTargetInfo(const QString & initTargetName, NVSProjectMak
 
     if (fTargetName == "HDL Studio")
     {
-        fExecutable = QString("<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlstudio.exe");
+        fExecutable = QString("<MODELTECHDIR>/VisualizerRls/bin/hdlstudio.exe");
     }
 
     if ( fTargetName.toLower().contains( "sample" ) )
     {
         fEnvVars << "SKIP_LIMITED_FEATURES_KEY=1";
     }
+    fEnvVars << "PATH=%PATH%;<MODELTECHDIR>;<MODELTECHDIR>/VisualizerRls/bin";
     
     if ( fTargetName.contains( "ProjectSample" ) )
     {

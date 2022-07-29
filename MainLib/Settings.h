@@ -216,6 +216,7 @@ namespace NVSProjectMaker
 
         QString fileName() const;
         bool loadSourceFiles( const QDir & sourceDir, const QString & dir, QProgressDialog * progress, const std::function< void( const QString & msg ) > & logit );
+        std::optional< QString > getModelTechDir( bool relPath = false ) const;
         std::optional< QString > getBuildDir( bool relPath = false ) const;
         std::optional< QString > getSourceDir( bool relPath = false ) const;
         std::optional< QString > getDir( const QString & relDir, bool relPath ) const;

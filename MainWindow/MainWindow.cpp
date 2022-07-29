@@ -333,7 +333,7 @@ std::optional< QString > CMainWindow::getModelTechDir( bool relPath ) const
 {
     fSettings->setClientDir( fImpl->clientDir->text() );
     fSettings->setModelTechRelativeDir( fImpl->modelTechRelativeDir->text() );
-    return fSettings->getBuildDir( relPath );
+    return fSettings->getModelTechDir( relPath );
 }
 
 QStringList argsFromString(const QString& argList)
@@ -423,6 +423,8 @@ void CMainWindow::saveSettings()
     fSettings->setSourceRelativeDir(srcDir.has_value() ? srcDir.value() : QString());
     auto bldDir = getBuildDir(true);
     fSettings->setBuildRelativeDir(bldDir.has_value() ? bldDir.value() : QString());
+    auto modelTechDir = getModelTechDir( true );
+    fSettings->setModelTechRelativeDir( modelTechDir.has_value() ? modelTechDir.value() : QString() );
     fSettings->setQtDir(fImpl->qtDir->text());
     fSettings->setProdDir(fImpl->prodDir->text());
     fSettings->setMSys64Dir(fImpl->msys64Dir->text());
@@ -581,6 +583,7 @@ void CMainWindow::doChanged( bool andLoad )
     }
 
     slotBuildsChanged();
+    getModelTechDir();
 
     auto sourceDirPath = getSourceDir();
     auto fi = clientDirOK && sourceDirPath.has_value() ? QFileInfo( sourceDirPath.value() ) : QFileInfo();

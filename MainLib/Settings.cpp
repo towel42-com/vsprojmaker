@@ -332,6 +332,7 @@ namespace NVSProjectMaker
               { "CLIENTDIR", QDir( getClientDir() ).absolutePath() }
             , { "SOURCEDIR", getSourceDir().value() }
             , { "BUILD_DIR", getBuildDir().value() }
+            , { "MODELTECHDIR", getModelTechDir().value() }
             , { "PRODDIR", QDir( getProdDir() ).absolutePath() }
             , { "MSYS64DIR_MSYS", getMSys64Dir( true ) }
             , { "MSYS64DIR_WIN", getMSys64Dir( false ) }
@@ -941,6 +942,11 @@ namespace NVSProjectMaker
             return {};
 
         return clientDir.absoluteFilePath( relDir );
+    }
+
+    std::optional< QString > CSettings::getModelTechDir( bool relPath ) const
+    {
+        return getDir( getModelTechRelativeDir(), relPath );
     }
 
     std::optional< QString > CSettings::getBuildDir( bool relPath ) const
