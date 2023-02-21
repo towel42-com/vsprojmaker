@@ -37,7 +37,9 @@ find_package(Deploy REQUIRED)
 find_package(AddUnitTest REQUIRED)
 set_property( GLOBAL PROPERTY USE_FOLDERS ON )
 
-SET( CMAKE_INSTALL_PREFIX C:/Users/sbloom/bin/VSProjMaker )
+SET( HOME_BIN_DIR C:/Users/sbloom/bin )
+
+SET( CMAKE_INSTALL_PREFIX ${HOME_BIN_DIR}/VSProjMaker )
 
 add_custom_target( SABTests_SABUtils )
 add_subdirectory( SABUtils )
