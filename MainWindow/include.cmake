@@ -20,6 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+set(_PROJECT_NAME MainWindow)
+set(USE_QT TRUE)
+set(FOLDER_NAME Libs)
+
 set(qtproject_SRCS
     AddCustomBuild.cpp
     MainWindow.cpp

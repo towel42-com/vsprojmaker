@@ -57,7 +57,7 @@ QString CSetupDebug::command() const
 
 QStringList CSetupDebug::args() const
 {
-    return fImpl->cmdArgs->text().split( " ", TSkipEmptyParts);
+    return fImpl->cmdArgs->text().split( " ", NSABUtils::NStringUtils::TSkipEmptyParts);
 }
 
 QString CSetupDebug::workDir() const
@@ -72,7 +72,7 @@ QString CSetupDebug::sourceDir() const
 
 QStringList CSetupDebug::envVars() const
 {
-    return fImpl->envVars->text().split(" ", TSkipEmptyParts);
+    return fImpl->envVars->text().split(" ", NSABUtils::NStringUtils::TSkipEmptyParts);
 }
 
 void CSetupDebug::slotSelectCommand()

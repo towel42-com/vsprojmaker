@@ -338,12 +338,12 @@ std::optional< QString > CMainWindow::getModelTechDir( bool relPath ) const
 
 QStringList argsFromString(const QString& argList)
 {
-    return argList.split(" ", TSkipEmptyParts);
+    return argList.split(" ", NSABUtils::NStringUtils::TSkipEmptyParts);
 }
 
 QStringList envVarsFromString(const QString& envVarList)
 {
-    return envVarList.split(" ", TSkipEmptyParts);
+    return envVarList.split(" ", NSABUtils::NStringUtils::TSkipEmptyParts);
 }
 
 QString stringFromEnvVars(const QStringList& envVars)
@@ -451,19 +451,12 @@ void CMainWindow::saveSettings()
 void CMainWindow::slotLoadInstalledVS()
 {
     bool aOK = false;
-    bool retry = false;
     QString errorMsg;
     NSABUtils::NVSInstallUtils::TInstalledVisualStudios installedVSes;
 
-    std::tie( aOK, errorMsg, installedVSes ) = fSettings->setupInstalledVSes( getProcess(), &retry );
+    std::tie( aOK, errorMsg, installedVSes ) = fSettings->setupInstalledVSes();
 
     clearProcess();
-
-    if ( retry )
-    {
-        QTimer::singleShot( 500, this, &CMainWindow::slotLoadInstalledVS );
-        return;
-    }
 
     if ( !aOK )
     {
@@ -719,12 +712,55 @@ void CMainWindow::loadBuildTargetsFromWizard( const QStringList & targets, const
     fImpl->primaryBuildTarget->setCurrentText( primaryTarget );
 }
 
-void CMainWindow::loadDebugTargetsFromWizard( const std::list< std::shared_ptr< SDebugTargetInfo > > & targets )
+void CMainWindow::loadDebugTargetsFromWizard( const std::list< std::shared_ptr< SDebugTargetInfo > > & /*targets*/ )
 {
-    for (auto&& ii : targets)
-    {
-        addDebugTarget( ii->fSourceDirPath, ii->fTargetName, ii->fExecutable, ii->fArgs, ii->fWorkingDir, ii->fEnvVars );
-    }
+    //for (auto && ii : targets)
+    //{
+    //    auto path = QString( "src/hdloffice/hdlstudio/cxx/main/src" );
+    //    auto && name = ii;
+    //    QString args;
+    //    if( ii->fTargetName.startsWith( "HDL Client+" ) )
+    //    {
+    //        QRegularExpression regExp( "\\+(?<clientName>[^+]+)" );
+    //        auto jj = regExp.globalMatch ( ii->fTargetName );
+    //        QStringList dlls;
+    //        while( jj.hasNext() )
+    //        {
+    //            auto match = jj.next();
+    //            auto matched = match.captured( "clientName" );
+    //            dlls << QString( "+external_client+<CLIENTDIR>/devapps/visualizer/win64/%1.dll" ).arg( matched );
+    //        }
+    //        args = dlls.join( " " );
+    //    }
+
+    //    auto executable = QString( "<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlclient.exe" );
+    //    if( ii->fTargetName == "HDL Studio" )
+    //    {
+    //        executable = QString( "<CLIENTDIR>/modeltech/win64/VisualizerRls/bin/hdlstudio.exe" );
+    //    }
+    //    auto workDir = QString( "<CLIENTDIR>" );
+
+    //    QString envVars;
+    //    if( ii->fTargetName == "HDL Client+vxcSampleWithProject" )
+    //    {
+    //        envVars = QString( "{SKIP_LIMITED_FEATURES_KEY=1}{ENABLE_VFPRJ=1}" );
+    //        args += " +vfprj_mode";
+    //    }
+    //    else if( ii->fTargetName == "HDL Client+vxcSampleWithFlowNav" )
+    //    {
+    //        envVars = QString( "{SKIP_LIMITED_FEATURES_KEY=1}{ENABLE_FLOWNAV=1}" );
+    //        args += " +vfprj_mode";
+    //    }
+    //    else if( ii->fTargetName.contains( "vxcMCLobo" ) )
+    //    {
+    //        envVars = QString( "{SKIP_LIMITED_FEATURES_KEY=1}{ENABLE_FLOWNAV=1}" );
+    //        args += " +vfprj_mode";
+    //    }
+
+    //    args += " +SVG_icon";
+
+    //    addDebugTarget( path, ii->fTargetName, executable, args, workDir, envVars );
+    //}
 }
 
 void CMainWindow::loadIncludeDirsFromWizard( const QStringList & includeDirs )
@@ -858,7 +894,7 @@ void CMainWindow::slotVSChanged()
         return;
     }
     auto data = QString( getProcess()->readAll() );
-    auto lines = data.split( '\n', TSkipEmptyParts);
+    auto lines = data.split( '\n', NSABUtils::NStringUtils::TSkipEmptyParts);
     QStringList generators;
     bool inGenerators = false;
     bool usePrev = false;
