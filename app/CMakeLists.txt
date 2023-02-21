@@ -20,12 +20,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-project(VSProjectMaker) 
+cmake_minimum_required(VERSION 3.22)
+ 
+find_package(IncludeProjectSettings REQUIRED)
+include( ${CMAKE_CURRENT_LIST_DIR}/include.cmake )
+project( ${_PROJECT_NAME} ) 
 
-include( include.cmake )
-include( ${CMAKE_SOURCE_DIR}/SABUtils/Project.cmake )
+IncludeProjectSettings(QT ${USE_QT})
 
-add_executable( VSProjectMaker 
+add_executable( ${PROJECT_NAME} 
                  ${_PROJECT_DEPENDENCIES} 
                  ${_CMAKE_MODULE_FILES}
                 application.rc
@@ -37,9 +40,9 @@ set ( DEBUG_PATH
     "${QTDIR}"
     )
 
-set_target_properties( VSProjectMaker PROPERTIES FOLDER Apps 
-                        VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:VSProjectMaker>" 
-                        VS_DEBUGGER_COMMAND "$<TARGET_FILE:VSProjectMaker>" 
+set_target_properties( ${PROJECT_NAME} PROPERTIES FOLDER ${FOLDER_NAME} 
+                        VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}>" 
+                        VS_DEBUGGER_COMMAND "$<TARGET_FILE:${PROJECT_NAME}>" 
                         VS_DEBUGGER_ENVIRONMENT "PATH=${DEBUG_PATH}" 
                      )
 
@@ -50,8 +53,8 @@ target_link_libraries( ${PROJECT_NAME}
         ${project_pri_DEPS}
 )
 
-DeployQt( VSProjectMaker . )
-DeploySystem( VSProjectMaker . )
+DeployQt( ${PROJECT_NAME} . )
+DeploySystem( ${PROJECT_NAME} . )
 
 INSTALL( TARGETS ${PROJECT_NAME} RUNTIME DESTINATION . )
 INSTALL( FILES ${CMAKE_CURRENT_BINARY_DIR}/Debug/${PROJECT_NAME}.pdb DESTINATION . CONFIGURATIONS Debug RelWithDebInfo )
