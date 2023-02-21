@@ -65,7 +65,7 @@ private:
     std::list< std::list< QString > > fAllTargets;
     std::unique_ptr< Ui::CDebugTargetsPage > fImpl;
     NSABUtils::CCheckableStringListModel * fDebugTargets{ nullptr };
-
+    QStringList findCustomDebugTargets() const;
 };
 
 #endif // _ALCULATOR_H

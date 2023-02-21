@@ -49,38 +49,9 @@ CDebugTargetsPage::~CDebugTargetsPage()
 
 void CDebugTargetsPage::initializePage()
 {
-    fAllTargets = getDebugTargets();
-    QStringList customTargets;
-    for (auto&& ii : fAllTargets)
-    {
-        if (ii.empty())
-            continue;
-        QString mainApp;
-        QStringList addOns;
-        for (auto&& jj : ii)
-        {
-            QString currTarget = jj;
-            QString remaining;
-            auto pos = currTarget.indexOf("+");
-            if (pos != -1)
-            {
-                remaining = currTarget.mid(pos + 1).trimmed();
-                currTarget = currTarget.left(pos).trimmed();
-                if (mainApp.isEmpty())
-                    mainApp = currTarget;
-                addOns << remaining;
-            }
-            else
-            {
-                if (mainApp.isEmpty())
-                    mainApp = currTarget;
-            }
-        }
-        auto target = mainApp;
-        if ( !addOns.empty() )
-            target += "+" + addOns.join("+");
-        customTargets << target;
-    }
+    auto customTargets = findCustomDebugTargets();
+    fDebugTargets->setStringList( customTargets );
+
     fDebugTargets->setStringList(customTargets);
     fDebugTargets->setChecked(customTargets, true, true);
 }
@@ -132,6 +103,79 @@ std::list< std::list< QString > > CDebugTargetsPage::getSampleDirs(const QDir & 
     return retVal;
 }
 
+
+//fAllTargets = getDebugTargets();
+//QStringList customTargets;
+//for (auto&& ii : fAllTargets)
+//{
+//    if (ii.empty())
+//        continue;
+//    QString mainApp;
+//    QStringList addOns;
+//    for (auto&& jj : ii)
+//    {
+//        QString currTarget = jj;
+//        QString remaining;
+//        auto pos = currTarget.indexOf("+");
+//        if (pos != -1)
+//        {
+//            remaining = currTarget.mid(pos + 1).trimmed();
+//            currTarget = currTarget.left(pos).trimmed();
+//            if (mainApp.isEmpty())
+//                mainApp = currTarget;
+//            addOns << remaining;
+//        }
+//        else
+//        {
+//            if (mainApp.isEmpty())
+//                mainApp = currTarget;
+//        }
+//    }
+//    auto target = mainApp;
+//    if (!addOns.empty())
+//        target += "+" + addOns.join("+");
+//    customTargets << target;
+//}
+
+QStringList CDebugTargetsPage::findCustomDebugTargets() const
+{
+    auto retVal = QStringList() << "HDL Client" << "HDL Studio";
+
+    auto clientDirPath = field( "clientDir" ).toString();
+    bool validPath = ( !clientDirPath.isEmpty() && QFileInfo( clientDirPath ).exists() && QFileInfo( clientDirPath ).isDir() && QFileInfo( clientDirPath ).isReadable() );
+
+    if( !validPath )
+        return retVal;
+
+    auto clientDir = QDir( clientDirPath );
+    auto platformMKPath = clientDir.absoluteFilePath( "src/misc/platform.mk" );
+    auto file = QFile( platformMKPath );
+
+    if( !file.open( QFile::OpenModeFlag::ReadOnly ) )
+        return retVal;
+
+    QRegularExpression regExp( "^(?<sampleVar>(.*)_SAMPLE_SO)(\\s*)=(\\s*).*\\/(?<sampleName>.*)\\$\\(SL_EXT\\)", QRegularExpression::CaseInsensitiveOption );
+    auto ts = QTextStream( &file );
+    QString currLine;
+    QStringList multiClients;
+    while( ts.readLineInto( &currLine ) )
+    {
+        auto match = regExp.match( currLine );
+        if( !match.hasMatch() )
+            continue;
+        //auto var  = match.captured( "sampleVar" );
+        auto name = match.captured( "sampleName" );
+        if( name.startsWith( "vxcMC" ) )
+            multiClients << name;
+        else
+            retVal << "HDL Client+" + name;
+    }
+    if( !multiClients.isEmpty() )
+        retVal << ( QStringList() << "HDL Client" << multiClients ).join( "+" );
+
+    return retVal;
+}
+
 std::list< std::shared_ptr< SDebugTargetInfo > > CDebugTargetsPage::enabledDebugTargets(NVSProjectMaker::CSettings * settings ) const
 {
     std::list< std::shared_ptr< SDebugTargetInfo > > retVal;
@@ -163,7 +207,7 @@ SDebugTargetInfo::SDebugTargetInfo(const QString & initTargetName, NVSProjectMak
             fTargetName = fTargetName.left( pos ).trimmed();
         }
 
-        auto addOns = remaining.split("+", TSkipEmptyParts );
+        auto addOns = remaining.split("+", NSABUtils::NStringUtils::TSkipEmptyParts );
         QStringList dllsFound;
         for (auto && ii : addOns)
         {

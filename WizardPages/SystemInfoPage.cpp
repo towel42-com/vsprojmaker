@@ -56,7 +56,7 @@ void CSystemInfoPage::setDefaults()
     bool aOK = false;
     bool retry = false;
     QString errorMsg;
-    std::tie( aOK, errorMsg, fInstalledVSes ) = NSABUtils::NVSInstallUtils::getInstalledVisualStudios( new QProcess( this ), &retry );
+    std::tie( aOK, errorMsg, fInstalledVSes ) = NSABUtils::NVSInstallUtils::getInstalledVisualStudios();
 
     fImpl->vsVersion->addItems( fInstalledVSes.second );
     // default is 2017

@@ -30,7 +30,7 @@ CBuildTargetsPage::CBuildTargetsPage( QWidget * parent )
 {
     fImpl->setupUi( this );
     fBuildTargets = new NSABUtils::CCheckableStringListModel( this );
-    auto buildTargets = QStringList() << "qworld" << "qworld -k" << "qoffice" << "qoffice -k" << "world" << "world -k" << "vxcsamples" << "vxcsamples -k";
+    auto buildTargets = QStringList() << "qoffice" << "qoffice -k" << "qworld" << "qworld -k" << "world" << "world -k" << "vxcsamples" << "vxcsamples -k";
     fBuildTargets->setStringList( buildTargets );
     fBuildTargets->setChecked( buildTargets, true, true );
     fImpl->buildTargets->setModel( fBuildTargets );
@@ -38,7 +38,7 @@ CBuildTargetsPage::CBuildTargetsPage( QWidget * parent )
     connect( fBuildTargets, &NSABUtils::CCheckableStringListModel::dataChanged, this, &CBuildTargetsPage::slotBuildsChanged );
 
     fImpl->primaryTarget->addItems( buildTargets );
-    fImpl->primaryTarget->setCurrentText( "qworld" );
+    fImpl->primaryTarget->setCurrentText( "qoffice" );
     registerField( "primaryTarget", fImpl->primaryTarget, "currentText" );
     slotBuildsChanged();
 }

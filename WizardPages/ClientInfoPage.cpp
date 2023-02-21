@@ -27,6 +27,8 @@
 #include <QDir>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QCompleter>
+#include <QFileSystemModel>
 
 CClientInfoPage::CClientInfoPage( QWidget * parent )
     : QWizardPage( parent ),
@@ -47,6 +49,12 @@ CClientInfoPage::CClientInfoPage( QWidget * parent )
     registerField( "clientName", fImpl->clientName );
     registerField( "sourceRelativeDir*", fImpl->sourceRelativeDir );
     registerField( "buildRelativeDir*", fImpl->buildRelativeDir );
+
+    auto completer = new QCompleter( this );
+    completer->setCompletionMode( QCompleter::InlineCompletion );
+    completer->setModel( new QFileSystemModel( completer ) );
+    fImpl->clientDir->setCompleter( completer );
+
     registerField( "modelTechRelativeDir*", fImpl->modelTechRelativeDir );
 
     slotChanged();
@@ -63,9 +71,6 @@ CClientInfoPage::~CClientInfoPage()
 
 bool CClientInfoPage::isComplete() const
 {
-    auto retVal = QWizardPage::isComplete();
-    if ( !retVal )
-        return false;
     QFileInfo fi( fImpl->clientDir->text() );
     if ( !fi.exists() || !fi.isDir() || !fi.isReadable() )
         return false;
