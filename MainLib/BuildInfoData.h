@@ -31,6 +31,7 @@
 #include <optional>
 #include <set>
 #include <functional>
+#include <memory>
 
 using TStringSet = std::set< QString >;
 

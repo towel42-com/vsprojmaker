@@ -266,6 +266,8 @@ namespace NVSProjectMaker
         static [[nodiscard]] QStringList getQtIncludeDirs( const QString & qtDir );
         std::pair< int, std::vector< QMetaObject::Connection > > runCMake( const std::function< void( const QString & ) > & outFunc, const std::function< void( const QString & ) > & errFunc, QProcess * process, const std::pair< bool, std::function< void() > > & finishedInfo ) const;
 
+        QString getVCNumericVersion() const;
+
         ADD_SETTING( QString, VSVersion );
         ADD_SETTING( bool, UseCustomCMake);
         ADD_SETTING( QString, CustomCMakeExec );
@@ -295,8 +297,8 @@ namespace NVSProjectMaker
 
     public:
         QString getVSPathForVersion( const QString & version ) const;
-        std::tuple< bool, QString, NSABUtils::NVSInstallUtils::TInstalledVisualStudios > setupInstalledVSes( QProcess * process, bool * retry );
-        static std::tuple< bool, QString, NSABUtils::NVSInstallUtils::TInstalledVisualStudios > setupInstalledVSes(NSABUtils::NVSInstallUtils::TInstalledVisualStudios & installedVSes, QProcess * process, bool * retry);
+        std::tuple< bool, QString, NSABUtils::NVSInstallUtils::TInstalledVisualStudios > setupInstalledVSes();
+        static std::tuple< bool, QString, NSABUtils::NVSInstallUtils::TInstalledVisualStudios > setupInstalledVSes(NSABUtils::NVSInstallUtils::TInstalledVisualStudios & installedVSes );
     private:
         void updateProcessEnvironment( QProcess * process ) const;
         QMap< QString, QString > getVarMap() const;
@@ -334,6 +336,7 @@ namespace NVSProjectMaker
         mutable std::map< QString, std::pair< QString, bool > > fSamplesMap;
         mutable std::unordered_map< QString, CValueBase* > fSettings;
         mutable NSABUtils::NVSInstallUtils::TInstalledVisualStudios fInstalledVSes;
+        mutable QString fVCNumericVersion;
     };
 }
 

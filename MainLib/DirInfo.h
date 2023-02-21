@@ -26,6 +26,8 @@
 #include <unordered_map>
 #include <QString>
 #include <QStringList>
+#include <memory>
+
 class QWidget;
 class QTextStream;
 

@@ -26,6 +26,8 @@
 #include "DirInfo.h"
 #include "Version.h"
 #include "SABUtils/JsonUtils.h"
+#include "SABUtils/VSInstallUtils.h"
+#include "SABUtils/FileUtils.h"
 
 #include <QApplication>
 #include <QStandardItem>
@@ -47,7 +49,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonValue>
-#include "SABUtils/VSInstallUtils.h"
+
 namespace NVSProjectMaker
 {
     CSettings::CSettings() :
@@ -405,10 +407,32 @@ namespace NVSProjectMaker
         return retVal;
     }
 
+    QString CSettings::getVCNumericVersion() const
+    {
+        if (fVCNumericVersion.isEmpty())
+        {
+            auto vsDir = QDir( getVSPathForVersion(getVSVersion() )) ;
+            if ( vsDir.exists() )
+            {
+                auto devEnvExe = vsDir.absoluteFilePath( "Common7/IDE/devenv.exe" );
+                if (QFileInfo(devEnvExe).exists())
+                {
+                    auto aOK = false;
+                    auto version = NSABUtils::NFileUtils::getVersionInfoFromFile(devEnvExe, aOK);
+                    if ( aOK )
+                    {
+                        fVCNumericVersion = QString("%1.0").arg( std::get< 0 >( version ) );
+                    }
+                }
+            }
+        }
+        return fVCNumericVersion;
+    }
+
     QString CSettings::getEnvVarsForShell() const
     {
         auto retVal = QStringList()
-            << "export VC_VERSION=15.0"
+            << QString( "export VC_VERSION=%1" ).arg( getVCNumericVersion() )
             << "export PATH=/c/localprod/bin:$PATH"
             << "export INCLUDE="
             ;
@@ -1087,10 +1111,12 @@ namespace NVSProjectMaker
         auto buildDir = getBuildDir().value();
         auto cmakeExec = getCMakeExec();
         auto args = getCmakeArgs();
+        auto cwd = QDir::currentPath();
         updateProcessEnvironment( process );
         outFunc( QString( "Build Dir: %1" ).arg( buildDir ) + "\n" );
         outFunc( QString( "CMake Path: %1" ).arg( cmakeExec ) + "\n" );
         outFunc( QString( "Args: %1" ).arg( args.join( " " ) ) + "\n" );
+        outFunc( QString( "CWD: %1" ).arg( cwd ) + "\n" );
 
         outFunc( QObject::tr( "============================================" ) + "\n" );
         outFunc( QObject::tr( "Running CMake" ) + "\n" );
@@ -1149,8 +1175,7 @@ namespace NVSProjectMaker
     {
         if ( fInstalledVSes.first.empty() )
         {
-            QProcess process;
-            setupInstalledVSes( fInstalledVSes, &process, nullptr );
+            setupInstalledVSes( fInstalledVSes );
         }
         auto pos = fInstalledVSes.first.find( selected );
         if ( pos == fInstalledVSes.first.end() )
@@ -1158,20 +1183,20 @@ namespace NVSProjectMaker
         return ( *pos ).second;
     }
 
-    std::tuple< bool, QString, NSABUtils::NVSInstallUtils::TInstalledVisualStudios > CSettings::setupInstalledVSes( QProcess * process, bool * retry )
+    std::tuple< bool, QString, NSABUtils::NVSInstallUtils::TInstalledVisualStudios > CSettings::setupInstalledVSes()
     {
         if ( !fInstalledVSes.first.empty() )
         {
             return { true, QString(), fInstalledVSes };
         }
-        return setupInstalledVSes( fInstalledVSes, process, retry );
+        return setupInstalledVSes( fInstalledVSes );
     }
 
-    std::tuple< bool, QString, NSABUtils::NVSInstallUtils::TInstalledVisualStudios > CSettings::setupInstalledVSes(NSABUtils::NVSInstallUtils::TInstalledVisualStudios & retVal, QProcess * process, bool * retry )
+    std::tuple< bool, QString, NSABUtils::NVSInstallUtils::TInstalledVisualStudios > CSettings::setupInstalledVSes(NSABUtils::NVSInstallUtils::TInstalledVisualStudios & retVal )
     {
         bool aOK = false;
         QString errorMsg;
-        std::tie( aOK, errorMsg, retVal ) = NSABUtils::NVSInstallUtils::getInstalledVisualStudios( process, retry );
+        std::tie( aOK, errorMsg, retVal ) = NSABUtils::NVSInstallUtils::getInstalledVisualStudios();
         return std::make_tuple( aOK, errorMsg, retVal );
     }
 
