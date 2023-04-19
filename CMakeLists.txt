@@ -37,8 +37,9 @@ find_package(Deploy REQUIRED)
 find_package(AddUnitTest REQUIRED)
 set_property( GLOBAL PROPERTY USE_FOLDERS ON )
 
-SET( HOME_BIN_DIR C:/Users/sbloom/bin )
+file(REAL_PATH ~/bin HOME_BIN_DIR EXPAND_TILDE)
 
+message( STATUS "HOME_BIN_DIR=${HOME_BIN_DIR}" )
 SET( CMAKE_INSTALL_PREFIX ${HOME_BIN_DIR}/VSProjMaker )
 
 add_custom_target( SABTests_SABUtils )
